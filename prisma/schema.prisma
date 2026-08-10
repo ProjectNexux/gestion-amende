@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Vehicule {
+  id                  String   @id @default(cuid())
+  societe             String   @default("Societe principale")
+  code                String   // VEH001
+  immatriculation     String
+  marque              String?
+  modele              String?
+  typeVehicule        String?
+  datePremiereImmat   String?
+  dateAcquisition     String?
+  numCarteGrise       String?
+  ptac                Int?
+  service             String?
+  conducteurAttitre   String?
+  statut              String?  @default("En service")
+  dateControleTech    String?
+  assuranceNum        String?
+  observations        String?
+  createdAt           DateTime @default(now())
+  contraventions      Contravention[]
+
+  @@unique([societe, code])
+  @@unique([societe, immatriculation])
+  @@index([societe])
+}
+
+model Conducteur {
+  id              String   @id @default(cuid())
+  societe         String   @default("Societe principale")
+  code            String   // COND001
+  civilite        String?
+  nom             String
+  prenom          String
+  dateNaissance   String?
+  lieuNaissance   String?
+  adresse         String?
+  codePostal      String?
+  ville           String?
+  pays            String?  @default("France")
+  telephone       String?
+  email           String?
+  numPermis       String?
+  dateObtention   String?
+  categoriesPermis String?
+  dateEmbauche    String?
+  statut          String?  @default("Actif")
+  createdAt       DateTime @default(now())
+  contraventions  Contravention[]
+
+  @@unique([societe, code])
+  @@index([societe])
+}
+
+model Contravention {
+  id                  String   @id @default(cuid())
+  societe             String   @default("Societe principale")
+  numDossier          String   // PV-2024-XXX
+  dateReceptionAvis   String?
+  numAvis             String?
+  dateInfraction      String?
+  heureInfraction     String?
+  natureInfraction    String?
+  lieuInfraction      String?
+  vitesseConstatee    Int?
+  vitesseAutorisee    Int?
+  montantAmende       Float?
+  pointsRetires       Int?     @default(0)
+  dateLimitePaiement  String?
+
+  // Vehicule lié
+  vehiculeId          String?
+  vehicule            Vehicule? @relation(fields: [vehiculeId], references: [id])
+  immatriculationOcr  String?
+
+  // Conducteur lié
+  conducteurId        String?
+  conducteur          Conducteur? @relation(fields: [conducteurId], references: [id])
+
+  // Dénonciation
+  statutDenonciation  String?  @default("À effectuer")
+  dateDenonciation    String?
+  modeDenonciation    String?
+  numDenonciationAntai String?
+
+  // Paiement
+  statutPaiement      String?  @default("En attente")
+  datePaiement        String?
+  payePar             String?
+
+  observations        String?
+  rawOcrText          String?
+  imageUrl            String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([societe, numDossier])
+  @@index([societe])
+}

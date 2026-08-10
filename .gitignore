@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+build
+dist
+.env.local
+.env
+*.log
+prisma/dev.db*
+prisma/migrations
