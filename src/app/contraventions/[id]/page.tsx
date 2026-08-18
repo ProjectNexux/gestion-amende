@@ -2,17 +2,20 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import ContraventionForm from "@/components/ContraventionForm";
 import { updateContraventionAction, deleteContraventionAction } from "../actions";
+import { requireSociete, isAdminSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditContraventionPage({ params }: { params: Promise<{ id: string }> }) {
+  const societe = await requireSociete();
+  const isAdmin = await isAdminSession();
   const { id } = await params;
   const [item, vehicules, conducteurs] = await Promise.all([
     prisma.contravention.findUnique({ where: { id } }),
-    prisma.vehicule.findMany({ orderBy: [{ societe: "asc" }, { immatriculation: "asc" }] }),
-    prisma.conducteur.findMany({ orderBy: [{ societe: "asc" }, { nom: "asc" }] }),
+    prisma.vehicule.findMany({ where: isAdmin ? {} : { societe }, orderBy: { immatriculation: "asc" } }),
+    prisma.conducteur.findMany({ where: isAdmin ? {} : { societe }, orderBy: { nom: "asc" } }),
   ]);
-  if (!item) notFound();
+  if (!item || (!isAdmin && item.societe !== societe)) notFound();
 
   const updateWith = updateContraventionAction.bind(null, id);
   const deleteWith = deleteContraventionAction.bind(null, id);
@@ -31,8 +34,8 @@ export default async function EditContraventionPage({ params }: { params: Promis
       <ContraventionForm
         action={updateWith}
         initial={item}
-        vehicules={vehicules.map((v) => ({ id: v.id, label: `[${v.societe}] ${v.immatriculation} — ${v.marque ?? ""} ${v.modele ?? ""}` }))}
-        conducteurs={conducteurs.map((c) => ({ id: c.id, label: `[${c.societe}] ${c.prenom} ${c.nom}` }))}
+        vehicules={vehicules.map((v) => ({ id: v.id, label: `${v.immatriculation} — ${v.marque ?? ""} ${v.modele ?? ""}` }))}
+        conducteurs={conducteurs.map((c) => ({ id: c.id, label: `${c.prenom} ${c.nom}` }))}
         showStatutBlocks
         submitLabel="Mettre à jour"
       />

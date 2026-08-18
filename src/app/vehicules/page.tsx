@@ -1,29 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { createVehicule, deleteVehicule } from "./actions";
+import { requireSociete, isAdminSession } from "@/lib/auth";
+import AddVehiculePanel from "./AddVehiculePanel";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function VehiculesPage() {
-  const items = await prisma.vehicule.findMany({ orderBy: [{ societe: "asc" }, { code: "asc" }] });
+  const societe = await requireSociete();
+  const isAdmin = await isAdminSession();
+  const items = await prisma.vehicule.findMany({ where: isAdmin ? {} : { societe }, orderBy: { code: "asc" } });
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Véhicules</h1>
-
-      <details className="bg-white border border-gray-200 rounded-lg p-5">
-        <summary className="cursor-pointer text-sm font-medium">+ Ajouter un véhicule</summary>
-        <form action={createVehicule} className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-          <input name="societe" placeholder="Société *" defaultValue="Societe principale" required className={inp} />
-          <input name="code" placeholder="Code (auto)" className={inp} />
-          <input name="immatriculation" placeholder="Immatriculation *" required className={inp} />
-          <input name="marque" placeholder="Marque" className={inp} />
-          <input name="modele" placeholder="Modèle" className={inp} />
-          <input name="typeVehicule" placeholder="Type (fourgon, camion…)" className={inp} />
-          <input name="service" placeholder="Service" className={inp} />
-          <div className="md:col-span-3 flex justify-end">
-            <button className="bg-[var(--color-brand)] text-white px-4 py-2 rounded-md text-sm">Créer</button>
-          </div>
-        </form>
-      </details>
+      <AddVehiculePanel action={createVehicule} />
 
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <table className="w-full text-sm">
@@ -36,7 +25,7 @@ export default async function VehiculesPage() {
               <th className="text-left p-3">Type</th>
               <th className="text-left p-3">Service</th>
               <th className="text-left p-3">Statut</th>
-              <th></th>
+              <th className="text-left p-3">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -50,9 +39,12 @@ export default async function VehiculesPage() {
                 <td className="p-3">{v.service ?? "—"}</td>
                 <td className="p-3">{v.statut}</td>
                 <td className="p-3 text-right">
-                  <form action={deleteVehicule.bind(null, v.id)}>
-                    <button className="text-xs text-red-600 hover:underline">Suppr.</button>
-                  </form>
+                  <div className="flex items-center justify-end gap-3">
+                    <Link href={`/vehicules/${v.id}`} className="text-xs text-[var(--color-brand)] hover:underline">Voir / Modifier</Link>
+                    <form action={deleteVehicule.bind(null, v.id)}>
+                      <button className="text-xs text-red-600 hover:underline">Suppr.</button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -62,5 +54,3 @@ export default async function VehiculesPage() {
     </div>
   );
 }
-
-const inp = "px-3 py-2 border border-gray-300 rounded-md text-sm";

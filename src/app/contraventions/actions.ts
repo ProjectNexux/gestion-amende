@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireSociete } from "@/lib/auth";
 
 function getStr(fd: FormData, k: string) {
   const v = fd.get(k);
@@ -30,8 +31,8 @@ async function nextDossierBySociete(societe: string): Promise<string> {
   return `${prefix}${String(n).padStart(3, "0")}`;
 }
 
-export async function createContraventionAction(fd: FormData) {
-  const societe = getStr(fd, "societe") ?? "Societe principale";
+async function createContraventionFromFormData(fd: FormData) {
+  const societe = await requireSociete();
   let numDossier = getStr(fd, "numDossier");
   if (!numDossier) numDossier = await nextDossierBySociete(societe);
 
@@ -79,11 +80,35 @@ export async function createContraventionAction(fd: FormData) {
 
   revalidatePath("/contraventions");
   revalidatePath("/");
+
+  return created;
+}
+
+export type CreateContraventionScanState = {
+  ok: boolean;
+  id?: string;
+  error?: string;
+};
+
+export async function createContraventionFromScanAction(
+  _prevState: CreateContraventionScanState,
+  fd: FormData,
+): Promise<CreateContraventionScanState> {
+  try {
+    const created = await createContraventionFromFormData(fd);
+    return { ok: true, id: created.id };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Erreur lors de l'enregistrement." };
+  }
+}
+
+export async function createContraventionAction(fd: FormData) {
+  const created = await createContraventionFromFormData(fd);
   redirect(`/contraventions/${created.id}`);
 }
 
 export async function updateContraventionAction(id: string, fd: FormData) {
-  const societe = getStr(fd, "societe") ?? "Societe principale";
+  const societe = await requireSociete();
   const immat = getStr(fd, "immatriculationOcr");
   const selectedVehiculeId = getStr(fd, "vehiculeId");
   const selectedConducteurId = getStr(fd, "conducteurId");

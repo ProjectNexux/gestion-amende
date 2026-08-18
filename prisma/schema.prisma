@@ -3,13 +3,41 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model Societe {
+  id        String   @id @default(cuid())
+  nom       String   @unique
+  codeAcces String
+  createdAt DateTime @default(now())
+
+  users      User[]
+  vehicules  Vehicule[] @relation("VehiculeSociete")
+  conducteurs Conducteur[] @relation("ConducteurSociete")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  societeId String
+  societe   Societe  @relation(fields: [societeId], references: [id])
+  nom       String
+  prenom    String
+  email     String?  @unique
+  telephone String?
+  role      String   @default("member")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([societeId])
 }
 
 model Vehicule {
   id                  String   @id @default(cuid())
   societe             String   @default("Societe principale")
+  societeRef          Societe? @relation("VehiculeSociete", fields: [societe], references: [nom])
   code                String   // VEH001
   immatriculation     String
   marque              String?
@@ -36,6 +64,7 @@ model Vehicule {
 model Conducteur {
   id              String   @id @default(cuid())
   societe         String   @default("Societe principale")
+  societeRef      Societe? @relation("ConducteurSociete", fields: [societe], references: [nom])
   code            String   // COND001
   civilite        String?
   nom             String
@@ -49,6 +78,15 @@ model Conducteur {
   telephone       String?
   email           String?
   numPermis       String?
+  numCarteIdentite String?
+  dateDelivranceCni String?
+  dateExpirationCni String?
+  cniRectoNom     String?
+  cniRectoMime    String?
+  cniRectoData    Bytes?
+  cniVersoNom     String?
+  cniVersoMime    String?
+  cniVersoData    Bytes?
   dateObtention   String?
   categoriesPermis String?
   dateEmbauche    String?
@@ -105,4 +143,29 @@ model Contravention {
 
   @@unique([societe, numDossier])
   @@index([societe])
+}
+
+model EmailScan {
+  id              String   @id @default(cuid())
+  societe         String   @default("Societe principale")
+  messageId       String   @unique
+  fromAddress     String?
+  subject         String?
+  fileName        String
+  fileHash        String   @unique
+  fileMime        String
+  fileSize        Int
+  fileData        Bytes
+  status          String   @default("received") // received | processing | analyzed | created | error
+  ocrText         String?
+  parsedData      String?  // JSON string of ParsedFine
+  errorMessage    String?
+  contraventionId String?
+  receivedAt      DateTime @default(now())
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([societe])
+  @@index([status])
 }

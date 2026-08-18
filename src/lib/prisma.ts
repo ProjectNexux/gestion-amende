@@ -1,9 +1,13 @@
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const PRISMA_GLOBAL = Symbol.for("gestion-amende.prisma");
+
+const globalForPrisma = globalThis as typeof globalThis & {
+  [PRISMA_GLOBAL]?: PrismaClient;
+};
 
 export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({ log: ["error", "warn"] });
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+  globalForPrisma[PRISMA_GLOBAL] ??
+  (globalForPrisma[PRISMA_GLOBAL] = new PrismaClient({
+    log: ["error", "warn"],
+  }));

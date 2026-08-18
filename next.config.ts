@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: "10mb" },
   },
-  serverExternalPackages: ["exceljs"],
+  serverExternalPackages: ["exceljs", "canvas", "sharp", "tesseract.js", "imapflow", "mailparser", "pdfjs-dist"],
 };
 
 export default nextConfig;

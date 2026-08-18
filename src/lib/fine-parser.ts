@@ -7,6 +7,7 @@
 
 export type ParsedFine = {
   numAvis?: string;
+  dateReceptionAvis?: string; // dd/mm/yyyy (date de l'avis / réception)
   dateInfraction?: string; // dd/mm/yyyy
   heureInfraction?: string; // HH:MM
   immatriculation?: string;
@@ -36,6 +37,8 @@ const reMontant = /(\d{1,4}(?:[ .,]\d{3})*(?:[,.]\d{2})?)\s*€/;
 const reVitesse = /(\d{2,3})\s*km\/?h/gi;
 const reAvis = /(?:N[°ºo]?\s*(?:d[''']?avis|avis)\s*[:#]?\s*)([0-9A-Z\-\/]{8,})/i;
 const reAvisFallback = /\b(\d{10,}(?:[-\d]{3,}){0,5})\b/;
+const reTelepaiement = /(?:n[°ºo]?\s*de\s*)?t[ée]l[ée]paiement\s*[:#]?\s*([0-9\s]{8,24})/i;
+const reCleTelepaiement = /\bcl[ée]\s*[:#]?\s*(\d{2,3})\b/i;
 const rePoints = /(\d)\s*point/i;
 
 const natures: { pattern: RegExp; label: string }[] = [
@@ -43,13 +46,38 @@ const natures: { pattern: RegExp; label: string }[] = [
   { pattern: /exc[èe]s\s+de\s+vitesse[^.\n]*(?:<\s*20\s*km)/i, label: "Excès de vitesse < 20 km/h" },
   { pattern: /exc[èe]s\s+de\s+vitesse[^.\n]*(?:20\s*-\s*30)/i, label: "Excès de vitesse 20-30 km/h" },
   { pattern: /exc[èe]s\s+de\s+vitesse/i, label: "Excès de vitesse" },
+  { pattern: /d[ée]passement\s+(?:de\s+)?la\s+vitesse\s+maximale/i, label: "Excès de vitesse" },
+  { pattern: /vitesse\s+sup[ée]rieure/i, label: "Excès de vitesse" },
   { pattern: /stationnement\s+(?:tr[èe]s\s+)?g[êe]nant/i, label: "Stationnement gênant" },
+  { pattern: /stationnement\s+(?:interdit|abusif|irr[ée]gulier)/i, label: "Stationnement interdit" },
+  { pattern: /arr[êe]t\s+(?:ou\s+stationnement|interdit)/i, label: "Arrêt ou stationnement interdit" },
   { pattern: /feu\s+rouge/i, label: "Franchissement d'un feu rouge" },
+  { pattern: /signal(?:isation)?\s+(?:d[''']?arr[êe]t|stop)/i, label: "Non-respect d'un stop" },
   { pattern: /ligne\s+continue/i, label: "Franchissement d'une ligne continue" },
   { pattern: /non[-\s]paiement\s+du\s+p[ée]age|refus.*p[ée]age/i, label: "Non-paiement du péage" },
   { pattern: /voie\s+r[ée]serv[ée]e/i, label: "Circulation sur voie réservée" },
   { pattern: /plaque.*illisible/i, label: "Plaque d'immatriculation illisible" },
   { pattern: /non\s+d[ée]signation/i, label: "Non désignation d'une personne physique" },
+  { pattern: /t[ée]l[ée]phone|portable\s+(?:en\s+)?main/i, label: "Usage du téléphone au volant" },
+  { pattern: /ceinture\s+de\s+s[ée]curit[ée]/i, label: "Non-port de la ceinture" },
+  { pattern: /distance\s+(?:de\s+)?s[ée]curit[ée]/i, label: "Non-respect des distances de sécurité" },
+  { pattern: /sens\s+interdit/i, label: "Circulation en sens interdit" },
+  { pattern: /priorit[ée]/i, label: "Non-respect de la priorité" },
+  { pattern: /d[ée]passement\s+dangereux/i, label: "Dépassement dangereux" },
+  { pattern: /contr[ôo]le\s+technique/i, label: "Défaut de contrôle technique" },
+  { pattern: /assurance/i, label: "Défaut d'assurance" },
+];
+
+// Phrases parasites souvent captées par OCR au lieu de la vraie infraction
+const NATURE_NOISE = [
+  /personne\s+morale/i,
+  /repr[ée]sentant.*l[ée]gal/i,
+  /titulaire\s+du\s+certificat/i,
+  /avec\s+un\s+v[ée]hicule\s+de/i,
+  /est\s+redevable/i,
+  /vous\s+[êe]tes\s+(?:pri[ée]|invit[ée])/i,
+  /amende\s+forfaitaire/i,
+  /pr[ée]vu\s+(?:par|et\s+r[ée]prim[ée])/i,
 ];
 
 // Mots qui ressemblent au format AA-000-AA mais ne sont PAS des plaques
@@ -169,6 +197,12 @@ export function parseFine(rawText: string, knownPlates: string[] = []): ParsedFi
   const lower = text.toLowerCase();
   const result: ParsedFine = {};
 
+  // Cas ANTAI / carte de paiement : "Date de l'avis"
+  const dateAvis = text.match(/date\s+de\s+l[''']?avis[^\d]{0,20}(\d{2}[\/.-]\d{2}[\/.-]\d{4})/i);
+  if (dateAvis) {
+    result.dateReceptionAvis = dateAvis[1].replace(/[.-]/g, "/");
+  }
+
   // Immatriculation : on cherche d'abord près d'un mot-clé, puis dans tout le texte.
   const detected = findImmat(text);
   if (detected) {
@@ -239,6 +273,41 @@ export function parseFine(rawText: string, knownPlates: string[] = []): ParsedFi
     }
   }
 
+  // Fallback : chercher la ligne contenant "infraction", "contravention" ou "article" avec le libellé réel
+  if (!result.natureInfraction) {
+    const naturePatterns = [
+      /(?:infraction|contravention)\s*[:\-–]?\s*([^\n]{10,120})/i,
+      /(?:nature|motif)\s*[:\-–]?\s*([^\n]{10,120})/i,
+      /(?:article\s+R?\d[\d\-\.]*[^\n]{0,10})\s*[:\-–]?\s*([^\n]{10,100})/i,
+    ];
+    for (const re of naturePatterns) {
+      const m = text.match(re);
+      if (m) {
+        let candidate = m[1].trim();
+        // Nettoyer : couper après un point ou un retour
+        candidate = candidate.split(/[.\n]/)[0].trim();
+        // Vérifier que ce n'est pas du bruit
+        const isNoise = NATURE_NOISE.some((noise) => noise.test(candidate));
+        if (!isNoise && candidate.length > 5 && candidate.length < 120) {
+          result.natureInfraction = candidate;
+          break;
+        }
+      }
+    }
+  }
+
+  // Dernier recours : chercher un article du code de la route
+  if (!result.natureInfraction) {
+    const articleMatch = text.match(/(?:article|art\.?)\s+(R?\.?\s*\d[\d\-\.]*(?:\s*(?:du\s+)?(?:code|CR|C\.?\s*route))?[^\n]{0,60})/i);
+    if (articleMatch) {
+      const candidate = articleMatch[1].trim().split(/[.\n]/)[0].trim();
+      const isNoise = NATURE_NOISE.some((noise) => noise.test(candidate));
+      if (!isNoise && candidate.length > 3) {
+        result.natureInfraction = `Art. ${candidate}`;
+      }
+    }
+  }
+
   // N° avis
   const am = text.match(reAvis);
   if (am) {
@@ -248,12 +317,35 @@ export function parseFine(rawText: string, knownPlates: string[] = []): ParsedFi
     if (af) result.numAvis = af[1];
   }
 
+  // Fallback ANTAI : n° de télépaiement (+ clé) si le n° avis n'a pas été trouvé.
+  if (!result.numAvis) {
+    const tele = text.match(reTelepaiement);
+    if (tele) {
+      const teleNum = tele[1].replace(/\s+/g, "").trim();
+      const cle = text.match(reCleTelepaiement)?.[1];
+      result.numAvis = cle ? `${teleNum}-${cle}` : teleNum;
+    }
+  }
+
   // Lieu : ligne contenant "lieu" ou "commise" ou route nationale/autoroute
-  const lieuM = text.match(/(?:lieu|commise)[^A-Za-z0-9]{1,5}([^\n]{5,80})/i);
-  if (lieuM) {
-    result.lieuInfraction = lieuM[1].trim().split(/\s{2,}/)[0];
-  } else {
-    const routeM = text.match(/\b(A\d{1,3}|N\d{1,3}|D\d{1,3}|RD\d{1,3})\b[^\n]{0,80}/);
+  const lieuPatterns = [
+    /(?:lieu\s+(?:de\s+l[''']?)?(?:infraction|commission))[^A-Za-z0-9]{1,5}([^\n]{5,80})/i,
+    /(?:commise\s+[àa]|commise\s+sur|commise)[^A-Za-z0-9]{1,5}([^\n]{5,80})/i,
+    /(?:lieu)[^A-Za-z0-9]{1,5}([^\n]{5,80})/i,
+  ];
+  for (const re of lieuPatterns) {
+    const m = text.match(re);
+    if (m) {
+      let candidate = m[1].trim().split(/\s{2,}/)[0];
+      const isNoise = NATURE_NOISE.some((noise) => noise.test(candidate));
+      if (!isNoise && candidate.length > 3) {
+        result.lieuInfraction = candidate;
+        break;
+      }
+    }
+  }
+  if (!result.lieuInfraction) {
+    const routeM = text.match(/\b(A\d{1,3}|N\d{1,3}|D\d{1,3}|RD\d{1,3}|RN\d{1,3})\b[^\n]{0,80}/);
     if (routeM) result.lieuInfraction = routeM[0].trim();
   }
 

@@ -1,7 +1,9 @@
 "use server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { notFound } from "next/navigation";
 import { redirect } from "next/navigation";
+import { requireSociete } from "@/lib/auth";
 
 function s(fd: FormData, k: string) {
   const v = fd.get(k);
@@ -22,7 +24,7 @@ async function nextCode(societe: string): Promise<string> {
 }
 
 export async function createVehicule(fd: FormData) {
-  const societe = s(fd, "societe") ?? "Societe principale";
+  const societe = await requireSociete();
   const code = s(fd, "code") ?? (await nextCode(societe));
   const immatriculation = s(fd, "immatriculation");
   if (!immatriculation) return;
@@ -45,4 +47,41 @@ export async function createVehicule(fd: FormData) {
 export async function deleteVehicule(id: string) {
   await prisma.vehicule.delete({ where: { id } });
   revalidatePath("/vehicules");
+}
+
+export async function updateVehicule(id: string, fd: FormData) {
+  const societe = await requireSociete();
+  const existing = await prisma.vehicule.findFirst({ where: { id, societe } });
+  if (!existing) notFound();
+
+  const conducteurAttitre = s(fd, "conducteurAttitre");
+  let conducteurAttitreSafe: string | null = null;
+  if (conducteurAttitre) {
+    const conducteur = await prisma.conducteur.findFirst({
+      where: { id: conducteurAttitre, societe },
+      select: { id: true },
+    });
+    if (!conducteur) {
+      throw new Error("Conducteur attitré invalide pour cette société.");
+    }
+    conducteurAttitreSafe = conducteur.id;
+  }
+
+  await prisma.vehicule.update({
+    where: { id },
+    data: {
+      code: s(fd, "code") ?? existing.code,
+      immatriculation: s(fd, "immatriculation") ?? existing.immatriculation,
+      marque: s(fd, "marque"),
+      modele: s(fd, "modele"),
+      typeVehicule: s(fd, "typeVehicule"),
+      service: s(fd, "service"),
+      statut: s(fd, "statut") ?? "En service",
+      conducteurAttitre: conducteurAttitreSafe,
+    },
+  });
+
+  revalidatePath("/vehicules");
+  revalidatePath(`/vehicules/${id}`);
+  redirect(`/vehicules/${id}`);
 }

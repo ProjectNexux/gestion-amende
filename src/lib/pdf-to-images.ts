@@ -13,6 +13,51 @@ async function loadPdfjs(): Promise<Pdfjs> {
   return pdfjs;
 }
 
+function findSequence(data: Uint8Array, seq: number[], fromEnd = false): number {
+  if (seq.length === 0 || data.length < seq.length) return -1;
+  if (!fromEnd) {
+    for (let i = 0; i <= data.length - seq.length; i++) {
+      let ok = true;
+      for (let j = 0; j < seq.length; j++) {
+        if (data[i + j] !== seq[j]) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) return i;
+    }
+    return -1;
+  }
+
+  for (let i = data.length - seq.length; i >= 0; i--) {
+    let ok = true;
+    for (let j = 0; j < seq.length; j++) {
+      if (data[i + j] !== seq[j]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return i;
+  }
+  return -1;
+}
+
+function sanitizePdfBytes(input: Uint8Array): Uint8Array {
+  const header = [0x25, 0x50, 0x44, 0x46]; // %PDF
+  const eof = [0x25, 0x25, 0x45, 0x4f, 0x46]; // %%EOF
+
+  const start = findSequence(input, header);
+  if (start === -1) return input;
+
+  const eofIndex = findSequence(input, eof, true);
+  if (eofIndex === -1 || eofIndex < start) {
+    return input.slice(start);
+  }
+
+  const endExclusive = Math.min(input.length, eofIndex + eof.length);
+  return input.slice(start, endExclusive);
+}
+
 /**
  * Pré-traite un canvas pour booster la précision OCR :
  * - Niveaux de gris
@@ -43,18 +88,32 @@ export function preprocessForOcr(canvas: HTMLCanvasElement): HTMLCanvasElement {
 async function openPdf(file: File) {
   const pdfjs = await loadPdfjs();
   const buf = await file.arrayBuffer();
-  return pdfjs.getDocument({
-    data: buf,
-    isEvalSupported: false,
-    useSystemFonts: true,
-  }).promise;
+  const raw = new Uint8Array(buf);
+
+  const openWith = (data: Uint8Array) =>
+    pdfjs.getDocument({
+      data,
+      isEvalSupported: false,
+      useSystemFonts: true,
+      stopAtErrors: false,
+    }).promise;
+
+  try {
+    return await openWith(raw);
+  } catch (error) {
+    const cleaned = sanitizePdfBytes(raw);
+    const changed = cleaned.length !== raw.length || cleaned[0] !== raw[0];
+    if (!changed) throw error;
+    return openWith(cleaned);
+  }
 }
 
 /** Extrait le texte natif d'un PDF (rapide). Retourne "" si PDF scanné. */
-export async function extractPdfText(file: File): Promise<string> {
+export async function extractPdfText(file: File, maxPages?: number): Promise<string> {
   const pdf = await openPdf(file);
   let out = "";
-  for (let i = 1; i <= pdf.numPages; i++) {
+  const totalPages = maxPages ? Math.min(pdf.numPages, Math.max(1, maxPages)) : pdf.numPages;
+  for (let i = 1; i <= totalPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     const pageText = content.items
@@ -67,10 +126,15 @@ export async function extractPdfText(file: File): Promise<string> {
 }
 
 /** Rend chaque page en canvas (pour OCR). */
-export async function pdfToCanvases(file: File, scale = 2): Promise<HTMLCanvasElement[]> {
+export async function pdfToCanvases(
+  file: File,
+  options: { scale?: number; maxPages?: number } = {},
+): Promise<HTMLCanvasElement[]> {
+  const { scale = 2, maxPages } = options;
   const pdf = await openPdf(file);
   const canvases: HTMLCanvasElement[] = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
+  const totalPages = maxPages ? Math.min(pdf.numPages, Math.max(1, maxPages)) : pdf.numPages;
+  for (let i = 1; i <= totalPages; i++) {
     const page = await pdf.getPage(i);
     const viewport = page.getViewport({ scale });
     const canvas = document.createElement("canvas");
