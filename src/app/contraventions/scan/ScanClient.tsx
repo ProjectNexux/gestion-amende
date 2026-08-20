@@ -85,6 +85,11 @@ function ocrTextScore(text: string): number {
   return alphaNum;
 }
 
+// Score at/above which we stop trying further preprocessing variants — most well-lit scans clear
+// this on the very first attempt, so this is what turns "7 sequential OCR passes" into "1" in the
+// common case (each fresh tesseract worker + recognition pass previously cost 1-3s on its own).
+const GOOD_ENOUGH_SCORE = 80;
+
 async function fileToCanvas(file: File): Promise<HTMLCanvasElement> {
   let bitmap: ImageBitmap;
   try {
@@ -137,10 +142,12 @@ export default function ScanClient({ vehicules, conducteurs, knownPlates }: { ve
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  async function ocrSource(source: File | HTMLCanvasElement): Promise<string> {
-    const { createWorker, PSM } = await import("tesseract.js");
-
-    const worker = await createWorker("fra+eng", 1, {
+  async function createOcrWorker() {
+    const { createWorker } = await import("tesseract.js");
+    return createWorker("fra+eng", 1, {
+      // Absolute URL required: the worker thread's fetch() can't resolve a root-relative path.
+      langPath: `${window.location.origin}/tessdata`,
+      gzip: false,
       logger: (m: { status: string; progress: number }) => {
         if (m.status === "recognizing text") {
           setProgress(Math.round(m.progress * 100));
@@ -150,73 +157,82 @@ export default function ScanClient({ vehicules, conducteurs, knownPlates }: { ve
         setErrorMsg(error instanceof Error ? error.message : String(error));
       },
     });
+  }
 
+  // Recognizes with an already-created worker (recreating one per attempt was the main cost —
+  // each createWorker() re-initializes the WASM core, which dwarfs the recognition time itself).
+  async function recognizeWithWorker(
+    worker: Awaited<ReturnType<typeof createOcrWorker>>,
+    source: File | HTMLCanvasElement,
+    psm: import("tesseract.js").PSM,
+  ): Promise<string> {
     try {
-      try {
-        await worker.setParameters({
-          tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
-          preserve_interword_spaces: "1",
-        });
-      } catch {
-        // Certaines versions de tesseract.js ignorent ces paramètres.
-      }
-      const { data } = await worker.recognize(source);
-      return data.text;
-    } finally {
-      try {
-        await worker.terminate();
-      } catch {
-        // ignore terminate failures
-      }
+      await worker.setParameters({ tessedit_pageseg_mode: psm, preserve_interword_spaces: "1" });
+    } catch {
+      // Certaines versions de tesseract.js ignorent ces paramètres.
     }
+    const { data } = await worker.recognize(source);
+    return data.text;
   }
 
   async function ocrCanvasRobust(canvas: HTMLCanvasElement): Promise<string> {
-    const attempts: Array<() => Promise<string>> = [
-      async () => {
-        const base = cloneCanvas(canvas);
-        return ocrSource(base);
-      },
+    const { PSM } = await import("tesseract.js");
+    const attempts: Array<() => Promise<[HTMLCanvasElement, import("tesseract.js").PSM]>> = [
+      async () => [cloneCanvas(canvas), PSM.SINGLE_BLOCK],
+      async () => [cloneCanvas(canvas), PSM.AUTO], // mise en page multi-colonnes/tableaux (encadrés ANTAI)
       async () => {
         const enhanced = cloneCanvas(canvas);
         preprocessForOcr(enhanced);
-        return ocrSource(enhanced);
-      },
-      async () => {
-        const inv = invertCanvas(canvas);
-        preprocessForOcr(inv);
-        return ocrSource(inv);
+        return [enhanced, PSM.SINGLE_BLOCK];
       },
       async () => {
         const up = upscaleCanvas(canvas);
         preprocessForOcr(up);
-        return ocrSource(up);
+        return [up, PSM.SINGLE_BLOCK];
       },
       async () => {
         const r90 = rotateCanvas(canvas, 90);
         preprocessForOcr(r90);
-        return ocrSource(r90);
+        return [r90, PSM.SINGLE_BLOCK];
       },
       async () => {
         const r270 = rotateCanvas(canvas, 270);
         preprocessForOcr(r270);
-        return ocrSource(r270);
+        return [r270, PSM.SINGLE_BLOCK];
+      },
+      async () => {
+        const inv = invertCanvas(canvas);
+        preprocessForOcr(inv);
+        return [inv, PSM.SINGLE_BLOCK];
       },
     ];
 
     let bestText = "";
     let firstError: Error | null = null;
+    const worker = await createOcrWorker();
 
-    for (const attempt of attempts) {
+    try {
+      for (const attempt of attempts) {
+        try {
+          const [source, psm] = await attempt();
+          const text = await recognizeWithWorker(worker, source, psm);
+          if (ocrTextScore(text) > ocrTextScore(bestText)) {
+            bestText = text;
+          }
+          if (ocrTextScore(bestText) >= GOOD_ENOUGH_SCORE) {
+            break; // assez bon : inutile de tester les variantes restantes
+          }
+        } catch (e) {
+          if (!firstError) {
+            firstError = e instanceof Error ? e : new Error(String(e));
+          }
+        }
+      }
+    } finally {
       try {
-        const text = await attempt();
-        if (ocrTextScore(text) > ocrTextScore(bestText)) {
-          bestText = text;
-        }
-      } catch (e) {
-        if (!firstError) {
-          firstError = e instanceof Error ? e : new Error(String(e));
-        }
+        await worker.terminate();
+      } catch {
+        // ignore terminate failures
       }
     }
 

@@ -7,6 +7,10 @@ import path from "path";
 
 const execFileAsync = promisify(execFile);
 
+// Local trained data (see public/tessdata/) — avoids tesseract.js falling back to its default
+// CDN download on every worker creation, which is slow and fails without outbound network access.
+const TESSDATA_PATH = path.join(process.cwd(), "public", "tessdata");
+
 function log(msg: string) { console.log(`[EMAIL-SCAN][OCR] ${msg}`); }
 
 /**
@@ -57,6 +61,8 @@ async function ocrPdf(pdfData: Buffer): Promise<string> {
   let fullText = "";
 
   const tmpDir = await mkdtemp(path.join(tmpdir(), "scan-ocr-"));
+  const { createWorker } = await import("tesseract.js");
+  const worker = await createWorker("fra+eng", 1, { langPath: TESSDATA_PATH, gzip: false, cachePath: TESSDATA_PATH });
   try {
     const pdfPath = path.join(tmpDir, "input.pdf");
     await writeFile(pdfPath, pdfData);
@@ -67,7 +73,7 @@ async function ocrPdf(pdfData: Buffer): Promise<string> {
         "-png",
         "-singlefile",
         "-r",
-        "200",
+        "300",
         "-f",
         String(i),
         "-l",
@@ -76,17 +82,18 @@ async function ocrPdf(pdfData: Buffer): Promise<string> {
         outPrefix,
       ]);
       const pngBuffer = await readFile(`${outPrefix}.png`);
-      const pageText = await ocrImageBuffer(pngBuffer);
+      const pageText = await ocrImageBuffer(pngBuffer, worker);
       fullText += (i > 1 ? `\n\n--- PAGE ${i} ---\n\n` : "") + pageText;
     }
   } finally {
+    await worker.terminate();
     await rm(tmpDir, { recursive: true, force: true });
   }
 
   return fullText;
 }
 
-async function ocrImageBuffer(imgBuffer: Buffer): Promise<string> {
+async function ocrImageBuffer(imgBuffer: Buffer, sharedWorker?: Awaited<ReturnType<typeof import("tesseract.js")["createWorker"]>>): Promise<string> {
   // Preprocess with sharp for better OCR results
   const processed = await sharp(imgBuffer)
     .greyscale()
@@ -95,13 +102,14 @@ async function ocrImageBuffer(imgBuffer: Buffer): Promise<string> {
     .png()
     .toBuffer();
 
-  const { createWorker } = await import("tesseract.js");
-  const worker = await createWorker("fra+eng");
+  const worker =
+    sharedWorker ??
+    (await (await import("tesseract.js")).createWorker("fra+eng", 1, { langPath: TESSDATA_PATH, gzip: false, cachePath: TESSDATA_PATH }));
 
   try {
     const { data } = await worker.recognize(processed);
     return data.text;
   } finally {
-    await worker.terminate();
+    if (!sharedWorker) await worker.terminate();
   }
 }

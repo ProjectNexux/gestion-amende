@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Mail, Copy, CheckCircle2, Clock, AlertTriangle, FileText,
-  Loader2, RefreshCw, ExternalLink, Trash2, X, Eye, Maximize2, Minimize2,
+  Loader2, RefreshCw, ExternalLink, Trash2, X, Eye,
 } from "lucide-react";
+import { DocumentViewerModal } from "@/components/DocumentViewerModal";
 
 type EmailScanItem = {
   id: string;
@@ -288,61 +289,16 @@ export function EmailScanList() {
       )}
 
       {viewingScan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-          <div
-            className={`flex w-full flex-col rounded-2xl bg-white shadow-2xl transition-all ${
-              expanded ? "fixed inset-4" : "max-w-4xl h-[85vh]"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
-              <div className="min-w-0">
-                <h4 className="truncate text-sm font-semibold text-slate-900">{viewingScan.fileName}</h4>
-                <p className="text-xs text-slate-500">{formatSize(viewingScan.fileSize)}</p>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <a
-                  href={`/api/scan-email/${viewingScan.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-                >
-                  <ExternalLink size={13} /> Nouvel onglet
-                </a>
-                <button
-                  onClick={() => setExpanded((v) => !v)}
-                  aria-label={expanded ? "Réduire" : "Agrandir"}
-                  className="rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:bg-slate-50"
-                >
-                  {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                </button>
-                <button
-                  onClick={() => setViewingScan(null)}
-                  aria-label="Fermer"
-                  className="rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:bg-slate-50"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-auto bg-slate-100">
-              {viewingScan.fileMime.startsWith("image/") ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={`/api/scan-email/${viewingScan.id}`}
-                  alt={viewingScan.fileName}
-                  className="mx-auto h-auto max-w-full"
-                />
-              ) : (
-                <iframe
-                  src={`/api/scan-email/${viewingScan.id}`}
-                  title={viewingScan.fileName}
-                  className="h-full w-full border-0"
-                />
-              )}
-            </div>
-          </div>
-        </div>
+        <DocumentViewerModal
+          open
+          onClose={() => setViewingScan(null)}
+          fileUrl={`/api/scan-email/${viewingScan.id}`}
+          downloadUrl={`/api/scan-email/${viewingScan.id}?download=1`}
+          fileName={viewingScan.fileName}
+          fileMime={viewingScan.fileMime}
+          expanded={expanded}
+          onToggleExpand={() => setExpanded((v) => !v)}
+        />
       )}
     </div>
   );

@@ -3,5 +3,8 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { startEmailPollScheduler } = await import("@/lib/email-poll-scheduler");
     startEmailPollScheduler();
+
+    const { startPubCleanupScheduler } = await import("@/lib/pub-cleanup-scheduler");
+    startPubCleanupScheduler();
   }
 }

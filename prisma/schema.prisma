@@ -8,14 +8,16 @@ datasource db {
 }
 
 model Societe {
-  id        String   @id @default(cuid())
-  nom       String   @unique
-  codeAcces String
-  createdAt DateTime @default(now())
+  id                String   @id @default(cuid())
+  nom               String   @unique
+  codeAcces         String
+  emailTransmission String? // adresse à laquelle transmettre les courriers administratifs de cette société
+  createdAt         DateTime @default(now())
 
   users      User[]
   vehicules  Vehicule[] @relation("VehiculeSociete")
   conducteurs Conducteur[] @relation("ConducteurSociete")
+  courriers  Courrier[] @relation("CourrierSociete")
 }
 
 model User {
@@ -145,6 +147,86 @@ model Contravention {
   @@index([societe])
 }
 
+// Generic document model shared by all "Courriers" categories (certificats d'immatriculation today,
+// mises en demeure / factures / sinistres / etc. later). Type-specific fields live in `data` (JSON)
+// instead of one column/table per document type.
+model Courrier {
+  id          String   @id @default(cuid())
+  societe     String   @default("Societe principale")
+  societeRef  Societe? @relation("CourrierSociete", fields: [societe], references: [nom])
+  type        String   // "certificat_immatriculation" for now, more types later
+  data        Json     @default("{}") // type-specific fields, e.g. { "immatriculation": "AB-123-CD" }
+
+  fileName    String
+  fileMime    String
+  fileSize    Int
+  fileData    Bytes
+
+  // Set only for temporary documents (e.g. type "pub"); a background job deletes the row once
+  // this passes. Null means "not scheduled for automatic deletion".
+  expiresAt   DateTime?
+
+  receivedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([societe])
+  @@index([type])
+  @@index([expiresAt])
+}
+
+// Minimal audit trail kept after a Courrier row is permanently deleted (e.g. Pub auto-expiry),
+// since the row itself — and its file — no longer exist to inspect afterwards.
+model CourrierSuppressionLog {
+  id         String   @id @default(cuid())
+  courrierId String
+  societe    String
+  type       String
+  fileName   String
+  receivedAt DateTime
+  deletedAt  DateTime @default(now())
+  motif      String
+
+  @@index([societe])
+}
+
+// Generic, reusable payment record — deliberately not specific to "retard de paiement" so any
+// future feature can create payments against it (see src/lib/payments). Never stores card data:
+// only the provider's own reference, amount, status and (if legally provided) last 4 digits.
+model Paiement {
+  id           String   @id @default(cuid())
+  societe      String   // beneficiary société (CSPL / NETECO / Optimove Consulting)
+  linkedType   String   // e.g. "retard_paiement" — what this payment is for
+  linkedId     String   // id of the linked record (e.g. Courrier id)
+  montant      Int      // amount in cents, avoids float rounding
+  devise       String   @default("EUR")
+  mode         String   // "carte" | "lien" | "qrcode" | "terminal" (future)
+  statut       String   // "en_attente" | "reussi" | "echec" | "rembourse" | "abandonne"
+  provider     String   @default("mock") // "mock" | "stripe" (future)
+  providerRef  String?  @unique // dedup key — a given provider transaction can only ever count once
+  cardLast4    String?
+  recuUrl      String?
+  creePar      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([societe])
+  @@index([linkedType, linkedId])
+  @@index([statut])
+}
+
+// Technical audit trail for payment lifecycle events — never contains card/bank data.
+model PaiementAuditLog {
+  id         String   @id @default(cuid())
+  paiementId String
+  action     String   // "cree" | "confirme" | "echoue" | "statut_change" | "lien_genere" | "rembourse"
+  details    String?
+  acteur     String?
+  createdAt  DateTime @default(now())
+
+  @@index([paiementId])
+}
+
 model EmailScan {
   id              String   @id @default(cuid())
   societe         String   @default("Societe principale")
@@ -161,6 +243,7 @@ model EmailScan {
   parsedData      String?  // JSON string of ParsedFine
   errorMessage    String?
   contraventionId String?
+  courrierId      String? // set when classified as a Courrier (e.g. mise_en_demeure)
   receivedAt      DateTime @default(now())
   processedAt     DateTime?
   createdAt       DateTime @default(now())

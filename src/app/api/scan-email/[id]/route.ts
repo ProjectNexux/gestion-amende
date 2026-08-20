@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSociete, isAdminSession } from "@/lib/auth";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const societe = await getSociete();
   if (!societe) return NextResponse.json({ error: "Non connecté" }, { status: 401 });
 
@@ -17,10 +17,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Scan introuvable" }, { status: 404 });
   }
 
+  const download = request.nextUrl.searchParams.get("download") === "1";
+  const safeName = scan.fileName.replace(/[\r\n"]/g, "_");
+
   return new NextResponse(new Uint8Array(scan.fileData), {
     headers: {
       "Content-Type": scan.fileMime,
-      "Content-Disposition": `inline; filename="${scan.fileName.replace(/"/g, "")}"`,
+      "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${safeName}"`,
       "Cache-Control": "private, max-age=60",
     },
   });

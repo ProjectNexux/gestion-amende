@@ -9,5 +9,8 @@ dist
 prisma/dev.db*
 prisma/migrations
 *.traineddata
+!public/tessdata/*.traineddata
 test-amende.png
 
+.vercel
+.env*

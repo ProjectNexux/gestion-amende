@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { parseFine } from "@/lib/fine-parser";
 import { serverOcr } from "@/lib/server-ocr";
+import { classifyDocument, detectSimpleExpediteur } from "@/lib/document-classifier";
+import { parseMiseEnDemeure } from "@/lib/mise-en-demeure-parser";
+import { detectOrganisme, buildTransmission } from "@/lib/transmission";
+import { PUB_RETENTION_MINUTES } from "@/lib/courriers";
 
 function log(msg: string) { console.log(`[EMAIL-SCAN] ${msg}`); }
 
@@ -52,6 +56,101 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
         select: { immatriculation: true },
       }).then((vs) => vs.map((v) => v.immatriculation));
 
+      // Classification layer: contravention hints always win (see document-classifier.ts), so this
+      // can only ever redirect a scan away from the existing Contraventions pipeline when there is
+      // zero contravention signal in the text — the logic below is otherwise entirely unchanged.
+      const classification = classifyDocument(ocrText);
+      if (classification.type === "mise_en_demeure") {
+        const parsedMed = parseMiseEnDemeure(ocrText, scan.societe);
+        const societeExists = await prisma.societe.findUnique({ where: { nom: scan.societe } });
+        const statut = societeExists ? parsedMed.statut : "À vérifier";
+
+        // Transmission-to-client architecture (URSSAF today, more organismes later): detection,
+        // client identification and preparation only — sending stays entirely out of scope here.
+        const organisme = detectOrganisme(ocrText, parsedMed.expediteur);
+        const transmission = buildTransmission({
+          organisme,
+          societeConcernee: societeExists ? scan.societe : null,
+          societeConnue: !!societeExists,
+          identificationConfidence: parsedMed.confiance.sens,
+          acteur: scan.societe,
+          actionLabel: "Courrier re\u00e7u et analys\u00e9 automatiquement",
+        });
+
+        const courrier = await prisma.courrier.create({
+          data: {
+            societe: scan.societe,
+            type: "mise_en_demeure",
+            data: {
+              ...parsedMed,
+              societeConcernee: societeExists ? scan.societe : null,
+              statut,
+              origine: "auto",
+              transmission,
+            },
+            fileName: scan.fileName,
+            fileMime: scan.fileMime,
+            fileSize: scan.fileSize,
+            fileData: scan.fileData,
+            receivedAt: scan.receivedAt,
+          },
+        });
+
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: {
+            status: "created",
+            ocrText,
+            courrierId: courrier.id,
+            processedAt: new Date(),
+          },
+        });
+
+        log(`Mise en demeure d\u00e9tect\u00e9e et class\u00e9e (${statut}): ${scan.fileName} \u2192 courrier ${courrier.id}`);
+        processed++;
+        results.push({ id: scan.id, status: "created" });
+        continue;
+      }
+      // "Pub" is only ever reached when classifyDocument found clear commercial wording AND none
+      // of the exclusion signals (URSSAF, facture, échéance, montant dû, juridique, etc.) — see
+      // document-classifier.ts. Ambiguous mail simply falls through to "inconnu" below, unmodified.
+      if (classification.type === "pub") {
+        const classifiedAt = new Date();
+        const expiresAt = new Date(classifiedAt.getTime() + PUB_RETENTION_MINUTES * 60000);
+
+        const courrier = await prisma.courrier.create({
+          data: {
+            societe: scan.societe,
+            type: "pub",
+            data: {
+              expediteur: detectSimpleExpediteur(ocrText),
+              classifiedAt: classifiedAt.toISOString(),
+              conserve: false,
+            },
+            fileName: scan.fileName,
+            fileMime: scan.fileMime,
+            fileSize: scan.fileSize,
+            fileData: scan.fileData,
+            receivedAt: scan.receivedAt,
+            expiresAt,
+          },
+        });
+
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: {
+            status: "created",
+            ocrText,
+            courrierId: courrier.id,
+            processedAt: new Date(),
+          },
+        });
+
+        log(`Publicité détectée: ${scan.fileName} → courrier ${courrier.id} (suppression prévue à ${expiresAt.toLocaleTimeString("fr-FR")})`);
+        processed++;
+        results.push({ id: scan.id, status: "created" });
+        continue;
+      }
       const parsed = parseFine(ocrText, knownPlates);
       const parsedJson = JSON.stringify(parsed);
 
