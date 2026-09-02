@@ -9,7 +9,6 @@ import {
   Users,
   FileText,
   FileWarning,
-  ScanLine,
   LayoutGrid,
   Download,
   LogOut,
@@ -93,13 +92,6 @@ const NAV_CONFIG: NavEntry[] = [
     label: "Contraventions",
     icon: <FileWarning size={17} strokeWidth={1.75} />,
     children: [
-      {
-        type: "link",
-        href: "/contraventions/scan",
-        label: "Scanner un document",
-        icon: <ScanLine size={17} strokeWidth={1.75} />,
-        match: (pathname) => pathname.startsWith("/contraventions/scan"),
-      },
       {
         type: "link",
         href: "/contraventions",
