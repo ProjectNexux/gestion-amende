@@ -235,9 +235,10 @@ export function NewDocumentMenu({ className }: { className?: string }) {
           duplicate: null,
           duplicateAction: "ignorer",
           societe: targetSocieteValue,
-          // Safe default: auto-filing skips the review step, so it must NOT also auto-publish to
-          // the client portal — visibilité stays an explicit admin action from the record itself.
-          visibleClient: false,
+          // A confidently auto-detected client (different from the uploader's own société) means
+          // the document is genuinely theirs — publish it straight to their espace client. Falls
+          // back to hidden when nothing was detected (stays under the uploader's own société).
+          visibleClient: !!detectedSociete && detectedSociete !== defaultSociete,
         });
         setResult(saved);
         setStep("result");
