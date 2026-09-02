@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { Eye, Paperclip } from "lucide-react";
+import { Eye, Paperclip, Inbox } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
-import { Badge } from "@/components/ui/Badge";
-import { courrierTypeLabel, getMiseEnDemeureData, getPubData, pubMinutesRemaining } from "@/lib/courriers";
+import { Badge, documentTypeTone } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { courrierTypeLabel, courrierSourceLabel, getMiseEnDemeureData, getPubData, pubMinutesRemaining } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
+import { toggleCourrierVisibleClientAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,8 @@ const DETAIL_PATH: Record<string, (id: string) => string> = {
   certificat_immatriculation: (id) => `/courriers/certificats-immatriculation/${id}`,
   mise_en_demeure: (id) => `/courriers/mise-en-demeure/${id}`,
   pub: () => `/courriers/pub`,
+  facture: (id) => `/comptabilite/factures/${id}`,
+  impot: (id) => `/comptabilite/impots/${id}`,
 };
 
 export default async function CourriersPage() {
@@ -35,13 +39,15 @@ export default async function CourriersPage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
+          <thead className="bg-indigo-50/50 text-slate-600">
             <tr>
               <th className="p-3 text-left">Type</th>
               <th className="p-3 text-left">Société</th>
+              <th className="p-3 text-left">Origine</th>
               <th className="p-3 text-left">Date de réception</th>
               <th className="p-3 text-left">Statut</th>
               <th className="p-3 text-left">Pièce jointe</th>
+              {isAdmin && <th className="p-3 text-left">Visible client</th>}
               <th className="p-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -56,9 +62,11 @@ export default async function CourriersPage() {
                   <td className="p-3">
                     <div className="flex items-center gap-1.5">
                       {href ? (
-                        <Link href={href} className="font-medium text-slate-800 hover:underline">{courrierTypeLabel(item.type)}</Link>
+                        <Link href={href}>
+                          <Badge tone={documentTypeTone(courrierTypeLabel(item.type))} className="hover:ring-2">{courrierTypeLabel(item.type)}</Badge>
+                        </Link>
                       ) : (
-                        courrierTypeLabel(item.type)
+                        <Badge tone={documentTypeTone(courrierTypeLabel(item.type))}>{courrierTypeLabel(item.type)}</Badge>
                       )}
                       {pub && <Badge tone="neutral">Pub</Badge>}
                     </div>
@@ -67,6 +75,9 @@ export default async function CourriersPage() {
                     )}
                   </td>
                   <td className="p-3">{item.societe}</td>
+                  <td className="p-3">
+                    <Badge tone={item.source === "CLIENT" ? "info" : "neutral"}>{courrierSourceLabel(item.source)}</Badge>
+                  </td>
                   <td className="p-3">{fmtDateTime(item.receivedAt)}</td>
                   <td className="p-3">{statut ? <Badge tone="neutral">{statut}</Badge> : "—"}</td>
                   <td className="p-3">
@@ -75,6 +86,25 @@ export default async function CourriersPage() {
                       <span className="max-w-[200px] truncate" title={item.fileName}>{item.fileName}</span>
                     </span>
                   </td>
+                  {isAdmin && (
+                    <td className="p-3">
+                      <form action={toggleCourrierVisibleClientAction.bind(null, item.id, !item.visibleClient)}>
+                        <button
+                          type="submit"
+                          className={
+                            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition " +
+                            (item.visibleClient
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100")
+                          }
+                          title="Visible par le client"
+                        >
+                          <span className={"h-1.5 w-1.5 rounded-full " + (item.visibleClient ? "bg-emerald-500" : "bg-slate-400")} />
+                          {item.visibleClient ? "Visible" : "Masquée"}
+                        </button>
+                      </form>
+                    </td>
+                  )}
                   <td className="p-3 text-right">
                     <DocumentViewerTrigger
                       fileUrl={`/api/courriers/${item.id}`}
@@ -92,7 +122,9 @@ export default async function CourriersPage() {
             })}
             {items.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-8 text-center text-slate-500">Aucun document pour le moment.</td>
+                <td colSpan={isAdmin ? 7 : 6}>
+                  <EmptyState icon={Inbox} title="Aucun document pour le moment" description="Tous les courriers reçus ou ajoutés apparaîtront ici, quel que soit leur type." />
+                </td>
               </tr>
             )}
           </tbody>

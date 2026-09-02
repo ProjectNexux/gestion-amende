@@ -170,7 +170,8 @@ function normalizeImmat(a: string, b: string, c: string): string {
   return `${a.toUpperCase()}-${b}-${c.toUpperCase()}`;
 }
 
-function findImmat(text: string): string | undefined {
+/** Exported for reuse by the manual-import certificat-d'immatriculation classification (document-import.ts). */
+export function findImmat(text: string): string | undefined {
   // 1) près d'un mot-clé prioritaire
   const labeled = text.match(
     /(?:immatriculation|plaque|v[ée]hicule)[^A-Z0-9]{0,12}([A-Z]{2})[\s\-–—·.]{0,2}(\d{3})[\s\-–—·.]{0,2}([A-Z]{2})/i,

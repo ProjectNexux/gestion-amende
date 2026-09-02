@@ -21,12 +21,13 @@ type EmailScanItem = {
   parsedData: string | null;
   receivedAt: string;
   processedAt: string | null;
+  origine?: string;
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   received: { label: "Reçu", color: "text-blue-700 bg-blue-50 border-blue-200", icon: <Mail size={12} /> },
   processing: { label: "Analyse en cours", color: "text-amber-700 bg-amber-50 border-amber-200", icon: <Loader2 size={12} className="animate-spin" /> },
-  analyzed: { label: "Analysé", color: "text-indigo-700 bg-indigo-50 border-indigo-200", icon: <CheckCircle2 size={12} /> },
+  analyzed: { label: "Analysé", color: "text-brand-700 bg-brand-50 border-brand-200", icon: <CheckCircle2 size={12} /> },
   created: { label: "Dossier créé", color: "text-emerald-700 bg-emerald-50 border-emerald-200", icon: <CheckCircle2 size={12} /> },
   error: { label: "À vérifier", color: "text-red-700 bg-red-50 border-red-200", icon: <AlertTriangle size={12} /> },
 };
@@ -71,7 +72,7 @@ export function ScanEmailInfo() {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/20">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-600 text-white shadow-card">
           <Mail size={18} />
         </div>
         <div className="flex-1 min-w-0">
@@ -201,6 +202,9 @@ export function EmailScanList() {
               <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
                 <span>{formatDate(scan.receivedAt)} à {formatTime(scan.receivedAt)}</span>
                 {scan.fromAddress && <span className="truncate max-w-[200px]">{scan.fromAddress}</span>}
+                <span className={scan.origine === "manuel" ? "text-slate-500" : "text-slate-400"}>
+                  {scan.origine === "manuel" ? "Import manuel" : "Scan imprimante"}
+                </span>
               </div>
             </div>
 
@@ -210,7 +214,7 @@ export function EmailScanList() {
               {scan.status === "created" && scan.contraventionId && (
                 <a
                   href={`/contraventions/${scan.contraventionId}`}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-[var(--color-brand)] transition hover:bg-indigo-50"
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-[var(--color-brand)] transition hover:bg-brand-50"
                 >
                   <ExternalLink size={12} /> Voir
                 </a>
@@ -232,7 +236,7 @@ export function EmailScanList() {
               <button
                 onClick={() => { setExpanded(false); setViewingScan(scan); }}
                 aria-label="Visualiser le document"
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 transition hover:border-[var(--color-brand)] hover:bg-indigo-50 hover:text-[var(--color-brand)]"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 transition hover:border-[var(--color-brand)] hover:bg-brand-50 hover:text-[var(--color-brand)]"
               >
                 <Eye size={12} /> Visualiser
               </button>

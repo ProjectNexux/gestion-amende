@@ -1,10 +1,14 @@
 import { prisma } from "@/lib/prisma";
-import { parseFine } from "@/lib/fine-parser";
+import { parseFine, findImmat } from "@/lib/fine-parser";
 import { serverOcr } from "@/lib/server-ocr";
-import { classifyDocument, detectSimpleExpediteur } from "@/lib/document-classifier";
+import { classifyDocument, detectSimpleExpediteur, isComptabiliteClassificationConfident } from "@/lib/document-classifier";
 import { parseMiseEnDemeure } from "@/lib/mise-en-demeure-parser";
+import { parseFacture, parseImpot } from "@/lib/comptabilite-parser";
+import { parseSinistre } from "@/lib/sinistre-parser";
+import { buildInitialForward } from "@/lib/comptabilite";
+import { forwardComptabiliteDocument } from "@/lib/comptabilite-forward";
 import { detectOrganisme, buildTransmission } from "@/lib/transmission";
-import { PUB_RETENTION_MINUTES } from "@/lib/courriers";
+import { PUB_RETENTION_MINUTES, normalizeImmatriculation } from "@/lib/courriers";
 
 function log(msg: string) { console.log(`[EMAIL-SCAN] ${msg}`); }
 
@@ -81,6 +85,7 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
           data: {
             societe: scan.societe,
             type: "mise_en_demeure",
+            source: "EMAIL_SCAN",
             data: {
               ...parsedMed,
               societeConcernee: societeExists ? scan.societe : null,
@@ -111,7 +116,154 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
         results.push({ id: scan.id, status: "created" });
         continue;
       }
-      // "Pub" is only ever reached when classifyDocument found clear commercial wording AND none
+
+      // Certificat d'immatriculation (2026-09-01): previously only wired up in the manual-import
+      // pipeline — a carte grise arriving by e-mail/printer scan used to silently fall through to
+      // the contravention parser below and get misfiled. Auto-classified only when a plate number
+      // was actually found; otherwise falls through to "inconnu" (never guessed).
+      if (classification.type === "certificat_immatriculation") {
+        const immat = findImmat(ocrText);
+        if (immat) {
+          const courrier = await prisma.courrier.create({
+            data: {
+              societe: scan.societe,
+              type: "certificat_immatriculation",
+              source: "EMAIL_SCAN",
+              data: { immatriculation: normalizeImmatriculation(immat) },
+              fileName: scan.fileName,
+              fileMime: scan.fileMime,
+              fileSize: scan.fileSize,
+              fileData: scan.fileData,
+              receivedAt: scan.receivedAt,
+            },
+          });
+
+          await prisma.emailScan.update({
+            where: { id: scan.id },
+            data: { status: "created", ocrText, courrierId: courrier.id, processedAt: new Date() },
+          });
+
+          log(`Certificat d'immatriculation détecté: ${scan.fileName} → courrier ${courrier.id}`);
+          processed++;
+          results.push({ id: scan.id, status: "created" });
+          continue;
+        }
+      }
+
+      // Sinistre (accident/déclaration d'assurance, 2026-09-01): creates a dossier straight away
+      // (statut "À vérifier" — an accident dossier always needs a human review before it's
+      // considered final) with whatever fields the extractor found, and attaches the scanned
+      // document to it exactly like the manual "Ajouter un document" flow does.
+      if (classification.type === "sinistre") {
+        const parsedSinistre = parseSinistre(ocrText);
+        const year = new Date().getFullYear();
+        const prefix = `SIN-${year}-`;
+        const lastSinistre = await prisma.sinistre.findFirst({
+          where: { societe: scan.societe, reference: { startsWith: prefix } },
+          orderBy: { reference: "desc" },
+        });
+        let n = 1;
+        if (lastSinistre) {
+          const m = lastSinistre.reference.match(/(\d+)$/);
+          if (m) n = parseInt(m[1], 10) + 1;
+        }
+        const reference = `${prefix}${String(n).padStart(4, "0")}`;
+
+        const sinistre = await prisma.sinistre.create({
+          data: {
+            reference,
+            societe: scan.societe,
+            statut: "À vérifier",
+            origine: "auto",
+            typeSinistre: parsedSinistre.typeSinistre,
+            dateSinistre: parsedSinistre.dateSinistre,
+            lieuSinistre: parsedSinistre.lieuSinistre,
+            assureur: parsedSinistre.assureur,
+            referenceAssureur: parsedSinistre.referenceAssureur,
+            montantDommage: parsedSinistre.montantDommage,
+          },
+        });
+        await prisma.sinistreHistorique.create({
+          data: { sinistreId: sinistre.id, action: "document_recu", details: `Document reçu par e-mail (${scan.fileName})`, acteur: "Système" },
+        });
+        await prisma.sinistreHistorique.create({
+          data: { sinistreId: sinistre.id, action: "classification_auto", details: "Classé automatiquement comme sinistre", acteur: "Système" },
+        });
+
+        const courrier = await prisma.courrier.create({
+          data: {
+            societe: scan.societe,
+            type: "sinistre",
+            source: "EMAIL_SCAN",
+            sinistreId: sinistre.id,
+            data: {},
+            fileName: scan.fileName,
+            fileMime: scan.fileMime,
+            fileSize: scan.fileSize,
+            fileData: scan.fileData,
+            receivedAt: scan.receivedAt,
+          },
+        });
+
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: { status: "created", ocrText, courrierId: courrier.id, processedAt: new Date() },
+        });
+
+        log(`Sinistre détecté et classé (À vérifier): ${scan.fileName} → dossier ${reference}`);
+        processed++;
+        results.push({ id: scan.id, status: "created" });
+        continue;
+      }
+      // Facture / Impôt: auto-forwarded by e-mail to the accounting team, but only when the
+      // classification is confident enough (see isComptabiliteClassificationConfident) — an
+      // ambiguous document is still filed under Comptabilité but stays "À vérifier" and nothing
+      // is ever sent for it automatically.
+      if (classification.type === "facture" || classification.type === "impot") {
+        const confident = isComptabiliteClassificationConfident(classification.score, classification.competingScore ?? 0);
+        const statutClassification = confident ? "Nouveau" : "À vérifier";
+        const forward = buildInitialForward(confident ? "À transmettre" : "À vérifier", "document_recu");
+        const parsed = classification.type === "facture" ? parseFacture(ocrText) : parseImpot(ocrText);
+
+        const courrier = await prisma.courrier.create({
+          data: {
+            societe: scan.societe,
+            type: classification.type,
+            source: "EMAIL_SCAN",
+            data: {
+              ...parsed,
+              societeConcernee: scan.societe,
+              statutClassification,
+              origine: "auto",
+              forward,
+            },
+            fileName: scan.fileName,
+            fileMime: scan.fileMime,
+            fileSize: scan.fileSize,
+            fileData: scan.fileData,
+            receivedAt: scan.receivedAt,
+          },
+        });
+
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: { status: "created", ocrText, courrierId: courrier.id, processedAt: new Date() },
+        });
+
+        log(`${classification.type === "facture" ? "Facture" : "Document fiscal"} détecté(e) (${statutClassification}): ${scan.fileName} → courrier ${courrier.id}`);
+
+        if (confident) {
+          try {
+            await forwardComptabiliteDocument(courrier.id, scan.societe);
+          } catch (e) {
+            log(`Erreur transmission automatique (non bloquant, document conservé): ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
+
+        processed++;
+        results.push({ id: scan.id, status: "created" });
+        continue;
+      }      // "Pub" is only ever reached when classifyDocument found clear commercial wording AND none
       // of the exclusion signals (URSSAF, facture, échéance, montant dû, juridique, etc.) — see
       // document-classifier.ts. Ambiguous mail simply falls through to "inconnu" below, unmodified.
       if (classification.type === "pub") {
@@ -122,6 +274,7 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
           data: {
             societe: scan.societe,
             type: "pub",
+            source: "EMAIL_SCAN",
             data: {
               expediteur: detectSimpleExpediteur(ocrText),
               classifiedAt: classifiedAt.toISOString(),

@@ -2,8 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { requireSociete } from "@/lib/auth";
+import { redirect, notFound } from "next/navigation";
+import { requireSociete, isAdminSession } from "@/lib/auth";
 
 function getStr(fd: FormData, k: string) {
   const v = fd.get(k);
@@ -84,24 +84,6 @@ async function createContraventionFromFormData(fd: FormData) {
   return created;
 }
 
-export type CreateContraventionScanState = {
-  ok: boolean;
-  id?: string;
-  error?: string;
-};
-
-export async function createContraventionFromScanAction(
-  _prevState: CreateContraventionScanState,
-  fd: FormData,
-): Promise<CreateContraventionScanState> {
-  try {
-    const created = await createContraventionFromFormData(fd);
-    return { ok: true, id: created.id };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Erreur lors de l'enregistrement." };
-  }
-}
-
 export async function createContraventionAction(fd: FormData) {
   const created = await createContraventionFromFormData(fd);
   redirect(`/contraventions/${created.id}`);
@@ -109,6 +91,11 @@ export async function createContraventionAction(fd: FormData) {
 
 export async function updateContraventionAction(id: string, fd: FormData) {
   const societe = await requireSociete();
+  const isAdmin = await isAdminSession();
+  const existing = await prisma.contravention.findFirst({ where: isAdmin ? { id } : { id, societe } });
+  if (!existing) notFound();
+  const targetSociete = existing.societe;
+
   const immat = getStr(fd, "immatriculationOcr");
   const selectedVehiculeId = getStr(fd, "vehiculeId");
   const selectedConducteurId = getStr(fd, "conducteurId");
@@ -116,22 +103,22 @@ export async function updateContraventionAction(id: string, fd: FormData) {
   let vehiculeId: string | null = null;
   if (selectedVehiculeId) {
     const selectedVehicule = await prisma.vehicule.findUnique({ where: { id: selectedVehiculeId } });
-    if (selectedVehicule?.societe === societe) vehiculeId = selectedVehicule.id;
+    if (selectedVehicule?.societe === targetSociete) vehiculeId = selectedVehicule.id;
   } else if (immat) {
-    const v = await prisma.vehicule.findFirst({ where: { societe, immatriculation: immat } });
+    const v = await prisma.vehicule.findFirst({ where: { societe: targetSociete, immatriculation: immat } });
     if (v) vehiculeId = v.id;
   }
 
   let conducteurId: string | null = null;
   if (selectedConducteurId) {
     const selectedConducteur = await prisma.conducteur.findUnique({ where: { id: selectedConducteurId } });
-    if (selectedConducteur?.societe === societe) conducteurId = selectedConducteur.id;
+    if (selectedConducteur?.societe === targetSociete) conducteurId = selectedConducteur.id;
   }
 
   await prisma.contravention.update({
     where: { id },
     data: {
-      societe,
+      societe: targetSociete,
       dateReceptionAvis: getStr(fd, "dateReceptionAvis"),
       numAvis: getStr(fd, "numAvis"),
       dateInfraction: getStr(fd, "dateInfraction"),
@@ -163,8 +150,27 @@ export async function updateContraventionAction(id: string, fd: FormData) {
 }
 
 export async function deleteContraventionAction(id: string) {
+  const societe = await requireSociete();
+  const isAdmin = await isAdminSession();
+  const existing = await prisma.contravention.findFirst({ where: isAdmin ? { id } : { id, societe } });
+  if (!existing) notFound();
+
   await prisma.contravention.delete({ where: { id } });
   revalidatePath("/contraventions");
   revalidatePath("/");
   redirect("/contraventions");
+}
+
+// Espace client (2026-08-24): admin-only control deciding whether a dossier appears in the
+// client portal. Never automatic — a société never sees a contravention unless an admin
+// explicitly flips this on for that exact dossier.
+export async function toggleVisibleClientAction(id: string, next: boolean) {
+  const isAdmin = await isAdminSession();
+  if (!isAdmin) notFound();
+
+  await prisma.contravention.update({ where: { id }, data: { visibleClient: next } });
+  revalidatePath("/contraventions");
+  revalidatePath(`/contraventions/${id}`);
+  revalidatePath("/client");
+  revalidatePath("/client/contraventions");
 }

@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: "10mb" },
   },
-  serverExternalPackages: ["exceljs", "canvas", "sharp", "tesseract.js", "imapflow", "mailparser", "pdfjs-dist"],
+  serverExternalPackages: ["exceljs", "canvas", "sharp", "tesseract.js", "imapflow", "mailparser", "pdfjs-dist", "nodemailer"],
   // Factures/Impôts moved out of "Courriers" into their own "Comptabilité" section.
   async redirects() {
     return [

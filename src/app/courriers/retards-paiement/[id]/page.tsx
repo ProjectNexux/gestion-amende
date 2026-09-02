@@ -12,7 +12,7 @@ import GenerateLinkForm from "../GenerateLinkForm";
 
 export const dynamic = "force-dynamic";
 
-const inp = "w-full px-3 py-2 border border-gray-300 rounded-md text-sm";
+const inp = "field";
 
 function statutTone(statut: string | undefined): BadgeTone {
   if (statut === "Payé") return "success";
@@ -67,15 +67,15 @@ export default async function RetardPaiementDetailPage({ params }: { params: Pro
         </div>
         <div className="flex items-center gap-2">
           <Badge tone={statutTone(d.statutPaiement)}>{d.statutPaiement ?? "Non payé"}</Badge>
-          <Link href="/courriers/retards-paiement" className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+          <Link href="/courriers/retards-paiement" className="btn-secondary">
             Retour à la liste
           </Link>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-gray-700">Informations générales</h2>
+        <div className="space-y-4 card p-5">
+          <h2 className="text-sm font-semibold text-slate-700">Informations générales</h2>
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <dt className="text-xs font-medium text-slate-500">Société bénéficiaire</dt>
@@ -95,7 +95,7 @@ export default async function RetardPaiementDetailPage({ params }: { params: Pro
             </div>
           </dl>
 
-          <div className="border-t border-gray-100 pt-3">
+          <div className="border-t border-slate-100 pt-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Paiement</h3>
             <dl className="mt-2 grid grid-cols-2 gap-3 text-sm">
               <div>
@@ -132,16 +132,16 @@ export default async function RetardPaiementDetailPage({ params }: { params: Pro
             )}
 
             {reste > 0 && (
-              <div className="mt-4 border-t border-gray-100 pt-3">
+              <div className="mt-4 border-t border-slate-100 pt-3">
                 <GenerateLinkForm courrierId={id} resteEuros={resteEuros} />
               </div>
             )}
           </div>
         </div>
 
-        <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-5">
+        <div className="space-y-4 card p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700">Corriger les informations</h2>
+            <h2 className="text-sm font-semibold text-slate-700">Corriger les informations</h2>
             <form action={deleteRetardPaiement.bind(null, id)}>
               <ConfirmSubmitButton confirmMessage="Supprimer définitivement ce retard de paiement ?" className="text-xs text-red-600 hover:underline">
                 Supprimer
@@ -190,11 +190,11 @@ export default async function RetardPaiementDetailPage({ params }: { params: Pro
         </div>
       </div>
 
-      <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-700">Historique des paiements</h2>
+      <div className="space-y-3 card p-5">
+        <h2 className="text-sm font-semibold text-slate-700">Historique des paiements</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600">
+            <thead className="bg-indigo-50/50 text-slate-600">
               <tr>
                 <th className="p-2.5 text-left">Date</th>
                 <th className="p-2.5 text-right">Montant</th>

@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Send } from "lucide-react";
 import { courrierTypeLabel, getMiseEnDemeureData } from "@/lib/courriers";
 import { deriveTransmissionStatut } from "@/lib/transmission";
 import { fmtDateTime } from "@/lib/utils";
@@ -50,7 +52,7 @@ export default async function ATransmettrePage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
+          <thead className="bg-indigo-50/50 text-slate-600">
             <tr>
               <th className="p-3 text-left">Date</th>
               <th className="p-3 text-left">Organisme</th>
@@ -82,7 +84,13 @@ export default async function ATransmettrePage() {
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-8 text-center text-slate-500">Aucun courrier en attente de transmission.</td>
+                <td colSpan={8}>
+                  <EmptyState
+                    icon={Send}
+                    title="Aucun courrier en attente de transmission"
+                    description="Les mises en demeure détectées nécessitant une transmission au client apparaîtront ici."
+                  />
+                </td>
               </tr>
             )}
           </tbody>

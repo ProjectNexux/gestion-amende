@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useSidebarHover } from "@/lib/useSidebarHover";
 import {
   Car,
   Users,
   FileText,
   FileWarning,
   ScanLine,
-  LayoutDashboard,
+  LayoutGrid,
   Download,
   LogOut,
   BookOpenText,
@@ -25,6 +26,8 @@ import {
   Landmark,
   IdCard,
   Megaphone,
+  Building2,
+  MailOpen,
 } from "lucide-react";
 
 /**
@@ -80,8 +83,8 @@ const NAV_CONFIG: NavEntry[] = [
     type: "link",
     id: "dashboard",
     href: "/",
-    label: "Tableau de bord",
-    icon: <LayoutDashboard size={17} strokeWidth={1.75} />,
+    label: "Vue d'ensemble",
+    icon: <LayoutGrid size={17} strokeWidth={1.75} />,
     match: (pathname) => pathname === "/",
   },
   {
@@ -93,7 +96,7 @@ const NAV_CONFIG: NavEntry[] = [
       {
         type: "link",
         href: "/contraventions/scan",
-        label: "Scanner une amende",
+        label: "Scanner un document",
         icon: <ScanLine size={17} strokeWidth={1.75} />,
         match: (pathname) => pathname.startsWith("/contraventions/scan"),
       },
@@ -149,6 +152,13 @@ const NAV_CONFIG: NavEntry[] = [
       },
       {
         type: "link",
+        href: "/courriers/urssaf",
+        label: "URSSAF",
+        icon: <Building2 size={17} strokeWidth={1.75} />,
+        match: (pathname) => pathname.startsWith("/courriers/urssaf"),
+      },
+      {
+        type: "link",
         href: "/courriers/retards-paiement",
         label: "Retards de paiement",
         icon: <ClockAlert size={17} strokeWidth={1.75} />,
@@ -174,6 +184,13 @@ const NAV_CONFIG: NavEntry[] = [
         label: "Pub",
         icon: <Megaphone size={17} strokeWidth={1.75} />,
         match: (pathname) => pathname.startsWith("/courriers/pub"),
+      },
+      {
+        type: "link",
+        href: "/courriers/clients",
+        label: "Reçus des clients",
+        icon: <MailOpen size={17} strokeWidth={1.75} />,
+        match: (pathname) => pathname.startsWith("/courriers/clients"),
       },
     ],
   },
@@ -201,25 +218,17 @@ const NAV_CONFIG: NavEntry[] = [
   },
 ];
 
+// Purely visual grouping — non-clickable uppercase section labels above chunks of NAV_CONFIG,
+// giving the sidebar real product identity instead of a flat icon list.
+const SECTIONS: { label: string; ids: string[] }[] = [
+  { label: "Tableau de bord", ids: ["dashboard"] },
+  { label: "Gestion", ids: ["contraventions", "courriers", "comptabilite"] },
+];
+
 export function Sidebar({ societe, admin = false }: { societe: string | null; admin?: boolean }) {
-  const [collapsed, setCollapsed] = useState(true);
+  const { expanded, collapsed, handleMouseEnter, handleMouseLeave, handleClick } = useSidebarHover();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const pathname = usePathname();
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleMouseEnter = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    setCollapsed(false);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    timeoutRef.current = setTimeout(() => {
-      setCollapsed(true);
-    }, 200);
-  }, []);
 
   const toggleGroup = useCallback((id: string) => {
     setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -242,66 +251,91 @@ export function Sidebar({ societe, admin = false }: { societe: string | null; ad
       <aside
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`fixed inset-y-0 left-0 z-30 flex flex-col border-r border-slate-800 bg-slate-900 text-slate-100 transition-[width] duration-[220ms] ease-in-out cursor-default ${collapsed ? "w-14" : "w-60"}`}
+        onClick={handleClick}
+        className={`fixed inset-y-0 left-0 z-[70] flex flex-col border-r border-navy-800/70 bg-gradient-to-b from-navy-900 via-navy-900 to-navy-950 text-slate-100 transition-[width] duration-[220ms] ease-in-out ${
+          expanded ? "w-64 shadow-[8px_0_28px_-6px_rgba(0,0,0,0.35)]" : "w-[72px]"
+        }`}
       >
-        <div className="border-b border-slate-800/80 px-3 py-4">
-          <Link href="/" className="flex items-center gap-2.5 cursor-pointer">
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-brand-600 text-white">
+        <div className="flex items-center gap-2.5 border-b border-navy-800/70 px-4 py-4">
+          <Link href="/" className="flex min-w-0 flex-1 items-center gap-2.5 cursor-pointer">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-600 text-white shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
               <ShieldCheck size={17} strokeWidth={2} />
             </div>
             {!collapsed && (
-              <div className="min-w-0">
-                <div className="truncate text-[13.5px] font-semibold leading-tight text-white">ScanAppAmendes</div>
-                <div className="truncate text-[11px] leading-tight text-slate-400">Gestion des contraventions</div>
+              <div className="min-w-0 sidebar-label">
+                <div className="truncate text-[14px] font-semibold leading-tight text-white">ScanApp</div>
+                <div className="truncate text-[11px] leading-tight text-slate-300">Gestion documentaire</div>
               </div>
             )}
           </Link>
         </div>
 
-        <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto px-2 text-sm scrollbar-thin">
-          {NAV_CONFIG.map((entry) =>
-            entry.type === "link" ? (
-              <NavItem key={entry.id} href={entry.href} icon={entry.icon} collapsed={collapsed} active={entry.match(pathname)}>
-                {entry.label}
-              </NavItem>
-            ) : (
-              <NavGroup
-                key={entry.id}
-                group={entry}
-                collapsed={collapsed}
-                pathname={pathname}
-                active={groupActiveMap[entry.id]}
-                open={openGroups[entry.id] ?? groupActiveMap[entry.id]}
-                onToggle={() => toggleGroup(entry.id)}
-                openGroups={openGroups}
-                onToggleGroup={toggleGroup}
-              />
-            )
-          )}
+        <nav className="mt-3 flex-1 space-y-3 overflow-y-auto px-2 text-sm scrollbar-thin">
+          {SECTIONS.map((section) => (
+            <div key={section.label}>
+              {!collapsed && (
+                <div className="sidebar-label px-2.5 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300/70">
+                  {section.label}
+                </div>
+              )}
+              <div className="space-y-0.5">
+                {NAV_CONFIG.filter((entry) => section.ids.includes(entry.id)).map((entry) =>
+                  entry.type === "link" ? (
+                    <NavItem key={entry.id} href={entry.href} icon={entry.icon} collapsed={collapsed} active={entry.match(pathname)}>
+                      {entry.label}
+                    </NavItem>
+                  ) : (
+                    <NavGroup
+                      key={entry.id}
+                      group={entry}
+                      collapsed={collapsed}
+                      pathname={pathname}
+                      active={groupActiveMap[entry.id]}
+                      open={openGroups[entry.id] ?? groupActiveMap[entry.id]}
+                      onToggle={() => toggleGroup(entry.id)}
+                      openGroups={openGroups}
+                      onToggleGroup={toggleGroup}
+                    />
+                  )
+                )}
+              </div>
+            </div>
+          ))}
         </nav>
 
-        <div className="border-t border-slate-800/80 px-2 py-2.5">
-          <a href="/api/export" className="flex items-center gap-3 rounded-md px-2.5 py-2 text-[13px] font-medium text-slate-400 transition-colors hover:bg-white/5 hover:text-white cursor-pointer" title="Export Excel">
+        <div className="border-t border-navy-800/70 px-2 py-2.5">
+          <a href="/api/export" className="flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium text-slate-300 transition-colors duration-150 hover:bg-white/[0.06] hover:text-white cursor-pointer" title="Export Excel">
             <Download size={17} strokeWidth={1.75} className="shrink-0" />
-            {!collapsed && <span>Export Excel</span>}
+            {!collapsed && <span className="sidebar-label">Export Excel</span>}
           </a>
         </div>
 
-        {!collapsed && <div className="px-4 py-2 text-[10.5px] text-slate-500">v0.1 · local SQLite</div>}
-
         {societe && (
-          <div className="border-t border-slate-800/80 px-2 py-2.5">
+          <div className="border-t border-navy-800/70 px-2.5 py-2.5">
+            {!collapsed && (
+              <div className="sidebar-label mb-1.5 flex items-center gap-2.5 rounded-lg px-1 py-1.5">
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/[0.08] text-[13px] font-semibold text-white">
+                  {societe.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 leading-tight">
+                  <div className="truncate text-[12.5px] font-medium text-white">{societe}</div>
+                  <div className="truncate text-[11px] text-slate-400">{admin ? "Administrateur" : "Membre"}</div>
+                </div>
+              </div>
+            )}
             <form action="/api/logout" method="POST">
-              <button className="flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-[13px] font-medium text-slate-400 transition-colors hover:bg-white/5 hover:text-white cursor-pointer" title="Déconnexion">
+              <button className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium text-slate-300 transition-colors duration-150 hover:bg-white/[0.06] hover:text-white cursor-pointer" title="Déconnexion">
                 <LogOut size={17} strokeWidth={1.75} className="shrink-0" />
-                {!collapsed && <span>Déconnexion</span>}
+                {!collapsed && <span className="sidebar-label">Déconnexion</span>}
               </button>
             </form>
           </div>
         )}
       </aside>
 
-      <div className={`shrink-0 transition-[width] duration-[220ms] ease-in-out ${collapsed ? "w-14" : "w-60"}`} />
+      {/* Reserves the compact width permanently — the sidebar itself overlays the content when it
+          expands on hover, so the page layout never shifts. */}
+      <div className="w-[72px] shrink-0" />
     </>
   );
 }
@@ -314,15 +348,15 @@ function NavItem({
       href={href}
       title={collapsed ? (children as string) : undefined}
       className={
-        "relative flex items-center gap-3 rounded-md px-2.5 py-2 text-[13px] transition-colors cursor-pointer " +
+        "relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] transition-all duration-150 cursor-pointer " +
         (active
-          ? "bg-white/[0.07] font-medium text-white"
-          : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100")
+          ? "bg-white/[0.09] font-medium text-white"
+          : "text-slate-300 hover:bg-white/[0.06] hover:text-white")
       }
     >
-      {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-brand-500" />}
-      <span className={"shrink-0 " + (active ? "text-brand-400" : "")}>{icon}</span>
-      {!collapsed && <span>{children}</span>}
+      {active && <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-sky-400" />}
+      <span className={"shrink-0 transition-transform duration-200 " + (active ? "text-sky-300" : "") + (collapsed ? " scale-[1.2]" : "")}>{icon}</span>
+      {!collapsed && <span className="sidebar-label">{children}</span>}
     </Link>
   );
 }
@@ -354,17 +388,17 @@ function NavGroup({
         title={collapsed ? group.label : undefined}
         aria-expanded={open}
         className={
-          "relative flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-[13px] transition-colors cursor-pointer " +
+          "relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] transition-all duration-150 cursor-pointer " +
           (active
-            ? "bg-white/[0.07] font-medium text-white"
-            : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100")
+            ? "bg-white/[0.09] font-medium text-white"
+            : "text-slate-300 hover:bg-white/[0.06] hover:text-white")
         }
       >
-        {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-brand-500" />}
-        <span className={"shrink-0 " + (active ? "text-brand-400" : "")}>{group.icon}</span>
+        {active && <span className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-sky-400" />}
+        <span className={"shrink-0 transition-transform duration-200 " + (active ? "text-sky-300" : "") + (collapsed ? " scale-[1.2]" : "")}>{group.icon}</span>
         {!collapsed && (
           <>
-            <span className="flex-1 text-left">{group.label}</span>
+            <span className="sidebar-label flex-1 text-left">{group.label}</span>
             <ChevronDown
               size={15}
               strokeWidth={1.75}
@@ -385,15 +419,14 @@ function NavGroup({
                   key={child.href}
                   href={child.href}
                   className={
-                    "relative flex items-center gap-3 rounded-md py-1.5 pl-8 pr-2.5 text-[13px] transition-colors cursor-pointer " +
+                    "relative flex items-center gap-3 rounded-lg py-1.5 pl-8 pr-2.5 text-[13px] transition-all duration-150 cursor-pointer " +
                     (child.match(pathname)
-                      ? "bg-white/[0.07] font-medium text-white"
-                      : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100")
+                      ? "bg-white/[0.09] font-medium text-white"
+                      : "text-slate-300 hover:bg-white/[0.06] hover:text-white")
                   }
                 >
-                  {child.match(pathname) && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-brand-500" />}
-                  <span className={"shrink-0 " + (child.match(pathname) ? "text-brand-400" : "")}>{child.icon}</span>
-                  <span>{child.label}</span>
+                  <span className={"shrink-0 " + (child.match(pathname) ? "text-sky-300" : "")}>{child.icon}</span>
+                  <span className="sidebar-label">{child.label}</span>
                 </Link>
               ) : (
                 <NavSubGroup
@@ -431,17 +464,16 @@ function NavSubGroup({
         title={collapsed ? group.label : undefined}
         aria-expanded={open}
         className={
-          "relative flex w-full items-center gap-3 rounded-md py-1.5 pl-8 pr-2.5 text-[13px] transition-colors cursor-pointer " +
+          "relative flex w-full items-center gap-3 rounded-lg py-1.5 pl-8 pr-2.5 text-[13px] transition-all duration-150 cursor-pointer " +
           (active
-            ? "bg-white/[0.07] font-medium text-white"
-            : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100")
+            ? "bg-white/[0.09] font-medium text-white"
+            : "text-slate-300 hover:bg-white/[0.06] hover:text-white")
         }
       >
-        {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-brand-500" />}
-        <span className={"shrink-0 " + (active ? "text-brand-400" : "")}>{group.icon}</span>
+        <span className={"shrink-0 " + (active ? "text-sky-300" : "")}>{group.icon}</span>
         {!collapsed && (
           <>
-            <span className="flex-1 text-left">{group.label}</span>
+            <span className="sidebar-label flex-1 text-left">{group.label}</span>
             <ChevronDown
               size={13}
               strokeWidth={1.75}
@@ -463,13 +495,12 @@ function NavSubGroup({
                 className={
                   "relative flex items-center gap-3 rounded-md py-1.5 pl-12 pr-2.5 text-[13px] transition-colors cursor-pointer " +
                   (child.match(pathname)
-                    ? "bg-white/[0.07] font-medium text-white"
-                    : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100")
+                    ? "bg-white/[0.09] font-medium text-white"
+                    : "text-slate-300 hover:bg-white/[0.06] hover:text-white")
                 }
               >
-                {child.match(pathname) && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-brand-500" />}
-                <span className={"shrink-0 " + (child.match(pathname) ? "text-brand-400" : "")}>{child.icon}</span>
-                <span>{child.label}</span>
+                <span className={"shrink-0 " + (child.match(pathname) ? "text-sky-300" : "")}>{child.icon}</span>
+                <span className="sidebar-label">{child.label}</span>
               </Link>
             ))}
           </div>

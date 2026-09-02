@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { fmtMoney } from "@/lib/utils";
 import Link from "next/link";
-import { Plus, ScanLine, ExternalLink } from "lucide-react";
+import { Plus, ScanLine, ExternalLink, FileWarning } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { toggleVisibleClientAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -58,10 +60,10 @@ export default async function ContraventionsListPage({
           <Link href="/contraventions/scan" className="inline-flex items-center gap-2 rounded-md bg-[var(--color-brand)] px-3 py-2 text-sm font-medium text-white transition hover:bg-[var(--color-brand-dark)]">
             <ScanLine size={16} /> Scanner
           </Link>
-          <Link href="/contraventions/new" className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+          <Link href="/contraventions/new" className="inline-flex items-center gap-2 field w-auto font-medium text-slate-700 transition hover:bg-slate-50">
             <Plus size={16} /> Saisir
           </Link>
-          <a href="https://www.antai.gouv.fr" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+          <a href="https://www.antai.gouv.fr" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 field w-auto font-medium text-slate-700 transition hover:bg-slate-50">
             <ExternalLink size={16} /> ANTAI
           </a>
         </div>
@@ -76,7 +78,7 @@ export default async function ContraventionsListPage({
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
+          <thead className="bg-indigo-50/50 text-slate-600">
             <tr>
               <th className="text-left p-3">Société</th>
               <th className="text-left p-3">N° Dossier</th>
@@ -88,6 +90,7 @@ export default async function ContraventionsListPage({
               <th className="text-right p-3">Montant</th>
               <th className="text-left p-3">Dénonciation</th>
               <th className="text-left p-3">Paiement</th>
+              {isAdmin && <th className="text-left p-3">Client</th>}
             </tr>
           </thead>
           <tbody>
@@ -109,11 +112,37 @@ export default async function ContraventionsListPage({
                 <td className="p-3">
                   <span className={badge(c.statutPaiement)}>{c.statutPaiement}</span>
                 </td>
+                {isAdmin && (
+                  <td className="p-3">
+                    <form action={toggleVisibleClientAction.bind(null, c.id, !c.visibleClient)}>
+                      <button
+                        type="submit"
+                        className={
+                          "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition " +
+                          (c.visibleClient
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                            : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100")
+                        }
+                        title="Visible par le client"
+                      >
+                        <span className={"h-1.5 w-1.5 rounded-full " + (c.visibleClient ? "bg-emerald-500" : "bg-slate-400")} />
+                        {c.visibleClient ? "Visible" : "Masquée"}
+                      </button>
+                    </form>
+                  </td>
+                )}
               </tr>
             ))}
             {filteredItems.length === 0 && (
               <tr>
-                <td colSpan={10} className="p-8 text-center text-slate-500">Aucune contravention pour cette vue.</td>
+                <td colSpan={isAdmin ? 11 : 10}>
+                  <EmptyState
+                    icon={FileWarning}
+                    title="Aucune contravention pour cette vue"
+                    description="Scannez un avis de contravention ou ajustez les filtres ci-dessus."
+                    action={{ label: "Scanner un document", href: "/contraventions/scan" }}
+                  />
+                </td>
               </tr>
             )}
           </tbody>

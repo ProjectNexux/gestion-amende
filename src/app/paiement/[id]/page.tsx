@@ -54,7 +54,7 @@ export default async function PaiementPage({ params }: { params: Promise<{ id: s
               </button>
             </form>
             <form action={simulerPaiement.bind(null, paiement.id, "abandonne")}>
-              <button className="w-full rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <button className="btn-secondary w-full">
                 Simuler une erreur technique / abandon
               </button>
             </form>

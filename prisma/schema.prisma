@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Societe {
@@ -14,10 +15,11 @@ model Societe {
   emailTransmission String? // adresse à laquelle transmettre les courriers administratifs de cette société
   createdAt         DateTime @default(now())
 
-  users      User[]
-  vehicules  Vehicule[] @relation("VehiculeSociete")
+  users       User[]
+  vehicules   Vehicule[]   @relation("VehiculeSociete")
   conducteurs Conducteur[] @relation("ConducteurSociete")
-  courriers  Courrier[] @relation("CourrierSociete")
+  courriers   Courrier[]   @relation("CourrierSociete")
+  sinistres   Sinistre[]   @relation("SinistreSociete")
 }
 
 model User {
@@ -37,26 +39,27 @@ model User {
 }
 
 model Vehicule {
-  id                  String   @id @default(cuid())
-  societe             String   @default("Societe principale")
-  societeRef          Societe? @relation("VehiculeSociete", fields: [societe], references: [nom])
-  code                String   // VEH001
-  immatriculation     String
-  marque              String?
-  modele              String?
-  typeVehicule        String?
-  datePremiereImmat   String?
-  dateAcquisition     String?
-  numCarteGrise       String?
-  ptac                Int?
-  service             String?
-  conducteurAttitre   String?
-  statut              String?  @default("En service")
-  dateControleTech    String?
-  assuranceNum        String?
-  observations        String?
-  createdAt           DateTime @default(now())
-  contraventions      Contravention[]
+  id                String          @id @default(cuid())
+  societe           String          @default("Societe principale")
+  societeRef        Societe?        @relation("VehiculeSociete", fields: [societe], references: [nom])
+  code              String // VEH001
+  immatriculation   String
+  marque            String?
+  modele            String?
+  typeVehicule      String?
+  datePremiereImmat String?
+  dateAcquisition   String?
+  numCarteGrise     String?
+  ptac              Int?
+  service           String?
+  conducteurAttitre String?
+  statut            String?         @default("En service")
+  dateControleTech  String?
+  assuranceNum      String?
+  observations      String?
+  createdAt         DateTime        @default(now())
+  contraventions    Contravention[]
+  sinistres         Sinistre[]
 
   @@unique([societe, code])
   @@unique([societe, immatriculation])
@@ -64,84 +67,89 @@ model Vehicule {
 }
 
 model Conducteur {
-  id              String   @id @default(cuid())
-  societe         String   @default("Societe principale")
-  societeRef      Societe? @relation("ConducteurSociete", fields: [societe], references: [nom])
-  code            String   // COND001
-  civilite        String?
-  nom             String
-  prenom          String
-  dateNaissance   String?
-  lieuNaissance   String?
-  adresse         String?
-  codePostal      String?
-  ville           String?
-  pays            String?  @default("France")
-  telephone       String?
-  email           String?
-  numPermis       String?
-  numCarteIdentite String?
+  id                String          @id @default(cuid())
+  societe           String          @default("Societe principale")
+  societeRef        Societe?        @relation("ConducteurSociete", fields: [societe], references: [nom])
+  code              String // COND001
+  civilite          String?
+  nom               String
+  prenom            String
+  dateNaissance     String?
+  lieuNaissance     String?
+  adresse           String?
+  codePostal        String?
+  ville             String?
+  pays              String?         @default("France")
+  telephone         String?
+  email             String?
+  numPermis         String?
+  numCarteIdentite  String?
   dateDelivranceCni String?
   dateExpirationCni String?
-  cniRectoNom     String?
-  cniRectoMime    String?
-  cniRectoData    Bytes?
-  cniVersoNom     String?
-  cniVersoMime    String?
-  cniVersoData    Bytes?
-  dateObtention   String?
-  categoriesPermis String?
-  dateEmbauche    String?
-  statut          String?  @default("Actif")
-  createdAt       DateTime @default(now())
-  contraventions  Contravention[]
+  cniRectoNom       String?
+  cniRectoMime      String?
+  cniRectoData      Bytes?
+  cniVersoNom       String?
+  cniVersoMime      String?
+  cniVersoData      Bytes?
+  dateObtention     String?
+  categoriesPermis  String?
+  dateEmbauche      String?
+  statut            String?         @default("Actif")
+  createdAt         DateTime        @default(now())
+  contraventions    Contravention[]
+  sinistres         Sinistre[]
 
   @@unique([societe, code])
   @@index([societe])
 }
 
 model Contravention {
-  id                  String   @id @default(cuid())
-  societe             String   @default("Societe principale")
-  numDossier          String   // PV-2024-XXX
-  dateReceptionAvis   String?
-  numAvis             String?
-  dateInfraction      String?
-  heureInfraction     String?
-  natureInfraction    String?
-  lieuInfraction      String?
-  vitesseConstatee    Int?
-  vitesseAutorisee    Int?
-  montantAmende       Float?
-  pointsRetires       Int?     @default(0)
-  dateLimitePaiement  String?
+  id                 String  @id @default(cuid())
+  societe            String  @default("Societe principale")
+  numDossier         String // PV-2024-XXX
+  dateReceptionAvis  String?
+  numAvis            String?
+  dateInfraction     String?
+  heureInfraction    String?
+  natureInfraction   String?
+  lieuInfraction     String?
+  vitesseConstatee   Int?
+  vitesseAutorisee   Int?
+  montantAmende      Float?
+  pointsRetires      Int?    @default(0)
+  dateLimitePaiement String?
 
   // Vehicule lié
-  vehiculeId          String?
-  vehicule            Vehicule? @relation(fields: [vehiculeId], references: [id])
-  immatriculationOcr  String?
+  vehiculeId         String?
+  vehicule           Vehicule? @relation(fields: [vehiculeId], references: [id])
+  immatriculationOcr String?
 
   // Conducteur lié
-  conducteurId        String?
-  conducteur          Conducteur? @relation(fields: [conducteurId], references: [id])
+  conducteurId String?
+  conducteur   Conducteur? @relation(fields: [conducteurId], references: [id])
 
   // Dénonciation
-  statutDenonciation  String?  @default("À effectuer")
-  dateDenonciation    String?
-  modeDenonciation    String?
+  statutDenonciation   String? @default("À effectuer")
+  dateDenonciation     String?
+  modeDenonciation     String?
   numDenonciationAntai String?
 
   // Paiement
-  statutPaiement      String?  @default("En attente")
-  datePaiement        String?
-  payePar             String?
+  statutPaiement String? @default("En attente")
+  datePaiement   String?
+  payePar        String?
 
-  observations        String?
-  rawOcrText          String?
-  imageUrl            String?
+  observations String?
+  rawOcrText   String?
+  imageUrl     String?
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  // Espace client (2026-08-24): a contravention is only ever shown in the client-facing portal
+  // when explicitly shared by an admin — never automatically, regardless of société match.
+  visibleClient Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([societe, numDossier])
   @@index([societe])
@@ -151,28 +159,130 @@ model Contravention {
 // mises en demeure / factures / sinistres / etc. later). Type-specific fields live in `data` (JSON)
 // instead of one column/table per document type.
 model Courrier {
-  id          String   @id @default(cuid())
-  societe     String   @default("Societe principale")
-  societeRef  Societe? @relation("CourrierSociete", fields: [societe], references: [nom])
-  type        String   // "certificat_immatriculation" for now, more types later
-  data        Json     @default("{}") // type-specific fields, e.g. { "immatriculation": "AB-123-CD" }
+  id         String   @id @default(cuid())
+  societe    String   @default("Societe principale")
+  societeRef Societe? @relation("CourrierSociete", fields: [societe], references: [nom])
+  type       String // "certificat_immatriculation" for now, more types later
+  data       Json     @default("{}") // type-specific fields, e.g. { "immatriculation": "AB-123-CD" }
 
-  fileName    String
-  fileMime    String
-  fileSize    Int
-  fileData    Bytes
+  fileName String
+  fileMime String
+  fileSize Int
+  fileData Bytes
 
   // Set only for temporary documents (e.g. type "pub"); a background job deletes the row once
   // this passes. Null means "not scheduled for automatic deletion".
-  expiresAt   DateTime?
+  expiresAt DateTime?
 
-  receivedAt  DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // Set when this document belongs to a Sinistre dossier (a dossier can group several documents).
+  sinistreId String?
+  sinistre   Sinistre? @relation("SinistreCourriers", fields: [sinistreId], references: [id])
+
+  // Espace client (2026-08-24): same principle as Contravention.visibleClient — an admin must
+  // explicitly share a courrier before it appears in the client portal, never automatic.
+  visibleClient Boolean @default(false)
+  // Where this document actually came from: "ADMIN" (manual back-office form, the pre-existing
+  // default/behavior), "EMAIL_SCAN" (Gmail/IMAP pipeline), "IMPORT" (admin's own "+ Nouveau
+  // document"), or "CLIENT" (submitted by a société through its portal). Never inferred/guessed —
+  // always set explicitly at creation time by the code path that creates the row.
+  source String @default("ADMIN")
+
+  receivedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([societe])
   @@index([type])
   @@index([expiresAt])
+  @@index([sinistreId])
+}
+
+// A Sinistre is a *dossier* that can group several Courrier documents (unlike other Courrier
+// types, which are one document each) — structured fields live here as real columns since they
+// drive filtering/search/reporting, while the underlying files/OCR/viewer stay on Courrier.
+model Sinistre {
+  id         String   @id @default(cuid())
+  reference  String // "SIN-2026-0001", generated automatically
+  societe    String   @default("Societe principale")
+  societeRef Societe? @relation("SinistreSociete", fields: [societe], references: [nom])
+
+  statut String @default("Nouveau")
+  // Nouveau | À vérifier | À traiter | En cours | En attente de documents |
+  // En attente assurance | Expertise | Indemnisation en attente | Clos
+
+  // Identification
+  expediteur        String?
+  destinataire      String?
+  referenceAssureur String? // n° de dossier sinistre côté assureur
+  numeroContrat     String?
+  assureur          String?
+  dateDocument      String? // dd/mm/yyyy, date du courrier le plus récent
+  dateReception     DateTime @default(now())
+
+  // Sinistre
+  typeSinistre   String? // accident | vol | vandalisme | bris | dégât matériel | autre...
+  dateSinistre   String? // dd/mm/yyyy
+  lieuSinistre   String?
+  description    String?
+  circonstances  String?
+  montantDommage Float?
+  montantReclame Float?
+  montantPropose Float?
+
+  // Véhicule (sinistre auto)
+  vehiculeId         String?
+  vehicule           Vehicule?   @relation(fields: [vehiculeId], references: [id])
+  immatriculationOcr String?
+  vehiculeTiers      String?
+  conducteurId       String?
+  conducteur         Conducteur? @relation(fields: [conducteurId], references: [id])
+
+  // Intervenants
+  expert String?
+  garage String?
+  tiers  String?
+  avocat String?
+
+  // Échéances
+  dateLimiteReponse   String?
+  dateExpertise       String?
+  dateLimiteEnvoiDocs String?
+  autreEcheance       String?
+  autreEcheanceLabel  String?
+
+  // Résumé/actions générés après OCR — jamais envoyés, seulement affichés/proposés à l'utilisateur
+  resume          String?
+  actionsSuggeree String? // JSON stringifié : liste d'actions détectées
+
+  confiance Json? // scores de confiance par champ (pilote le statut "À vérifier")
+  origine   String @default("manuel") // "auto" | "manuel"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents  Courrier[]           @relation("SinistreCourriers")
+  historique SinistreHistorique[]
+
+  @@unique([societe, reference])
+  @@index([societe])
+  @@index([statut])
+  @@index([vehiculeId])
+}
+
+// Audit trail for a Sinistre dossier's lifecycle (received, classified, extracted, corrected,
+// status changes, attachments, closure) — manual corrections always take priority over a later
+// automatic re-extraction (enforced in the actions, not here).
+model SinistreHistorique {
+  id         String   @id @default(cuid())
+  sinistreId String
+  sinistre   Sinistre @relation(fields: [sinistreId], references: [id], onDelete: Cascade)
+  action     String // document_recu | classification_auto | extraction | correction_manuelle |
+  // changement_statut | piece_jointe_ajoutee | modification | cloture
+  details    String?
+  acteur     String?
+  createdAt  DateTime @default(now())
+
+  @@index([sinistreId])
 }
 
 // Minimal audit trail kept after a Courrier row is permanently deleted (e.g. Pub auto-expiry),
@@ -194,21 +304,21 @@ model CourrierSuppressionLog {
 // future feature can create payments against it (see src/lib/payments). Never stores card data:
 // only the provider's own reference, amount, status and (if legally provided) last 4 digits.
 model Paiement {
-  id           String   @id @default(cuid())
-  societe      String   // beneficiary société (CSPL / NETECO / Optimove Consulting)
-  linkedType   String   // e.g. "retard_paiement" — what this payment is for
-  linkedId     String   // id of the linked record (e.g. Courrier id)
-  montant      Int      // amount in cents, avoids float rounding
-  devise       String   @default("EUR")
-  mode         String   // "carte" | "lien" | "qrcode" | "terminal" (future)
-  statut       String   // "en_attente" | "reussi" | "echec" | "rembourse" | "abandonne"
-  provider     String   @default("mock") // "mock" | "stripe" (future)
-  providerRef  String?  @unique // dedup key — a given provider transaction can only ever count once
-  cardLast4    String?
-  recuUrl      String?
-  creePar      String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  societe     String // beneficiary société (CSPL / NETECO / Optimove Consulting)
+  linkedType  String // e.g. "retard_paiement" — what this payment is for
+  linkedId    String // id of the linked record (e.g. Courrier id)
+  montant     Int // amount in cents, avoids float rounding
+  devise      String   @default("EUR")
+  mode        String // "carte" | "lien" | "qrcode" | "terminal" (future)
+  statut      String // "en_attente" | "reussi" | "echec" | "rembourse" | "abandonne"
+  provider    String   @default("mock") // "mock" | "stripe" (future)
+  providerRef String?  @unique // dedup key — a given provider transaction can only ever count once
+  cardLast4   String?
+  recuUrl     String?
+  creePar     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([societe])
   @@index([linkedType, linkedId])
@@ -219,7 +329,7 @@ model Paiement {
 model PaiementAuditLog {
   id         String   @id @default(cuid())
   paiementId String
-  action     String   // "cree" | "confirme" | "echoue" | "statut_change" | "lien_genere" | "rembourse"
+  action     String // "cree" | "confirme" | "echoue" | "statut_change" | "lien_genere" | "rembourse"
   details    String?
   acteur     String?
   createdAt  DateTime @default(now())
@@ -228,26 +338,31 @@ model PaiementAuditLog {
 }
 
 model EmailScan {
-  id              String   @id @default(cuid())
-  societe         String   @default("Societe principale")
-  messageId       String   @unique
+  id              String    @id @default(cuid())
+  societe         String    @default("Societe principale")
+  messageId       String    @unique
   fromAddress     String?
   subject         String?
   fileName        String
-  fileHash        String   @unique
+  fileHash        String    @unique
   fileMime        String
   fileSize        Int
   fileData        Bytes
-  status          String   @default("received") // received | processing | analyzed | created | error
+  status          String    @default("received") // received | processing | analyzed | created | error
   ocrText         String?
-  parsedData      String?  // JSON string of ParsedFine
+  parsedData      String? // JSON string of ParsedFine (or, for origine="manuel", a DocumentAnalysis — see src/lib/document-import.ts)
   errorMessage    String?
   contraventionId String?
   courrierId      String? // set when classified as a Courrier (e.g. mise_en_demeure)
-  receivedAt      DateTime @default(now())
+  // Universal "+ Nouveau document" entry point (2026-08-24): a document keeps a single record
+  // regardless of how it entered the system — only `origine` differs ("email" = scan imprimante
+  // via IMAP, "manuel" = uploaded manually through the app). See src/lib/document-import.ts.
+  origine           String  @default("email") // "email" | "manuel"
+  importedByUserId  String?
+  receivedAt      DateTime  @default(now())
   processedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([societe])
   @@index([status])

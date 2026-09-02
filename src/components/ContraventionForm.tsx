@@ -151,10 +151,10 @@ export default function ContraventionForm({
 
       {initial.rawOcrText && (
         <div className="text-xs">
-          <button type="button" onClick={() => setShowOcr((v) => !v)} className="text-gray-500 underline">
+          <button type="button" onClick={() => setShowOcr((v) => !v)} className="text-slate-500 underline">
             {showOcr ? "Masquer" : "Voir"} le texte OCR brut
           </button>
-          {showOcr && <pre className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded whitespace-pre-wrap">{initial.rawOcrText}</pre>}
+          {showOcr && <pre className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded whitespace-pre-wrap">{initial.rawOcrText}</pre>}
         </div>
       )}
 
@@ -165,12 +165,12 @@ export default function ContraventionForm({
   );
 }
 
-const inp = "w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/40 focus:border-[var(--color-brand)]";
+const inp = "field";
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="bg-white border border-gray-200 rounded-lg p-5">
-      <h2 className="font-semibold text-sm text-gray-700 mb-4">{title}</h2>
+    <section className="card p-5">
+      <h2 className="font-semibold text-sm text-slate-700 mb-4">{title}</h2>
       {children}
     </section>
   );
@@ -181,7 +181,7 @@ function Grid({ children }: { children: React.ReactNode }) {
 function Field({ label, hint, children, full }: { label: string; hint?: string; children: React.ReactNode; full?: boolean }) {
   return (
     <label className={"block " + (full ? "md:col-span-3" : "")}>
-      <span className="block text-xs font-medium text-gray-600 mb-1">{label} {hint && <span className="text-gray-400 font-normal">· {hint}</span>}</span>
+      <span className="block text-xs font-medium text-slate-600 mb-1">{label} {hint && <span className="text-gray-400 font-normal">· {hint}</span>}</span>
       {children}
     </label>
   );

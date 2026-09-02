@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const inp = "px-3 py-2 border border-gray-300 rounded-md text-sm";
+const inp = "field";
 
 export default function AddCertificatPanel({
   action,
@@ -38,7 +38,7 @@ export default function AddCertificatPanel({
           (open ? "max-h-[480px] opacity-100 translate-y-0" : "max-h-0 opacity-0 -translate-y-1")
         }
       >
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
+        <div className="card p-5">
           <form action={action} className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-500">Nom de la société</label>
@@ -66,7 +66,7 @@ export default function AddCertificatPanel({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                className="btn-secondary"
               >
                 Annuler
               </button>

@@ -13,7 +13,7 @@ import { Badge, type BadgeTone } from "@/components/ui/Badge";
 
 export const dynamic = "force-dynamic";
 
-const inp = "w-full px-3 py-2 border border-gray-300 rounded-md text-sm";
+const inp = "field";
 
 function sensLabel(sens: string | undefined): string {
   if (sens === "recue") return "Reçue";
@@ -76,15 +76,15 @@ export default async function MiseEnDemeureDetailPage({
         <div className="flex items-center gap-2">
           <Badge tone={statutTone(d.statut)}>{d.statut ?? "Nouveau"}</Badge>
           <Badge tone={d.origine === "manuel" ? "neutral" : "info"}>{origineLabel(d.origine)}</Badge>
-          <Link href="/courriers/mise-en-demeure" className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+          <Link href="/courriers/mise-en-demeure" className="btn-secondary">
             Retour à la liste
           </Link>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-gray-700">Informations générales</h2>
+        <div className="space-y-4 card p-5">
+          <h2 className="text-sm font-semibold text-slate-700">Informations générales</h2>
           <dl className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <dt className="text-xs font-medium text-slate-500">Expéditeur</dt>
@@ -112,7 +112,7 @@ export default async function MiseEnDemeureDetailPage({
             </div>
           </dl>
 
-          <div className="border-t border-gray-100 pt-3">
+          <div className="border-t border-slate-100 pt-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Problème</h3>
             <div className="mt-1">
               <dt className="text-xs font-medium text-slate-500">Motif</dt>
@@ -120,7 +120,7 @@ export default async function MiseEnDemeureDetailPage({
             </div>
           </div>
 
-          <div className="border-t border-gray-100 pt-3">
+          <div className="border-t border-slate-100 pt-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Financier</h3>
             <div className="mt-1">
               <dt className="text-xs font-medium text-slate-500">Montant réclamé</dt>
@@ -128,7 +128,7 @@ export default async function MiseEnDemeureDetailPage({
             </div>
           </div>
 
-          <div className="border-t border-gray-100 pt-3">
+          <div className="border-t border-slate-100 pt-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Échéance</h3>
             <div className="mt-1">
               <dt className="text-xs font-medium text-slate-500">À régulariser avant</dt>
@@ -136,7 +136,7 @@ export default async function MiseEnDemeureDetailPage({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
+          <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
             <DocumentViewerTrigger
               fileUrl={`/api/courriers/${item.id}`}
               downloadUrl={`/api/courriers/${item.id}?download=1`}
@@ -148,16 +148,16 @@ export default async function MiseEnDemeureDetailPage({
             </DocumentViewerTrigger>
             <a
               href={`/api/courriers/${item.id}?download=1`}
-              className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="btn-secondary"
             >
               Télécharger
             </a>
           </div>
         </div>
 
-        <div id="correction-form" className="space-y-4 rounded-lg border border-gray-200 bg-white p-5">
+        <div id="correction-form" className="space-y-4 card p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700">Corriger les informations</h2>
+            <h2 className="text-sm font-semibold text-slate-700">Corriger les informations</h2>
             <form action={deleteMiseEnDemeure.bind(null, item.id)}>
               <ConfirmSubmitButton confirmMessage="Supprimer définitivement cette mise en demeure ?" className="text-xs text-red-600 hover:underline">
                 Supprimer
@@ -227,9 +227,9 @@ export default async function MiseEnDemeureDetailPage({
       </div>
 
       {d.transmission && (
-        <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-5">
+        <div className="space-y-4 card p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-gray-700">Transmission au client</h2>
+            <h2 className="text-sm font-semibold text-slate-700">Transmission au client</h2>
             {transmissionStatut && <Badge tone={transmissionStatutTone(transmissionStatut)}>{transmissionStatut}</Badge>}
           </div>
 
@@ -267,8 +267,8 @@ export default async function MiseEnDemeureDetailPage({
             </div>
           </dl>
 
-          <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
-            <a href="#correction-form" className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+          <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+            <a href="#correction-form" className="btn-secondary">
               Modifier le client
             </a>
             {transmissionStatut !== "À vérifier" && (
@@ -281,7 +281,7 @@ export default async function MiseEnDemeureDetailPage({
           </div>
 
           {clientNom && (
-            <details className="border-t border-gray-100 pt-3">
+            <details className="border-t border-slate-100 pt-3">
               <summary className="cursor-pointer text-xs font-medium text-slate-500">Modifier l'adresse e-mail de {clientNom}</summary>
               <form action={updateSocieteEmailTransmission.bind(null, clientNom)} className="mt-2 flex flex-wrap gap-2">
                 <input
@@ -291,7 +291,7 @@ export default async function MiseEnDemeureDetailPage({
                   placeholder="comptabilite@client.fr"
                   className={`${inp} max-w-xs`}
                 />
-                <button className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Enregistrer</button>
+                <button className="btn-secondary">Enregistrer</button>
               </form>
             </details>
           )}
@@ -333,7 +333,7 @@ export default async function MiseEnDemeureDetailPage({
           )}
 
           {d.transmission.historique.length > 0 && (
-            <div className="border-t border-gray-100 pt-3">
+            <div className="border-t border-slate-100 pt-3">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Historique de transmission</h3>
               <ul className="mt-2 space-y-1.5 text-xs text-slate-600">
                 {d.transmission.historique.map((h, i) => (

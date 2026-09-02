@@ -8,13 +8,13 @@ export type DeadlineTone = "brand" | "warning" | "danger";
 const iconToneClasses: Record<DeadlineTone, string> = {
   brand: "bg-blue-50 text-blue-600",
   warning: "bg-amber-50 text-amber-600",
-  danger: "bg-rose-50 text-rose-600",
+  danger: "bg-coral-50 text-coral-600",
 };
 
 const textToneClasses: Record<DeadlineTone, string> = {
   brand: "text-blue-600",
   warning: "text-amber-600",
-  danger: "text-rose-600",
+  danger: "text-coral-600",
 };
 
 export type DeadlineItem = {

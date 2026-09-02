@@ -1,27 +1,22 @@
-import { prisma } from "@/lib/prisma";
-import ScanClient from "./ScanClient";
 import { requireSociete } from "@/lib/auth";
+import ScanDocumentClient from "./ScanDocumentClient";
 import { ScanEmailInfo, EmailScanList } from "@/components/EmailScanSection";
 
 export const dynamic = "force-dynamic";
 
 export default async function ScanPage() {
-  const societe = await requireSociete();
-  const [vehicules, conducteurs] = await Promise.all([
-    prisma.vehicule.findMany({ where: { societe }, orderBy: { immatriculation: "asc" } }),
-    prisma.conducteur.findMany({ where: { societe }, orderBy: { nom: "asc" } }),
-  ]);
+  await requireSociete();
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Scanner une amende</h1>
-        <p className="text-sm text-gray-500">Importez un avis de contravention pour extraire automatiquement les informations.</p>
+        <h1 className="text-2xl font-semibold">Scanner un document</h1>
+        <p className="text-sm text-slate-500">
+          Importez n&apos;importe quel document (contravention, mise en demeure, URSSAF, certificat d&apos;immatriculation,
+          facture, impôt, sinistre, permis de conduire, carte d&apos;identité…) : l&apos;OCR détecte automatiquement le type
+          et extrait les informations.
+        </p>
       </header>
-      <ScanClient
-        vehicules={vehicules.map((v) => ({ id: v.id, label: `${v.immatriculation} — ${v.marque ?? ""} ${v.modele ?? ""}` }))}
-        conducteurs={conducteurs.map((c) => ({ id: c.id, label: `${c.prenom} ${c.nom}` }))}
-        knownPlates={vehicules.map((v) => v.immatriculation)}
-      />
+      <ScanDocumentClient />
       <ScanEmailInfo />
       <EmailScanList />
     </div>

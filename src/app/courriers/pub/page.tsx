@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { Eye } from "lucide-react";
+import { Eye, Megaphone } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { conserverPub, supprimerPubMaintenant } from "./actions";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { getPubData, pubMinutesRemaining } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
 
@@ -29,7 +30,7 @@ export default async function PubPage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
+          <thead className="bg-indigo-50/50 text-slate-600">
             <tr>
               <th className="p-3 text-left">Date</th>
               <th className="p-3 text-left">Expéditeur</th>
@@ -74,7 +75,7 @@ export default async function PubPage() {
                       </DocumentViewerTrigger>
                       {!d.conserve && item.expiresAt && (
                         <form action={conserverPub.bind(null, item.id)}>
-                          <button className="rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                          <button className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
                             Conserver
                           </button>
                         </form>
@@ -82,7 +83,7 @@ export default async function PubPage() {
                       <form action={supprimerPubMaintenant.bind(null, item.id)}>
                         <ConfirmSubmitButton
                           confirmMessage="Supprimer définitivement ce document maintenant ?"
-                          className="rounded-md border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                          className="rounded-md border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
                         >
                           Supprimer maintenant
                         </ConfirmSubmitButton>
@@ -94,7 +95,9 @@ export default async function PubPage() {
             })}
             {items.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-8 text-center text-slate-500">Aucune publicité détectée pour le moment.</td>
+                <td colSpan={5}>
+                  <EmptyState icon={Megaphone} title="Aucune publicité détectée" description="Les prospectus et communications commerciales détectés automatiquement apparaîtront ici avant leur suppression." />
+                </td>
               </tr>
             )}
           </tbody>

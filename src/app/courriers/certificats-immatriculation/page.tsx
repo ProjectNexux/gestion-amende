@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { Eye, Pencil, Trash2, Paperclip } from "lucide-react";
+import { Eye, Pencil, Trash2, Paperclip, IdCard } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { createCertificat, deleteCertificat } from "./actions";
 import AddCertificatPanel from "./AddCertificatPanel";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { getImmatriculation } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
 
@@ -31,7 +32,7 @@ export default async function CertificatsImmatriculationPage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
+          <thead className="bg-indigo-50/50 text-slate-600">
             <tr>
               <th className="p-3 text-left">Société</th>
               <th className="p-3 text-left">Immatriculation</th>
@@ -85,7 +86,13 @@ export default async function CertificatsImmatriculationPage() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-8 text-center text-slate-500">Aucun certificat d&apos;immatriculation pour le moment.</td>
+                <td colSpan={5}>
+                  <EmptyState
+                    icon={IdCard}
+                    title="Aucun certificat d'immatriculation"
+                    description="Ajoutez la carte grise d'un véhicule pour la conserver ici."
+                  />
+                </td>
               </tr>
             )}
           </tbody>

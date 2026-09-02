@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/scan-email/poll", "schedule": "*/10 * * * *" },
+    { "path": "/api/cron/pub-cleanup", "schedule": "*/15 * * * *" }
+  ]
+}

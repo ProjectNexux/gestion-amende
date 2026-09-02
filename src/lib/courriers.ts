@@ -1,7 +1,18 @@
 import type { ParsedMiseEnDemeure } from "@/lib/mise-en-demeure-parser";
 import type { Transmission } from "@/lib/transmission";
 
-export type CourrierTypeKey = "certificat_immatriculation" | "mise_en_demeure" | "pub" | "retard_paiement";
+export type CourrierTypeKey =
+  | "certificat_immatriculation"
+  | "mise_en_demeure"
+  | "pub"
+  | "retard_paiement"
+  | "facture"
+  | "impot"
+  | "sinistre"
+  | "permis_conduire"
+  | "carte_identite"
+  | "document"
+  | "client_envoi";
 
 // Registry of "Courriers" document types. Only certificat_immatriculation (manual),
 // mise_en_demeure and pub (both automatic, via the email pipeline) are wired up today; future
@@ -11,10 +22,45 @@ export const COURRIER_TYPES: { key: CourrierTypeKey; label: string }[] = [
   { key: "mise_en_demeure", label: "Mise en demeure" },
   { key: "pub", label: "Pub" },
   { key: "retard_paiement", label: "Retard de paiement" },
+  { key: "facture", label: "Facture" },
+  { key: "impot", label: "Impôt" },
+  { key: "sinistre", label: "Sinistre (pièce jointe)" },
+  { key: "permis_conduire", label: "Permis de conduire" },
+  { key: "carte_identite", label: "Carte d'identité" },
+  { key: "document", label: "Document à classer" },
+  { key: "client_envoi", label: "Document envoyé par le client" },
 ];
 
 export function courrierTypeLabel(type: string): string {
   return COURRIER_TYPES.find((t) => t.key === type)?.label ?? type;
+}
+
+// Espace client (2026-08-24): where a Courrier row actually came from — never inferred, always
+// set explicitly by the creating code path. See prisma schema comment on Courrier.source.
+export const COURRIER_SOURCE_LABELS: Record<string, string> = {
+  ADMIN: "Ajouté manuellement",
+  EMAIL_SCAN: "Scan imprimante / e-mail",
+  IMPORT: "Import (+ Nouveau document)",
+  CLIENT: "Envoyé par le client",
+};
+export function courrierSourceLabel(source: string | null | undefined): string {
+  return COURRIER_SOURCE_LABELS[source ?? "ADMIN"] ?? source ?? "Ajouté manuellement";
+}
+
+export const CLIENT_ENVOI_STATUTS = ["Nouveau", "Vu", "Traité"] as const;
+
+export type ClientEnvoiData = {
+  titre: string;
+  typeDocument: string | null;
+  message: string | null;
+  reference: string | null;
+  statut: (typeof CLIENT_ENVOI_STATUTS)[number];
+  envoyeAt: string; // ISO
+};
+
+/** Reads the client-submission specific fields out of a Courrier's generic JSON `data` column. */
+export function getClientEnvoiData(data: unknown): Partial<ClientEnvoiData> {
+  return data && typeof data === "object" ? (data as Partial<ClientEnvoiData>) : {};
 }
 
 export const ACCEPTED_COURRIER_MIME_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];

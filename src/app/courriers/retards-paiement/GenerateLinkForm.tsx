@@ -16,11 +16,11 @@ export default function GenerateLinkForm({ courrierId, resteEuros }: { courrierI
       <form action={formAction} className="flex flex-wrap items-end gap-2">
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-500">Montant (€)</label>
-          <input name="montant" defaultValue={resteEuros} className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm" />
+          <input name="montant" defaultValue={resteEuros} className="w-32 field w-auto" />
         </div>
         <button
           disabled={pending}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="field w-auto font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
         >
           {pending ? "Génération…" : "Générer un lien de paiement"}
         </button>
@@ -34,12 +34,12 @@ export default function GenerateLinkForm({ courrierId, resteEuros }: { courrierI
               readOnly
               value={state.url}
               onFocus={(e) => e.currentTarget.select()}
-              className="flex-1 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs"
+              className="flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs"
             />
             <button
               type="button"
               onClick={() => navigator.clipboard.writeText(state.url)}
-              className="rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
               Copier
             </button>

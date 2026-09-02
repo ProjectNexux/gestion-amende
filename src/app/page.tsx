@@ -3,7 +3,6 @@ import { fmtMoney, fmtMoneyCents, fmtDateTime } from "@/lib/utils";
 import Link from "next/link";
 import {
   AlertTriangle,
-  Bell,
   CheckCircle2,
   Clock,
   ClockAlert,
@@ -23,16 +22,17 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Badge, type BadgeTone } from "@/components/ui/Badge";
-import { buttonVariants } from "@/components/ui/Button";
+import { Badge, documentTypeTone, type BadgeTone } from "@/components/ui/Badge";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
+import { NewDocumentMenu } from "@/components/NewDocumentMenu";
 import { SectionCard } from "@/components/dashboard/SectionCard";
-import { KpiCard } from "@/components/dashboard/KpiCard";
+import { OverviewBlock, type OverviewStat } from "@/components/dashboard/OverviewBlock";
+import { PriorityPanel, type PriorityItem } from "@/components/dashboard/PriorityPanel";
 import { WeeklyActivityChart, type DayActivity } from "@/components/dashboard/WeeklyActivityChart";
 import { CategoryDonut, type CategorySlice } from "@/components/dashboard/CategoryDonut";
 import { DeadlineList, type DeadlineItem } from "@/components/dashboard/DeadlineList";
 import { ActivityList, type ActivityEntry } from "@/components/dashboard/ActivityList";
+import { EmptyState as DashboardEmptyState } from "@/components/dashboard/EmptyState";
 import {
   getMiseEnDemeureData,
   getPubData,
@@ -261,11 +261,11 @@ export default async function DashboardPage() {
     weeklyActivity.push({ label: day.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }), recus, traites });
   }
 
-  // ---- Répartition par catégorie ----
+  // ---- Répartition par catégorie ---- (colors matched to Badge's documentTypeTone palette)
   const categories: CategorySlice[] = [
-    { label: "Contraventions", value: docs.filter((d) => d.typeLabel === "Contravention").length, color: "#3b82f6" },
-    { label: "Mises en demeure", value: docs.filter((d) => d.typeLabel === "Mise en demeure").length, color: "#f43f5e" },
-    { label: "Retards de paiement", value: docs.filter((d) => d.typeLabel === "Retard de paiement").length, color: "#f59e0b" },
+    { label: "Contraventions", value: docs.filter((d) => d.typeLabel === "Contravention").length, color: "#6366f1" },
+    { label: "Mises en demeure", value: docs.filter((d) => d.typeLabel === "Mise en demeure").length, color: "#f76a55" },
+    { label: "Retards de paiement", value: docs.filter((d) => d.typeLabel === "Retard de paiement").length, color: "#f97316" },
     { label: "Certificats d'immatriculation", value: docs.filter((d) => d.typeLabel === "Certificat d'immatriculation").length, color: "#14b8a6" },
     { label: "Sinistres", value: 0, color: "#8b5cf6" },
     { label: "Pub", value: docs.filter((d) => d.typeLabel === "Pub").length, color: "#94a3b8" },
@@ -327,171 +327,163 @@ export default async function DashboardPage() {
 
   const derniersDocuments = docs.slice(0, 8);
 
+  // "À traiter aujourd'hui" — reuses the exact same `urgent` flag already computed per-document
+  // above (contraventions en retard/échéance proche, mises en demeure/retards de paiement en
+  // retard...), just reshaped into the row format this panel expects. No new data, no fabrication.
+  const priorityItems: PriorityItem[] = docs
+    .filter((d) => d.urgent)
+    .slice(0, 6)
+    .map((d) => {
+      const overdue = !!d.echeance && d.echeance.getTime() < Date.now();
+      return {
+        icon: DEADLINE_ICONS[d.typeLabel] ?? AlertTriangle,
+        tone: d.statutTone === "danger" || overdue ? "danger" : "warning",
+        title: d.typeLabel,
+        subtitle: `${d.label} — ${d.societe}`,
+        meta: d.echeance
+          ? overdue
+            ? "En retard"
+            : d.echeance.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })
+          : undefined,
+        href: d.href ?? "/courriers",
+      };
+    });
+
+  const overviewStats: OverviewStat[] = [
+    { icon: FileText, tone: "brand", value: totalDocuments, label: "Documents", hint: docsThisMonth > 0 ? `+${docsThisMonth} ce mois` : undefined },
+    { icon: Clock, tone: "warning", value: aTraiterCount, label: "À traiter", hint: `${traitesCount} traité${traitesCount > 1 ? "s" : ""}` },
+    { icon: AlertTriangle, tone: "danger", value: urgentsCount, label: "Urgents", hint: urgentsCount > 0 ? "Action requise" : "Aucune action requise" },
+    { icon: Wallet, tone: "violet", value: fmtMoney(montantEnAttente), label: "Montant en attente", hint: dossiersNonSoldes > 0 ? `${dossiersNonSoldes} dossier${dossiersNonSoldes > 1 ? "s" : ""} non soldé${dossiersNonSoldes > 1 ? "s" : ""}` : undefined },
+  ];
+
   return (
-    <div className="space-y-5">
-      <PageHeader
-        title="Tableau de bord"
-        description="Vue d'ensemble de votre activité, de vos documents et de vos échéances."
-        actions={
-          <div className="flex items-center gap-3">
-            <Link
-              href={urgentsCount > 0 ? "/contraventions?view=retards" : "#"}
-              className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-slate-100"
-              title="Notifications"
-            >
-              <Bell size={18} />
-              {urgentsCount > 0 && (
-                <span className="absolute right-0 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-rose-600 px-1 text-[10px] font-semibold leading-none text-white">
-                  {urgentsCount}
-                </span>
-              )}
-            </Link>
-            <div className="hidden items-center gap-2.5 border-l border-slate-200 pl-3 sm:flex">
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-600 text-sm font-semibold text-white">
-                {societe.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0 leading-tight">
-                <div className="max-w-[140px] truncate text-[13px] font-semibold text-slate-800">{societe}</div>
-                <div className="truncate text-[11px] text-slate-400">{isAdmin ? "Administrateur" : "Membre"}</div>
-              </div>
-            </div>
-            <Link href="/contraventions/scan" className={buttonVariants({ variant: "primary" })}>
-              <FilePlus2 size={16} />
-              Nouveau document
-            </Link>
-          </div>
-        }
-      />
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        <KpiCard icon={FileText} tone="brand" label="Total documents" value={totalDocuments} hint={docsThisMonth > 0 ? `+${docsThisMonth} ce mois` : undefined} />
-        <KpiCard
-          icon={CheckCircle2}
-          tone="success"
-          label="Traités"
-          value={traitesCount}
-          hint={totalDocuments > 0 ? `${Math.round((traitesCount / totalDocuments) * 100)}% du total` : undefined}
-        />
-        <KpiCard
-          icon={Clock}
-          tone="warning"
-          label="À traiter"
-          value={aTraiterCount}
-          hint={urgentsCount > 0 ? `+${urgentsCount} urgent${urgentsCount > 1 ? "s" : ""}` : undefined}
-        />
-        <KpiCard icon={AlertTriangle} tone="danger" label="Urgents" value={urgentsCount} hint={urgentsCount > 0 ? "Action requise" : "Aucune action requise"} />
-        <KpiCard
-          icon={Wallet}
-          tone="violet"
-          label="Montant en attente"
-          value={fmtMoney(montantEnAttente)}
-          hint={dossiersNonSoldes > 0 ? `${dossiersNonSoldes} dossier${dossiersNonSoldes > 1 ? "s" : ""} non soldé${dossiersNonSoldes > 1 ? "s" : ""}` : undefined}
-        />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[13px] font-medium text-slate-400">Bonjour,</p>
+          <h1 className="mt-1 text-[26px] font-bold leading-tight tracking-tight text-slate-900">
+            Voici ce qui nécessite votre attention aujourd&apos;hui.
+          </h1>
+        </div>
+        <NewDocumentMenu className="shrink-0" />
       </div>
 
-      {/* Analytics row */}
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-        <SectionCard title="Activité des 7 derniers jours" className="xl:col-span-2">
-          <WeeklyActivityChart data={weeklyActivity} />
-        </SectionCard>
-        <SectionCard title="Répartition par catégorie">
-          <CategoryDonut segments={categories} total={totalDocuments} />
-        </SectionCard>
-        <SectionCard title="Échéances proches" action={{ label: "Tout voir", href: "/courriers" }}>
-          <DeadlineList items={deadlineItems} />
-        </SectionCard>
-      </div>
+      {/* Asymmetric two-column body: colonne principale (synthèse, activité, documents) à
+          gauche, colonne secondaire (urgences, répartition, échéances, activité récente) à
+          droite — un seul flux vertical par colonne plutôt que des rangées de cartes identiques. */}
+      <div className="grid items-start gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
+          <OverviewBlock stats={overviewStats} />
 
-      {/* Documents + activity row */}
-      <div className="grid gap-4 xl:grid-cols-3">
-        <SectionCard title="Derniers documents reçus" action={{ label: "Voir tous les courriers", href: "/courriers" }} className="xl:col-span-2" bodyClassName="p-0 pt-0">
-          <div className="overflow-x-auto">
-            <table className="w-full whitespace-nowrap text-[13px]">
-              <thead className="bg-slate-50/80 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="p-3 pl-5 text-left">Document</th>
-                  <th className="p-3 text-left">Type</th>
-                  <th className="p-3 text-left">Société/Client</th>
-                  <th className="p-3 text-left">Date</th>
-                  <th className="p-3 text-left">Échéance</th>
-                  <th className="p-3 text-left">Statut</th>
-                  <th className="p-3 pr-5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {derniersDocuments.map((d) => (
-                  <tr key={d.id} className="transition-colors hover:bg-slate-50">
-                    <td className="p-3 pl-5">
-                      {d.href ? (
-                        <Link href={d.href} className="font-medium text-slate-800 hover:underline">{d.label}</Link>
-                      ) : (
-                        <span className="font-medium text-slate-800">{d.label}</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <Badge tone="neutral">{d.typeLabel}</Badge>
-                    </td>
-                    <td className="p-3 text-slate-600">{d.societe}</td>
-                    <td className="p-3 text-slate-600">{fmtDateTime(d.date)}</td>
-                    <td className="p-3 text-slate-600">
-                      {d.echeance ? d.echeance.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"}
-                    </td>
-                    <td className="p-3">
-                      <Badge tone={d.statutTone}>{d.statutLabel}</Badge>
-                    </td>
-                    <td className="p-3 pr-5 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {d.viewer && (
-                          <DocumentViewerTrigger
-                            fileUrl={d.viewer.fileUrl}
-                            downloadUrl={d.viewer.downloadUrl}
-                            fileName={d.viewer.fileName}
-                            fileMime={d.viewer.fileMime}
-                            title="Visualiser"
-                            className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                          >
-                            <Eye size={15} />
-                          </DocumentViewerTrigger>
-                        )}
-                        {d.viewer && (
-                          <a
-                            href={d.viewer.downloadUrl}
-                            title="Télécharger"
-                            className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                          >
-                            <Download size={15} />
-                          </a>
-                        )}
-                        {d.href && (
-                          <details className="group relative inline-block text-left">
-                            <summary className="grid h-7 w-7 cursor-pointer list-none place-items-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 [&::-webkit-details-marker]:hidden">
-                              <MoreHorizontal size={16} />
-                            </summary>
-                            <div className="absolute right-0 z-10 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-card-hover">
-                              <Link href={d.href} className="block px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Voir la fiche</Link>
-                            </div>
-                          </details>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {derniersDocuments.length === 0 && (
+          <SectionCard title="Activité documentaire" description="Documents reçus et traités sur les 7 derniers jours" tint="muted">
+            <WeeklyActivityChart data={weeklyActivity} />
+          </SectionCard>
+
+          <SectionCard title="Documents récents" action={{ label: "Voir tous les documents", href: "/courriers" }} bodyClassName="p-0 pt-0">
+            <div className="overflow-x-auto">
+              <table className="w-full whitespace-nowrap text-[13px]">
+                <thead className="table-head">
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-500">
-                      Aucun document. <Link href="/contraventions/scan" className="text-blue-600 underline">Scanner la première contravention</Link>
-                    </td>
+                    <th className="p-3.5 pl-5 text-left">Document</th>
+                    <th className="p-3.5 text-left">Catégorie</th>
+                    <th className="p-3.5 text-left">Société</th>
+                    <th className="p-3.5 text-left">Date</th>
+                    <th className="p-3.5 text-left">Échéance</th>
+                    <th className="p-3.5 text-left">Statut</th>
+                    <th className="p-3.5 pr-5 text-right">Actions</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </SectionCard>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {derniersDocuments.map((d) => (
+                    <tr key={d.id} className="transition-colors duration-100 hover:bg-blue-50/40">
+                      <td className="p-4 pl-5">
+                        {d.href ? (
+                          <Link href={d.href} className="font-medium text-slate-800 hover:underline">{d.label}</Link>
+                        ) : (
+                          <span className="font-medium text-slate-800">{d.label}</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        <Badge tone={documentTypeTone(d.typeLabel)}>{d.typeLabel}</Badge>
+                      </td>
+                      <td className="p-4 text-slate-600">{d.societe}</td>
+                      <td className="p-4 text-slate-600">{fmtDateTime(d.date)}</td>
+                      <td className="p-4 text-slate-600">
+                        {d.echeance ? d.echeance.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"}
+                      </td>
+                      <td className="p-4">
+                        <Badge tone={d.statutTone}>{d.statutLabel}</Badge>
+                      </td>
+                      <td className="p-4 pr-5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {d.viewer && (
+                            <DocumentViewerTrigger
+                              fileUrl={d.viewer.fileUrl}
+                              downloadUrl={d.viewer.downloadUrl}
+                              fileName={d.viewer.fileName}
+                              fileMime={d.viewer.fileMime}
+                              title="Visualiser"
+                              className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                            >
+                              <Eye size={15} />
+                            </DocumentViewerTrigger>
+                          )}
+                          {d.viewer && (
+                            <a
+                              href={d.viewer.downloadUrl}
+                              title="Télécharger"
+                              className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                            >
+                              <Download size={15} />
+                            </a>
+                          )}
+                          {d.href && (
+                            <details className="group relative inline-block text-left">
+                              <summary className="grid h-7 w-7 cursor-pointer list-none place-items-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 [&::-webkit-details-marker]:hidden">
+                                <MoreHorizontal size={16} />
+                              </summary>
+                              <div className="absolute right-0 z-10 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-card-hover">
+                                <Link href={d.href} className="block px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Voir la fiche</Link>
+                              </div>
+                            </details>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {derniersDocuments.length === 0 && (
+                    <tr>
+                      <td colSpan={7}>
+                        <DashboardEmptyState
+                          icon={FilePlus2}
+                          title="Aucun document pour le moment"
+                          description="Scannez votre première contravention pour voir apparaître les documents ici."
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+        </div>
 
-        <SectionCard title="Activité récente">
-          <ActivityList items={recentActivity} />
-        </SectionCard>
+        <div className="space-y-6 xl:col-span-1">
+          <PriorityPanel items={priorityItems} title="À traiter aujourd'hui" />
+
+          <SectionCard title="Répartition des documents">
+            <CategoryDonut segments={categories} total={totalDocuments} />
+          </SectionCard>
+
+          <SectionCard title="Échéances proches" action={{ label: "Tout voir", href: "/courriers" }}>
+            <DeadlineList items={deadlineItems} />
+          </SectionCard>
+
+          <SectionCard title="Activité récente">
+            <ActivityList items={recentActivity} />
+          </SectionCard>
+        </div>
       </div>
     </div>
   );

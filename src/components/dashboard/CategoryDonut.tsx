@@ -16,27 +16,31 @@ export function CategoryDonut({ segments, total }: { segments: CategorySlice[]; 
 
   return (
     <div className="flex flex-col items-center gap-5">
-      <div className="relative h-32 w-32 shrink-0 rounded-full" style={{ background: gradient }}>
-        <div className="absolute inset-[12px] grid place-items-center rounded-full bg-white">
+      <div className="relative h-[104px] w-[104px] shrink-0 rounded-full" style={{ background: gradient }}>
+        <div className="absolute inset-[14px] grid place-items-center rounded-full bg-white shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]">
           <div className="text-center">
-            <div className="text-2xl font-bold leading-none text-slate-900">{total}</div>
-            <div className="mt-1 text-[10.5px] text-slate-400">Total</div>
+            <div className="text-[22px] font-extrabold leading-none text-slate-900">{total}</div>
+            <div className="mt-1 text-[10px] text-slate-400">document{total > 1 ? "s" : ""}</div>
           </div>
         </div>
       </div>
-      <div className="w-full space-y-1.5">
-        {segments.map((s) => {
-          const pct = total > 0 ? Math.round((s.value / total) * 100) : 0;
-          return (
-            <div key={s.label} className="flex items-start gap-2 text-[12px] leading-snug">
-              <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
-              <span className="min-w-0 flex-1 text-slate-600">{s.label}</span>
-              <span className="shrink-0 whitespace-nowrap font-medium text-slate-900">
-                {s.value} <span className="text-slate-400">({pct}%)</span>
-              </span>
-            </div>
-          );
-        })}
+      <div className="grid w-full grid-cols-1 gap-x-4 gap-y-2">
+        {withValue.length === 0 ? (
+          <p className="text-center text-[12px] text-slate-400">Aucun document pour le moment.</p>
+        ) : (
+          withValue.map((s) => {
+            const pct = total > 0 ? Math.round((s.value / total) * 100) : 0;
+            return (
+              <div key={s.label} className="flex items-center gap-2 text-[12px] leading-snug">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+                <span className="min-w-0 flex-1 truncate text-slate-600">{s.label}</span>
+                <span className="shrink-0 whitespace-nowrap font-semibold text-slate-900">
+                  {s.value} <span className="font-normal text-slate-400">({pct}%)</span>
+                </span>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

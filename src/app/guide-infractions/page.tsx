@@ -93,14 +93,14 @@ export default async function GuideInfractionsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="rounded-[28px] border border-indigo-200 bg-gradient-to-br from-indigo-700 via-violet-700 to-slate-900 p-6 text-white shadow-[0_25px_60px_-25px_rgba(79,70,229,0.7)]">
+      <header className="rounded-3xl bg-navy-900 p-6 text-white shadow-card">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-indigo-100">Référence</p>
-            <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">Guide des infractions et points retirés</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Référence</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Guide des infractions et points retirés</h1>
           </div>
-          <Link href="/contraventions/scan" className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50">
-            Scanner une amende <ArrowRight size={16} />
+          <Link href="/contraventions/scan" className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700">
+            Scanner un document <ArrowRight size={16} />
           </Link>
         </div>
       </header>
@@ -120,10 +120,10 @@ export default async function GuideInfractionsPage() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         {guide.map(({ title, points, summary, infractions, icon: Icon }) => (
-          <article key={title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_15px_40px_-25px_rgba(15,23,42,0.35)]">
+          <article key={title} className="card p-5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-indigo-50 text-indigo-700">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl bg-brand-50 text-brand-700">
                   <Icon size={20} />
                 </div>
                 <div>
@@ -131,7 +131,7 @@ export default async function GuideInfractionsPage() {
                   <p className="text-sm text-slate-500">Points retirés</p>
                 </div>
               </div>
-              <span className="rounded-full bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700">{points}</span>
+              <span className="rounded-full bg-brand-50 px-3 py-1 text-sm font-semibold text-brand-700">{points}</span>
             </div>
 
             <p className="mt-4 text-sm text-slate-600">{summary}</p>
@@ -141,7 +141,7 @@ export default async function GuideInfractionsPage() {
                 <li key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <span className="font-medium text-slate-800">{label}</span>
-                    <span className="shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">{infractionPoints} pt{infractionPoints > 1 ? 's' : ''}</span>
+                    <span className="shrink-0 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-700">{infractionPoints} pt{infractionPoints > 1 ? 's' : ''}</span>
                   </div>
                   <div className="mt-1 text-xs text-slate-500">{law}</div>
                 </li>

@@ -198,9 +198,9 @@ export function DocumentViewerModal({
   const canZoom = isPdf || isImage;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-[fadeIn_150ms_ease-out]">
       <div
-        className={`flex w-full flex-col rounded-xl bg-white shadow-2xl transition-all ${
+        className={`flex w-full flex-col rounded-2xl border border-slate-200 bg-white shadow-popover transition-all animate-[modalIn_150ms_ease-out] ${
           expanded ? "fixed inset-4" : "max-w-5xl h-[85vh]"
         }`}
       >

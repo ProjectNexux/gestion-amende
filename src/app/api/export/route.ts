@@ -1,13 +1,24 @@
 import { prisma } from "@/lib/prisma";
 import ExcelJS from "exceljs";
+import { NextResponse } from "next/server";
+import { getSociete, isAdminSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  // Security audit finding (2026-08-24): this route previously had NO auth check at all and
+  // queried every model with no `where` clause — any visitor (logged in or not, any société)
+  // could download every société's contraventions/véhicules/conducteurs in one request. Now
+  // requires a session and, unless the caller is an admin, is scoped to their own société.
+  const societe = await getSociete();
+  if (!societe) return NextResponse.json({ error: "Non connecté" }, { status: 401 });
+  const isAdmin = await isAdminSession();
+  const where = isAdmin ? {} : { societe };
+
   const [contraventions, vehicules, conducteurs] = await Promise.all([
-    prisma.contravention.findMany({ include: { vehicule: true, conducteur: true }, orderBy: [{ societe: "asc" }, { numDossier: "asc" }] }),
-    prisma.vehicule.findMany({ orderBy: [{ societe: "asc" }, { code: "asc" }] }),
-    prisma.conducteur.findMany({ orderBy: [{ societe: "asc" }, { code: "asc" }] }),
+    prisma.contravention.findMany({ where, include: { vehicule: true, conducteur: true }, orderBy: [{ societe: "asc" }, { numDossier: "asc" }] }),
+    prisma.vehicule.findMany({ where, orderBy: [{ societe: "asc" }, { code: "asc" }] }),
+    prisma.conducteur.findMany({ where, orderBy: [{ societe: "asc" }, { code: "asc" }] }),
   ]);
 
   const wb = new ExcelJS.Workbook();

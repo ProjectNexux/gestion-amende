@@ -10,7 +10,7 @@ import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 
 export const dynamic = "force-dynamic";
 
-const inp = "w-full px-3 py-2 border border-gray-300 rounded-md text-sm";
+const inp = "field";
 
 export default async function CertificatImmatriculationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,21 +31,21 @@ export default async function CertificatImmatriculationDetailPage({ params }: { 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Modifier le certificat</h1>
-          <p className="text-sm text-gray-500">{item.fileName}</p>
+          <p className="text-sm text-slate-500">{item.fileName}</p>
         </div>
-        <Link href="/courriers/certificats-immatriculation" className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+        <Link href="/courriers/certificats-immatriculation" className="btn-secondary">
           Retour à la liste
         </Link>
       </div>
 
-      <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-5">
+      <div className="space-y-4 card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <DocumentViewerTrigger
             fileUrl={`/api/courriers/${item.id}`}
             downloadUrl={`/api/courriers/${item.id}?download=1`}
             fileName={item.fileName}
             fileMime={item.fileMime}
-            className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            className="btn-secondary"
           >
             <Eye size={15} /> Visualiser le document
           </DocumentViewerTrigger>
@@ -56,7 +56,7 @@ export default async function CertificatImmatriculationDetailPage({ params }: { 
           </form>
         </div>
 
-        <form action={updateCertificat.bind(null, item.id)} className="space-y-3 border-t border-gray-100 pt-4">
+        <form action={updateCertificat.bind(null, item.id)} className="space-y-3 border-t border-slate-100 pt-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">Nom de la société</label>
             {isAdmin ? (

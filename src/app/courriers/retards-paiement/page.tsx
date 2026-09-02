@@ -4,6 +4,8 @@ import { requireSociete, isAdminSession } from "@/lib/auth";
 import { createRetardPaiementManuelle } from "./actions";
 import AddRetardPaiementPanel from "./AddRetardPaiementPanel";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ClockAlert } from "lucide-react";
 import { getRetardPaiementData, resteAPayer } from "@/lib/courriers";
 import { fmtMoneyCents } from "@/lib/utils";
 
@@ -37,7 +39,7 @@ export default async function RetardsPaiementPage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
+          <thead className="bg-indigo-50/50 text-slate-600">
             <tr>
               <th className="p-3 text-left">Bénéficiaire</th>
               <th className="p-3 text-left">Débiteur</th>
@@ -69,7 +71,9 @@ export default async function RetardsPaiementPage() {
             })}
             {items.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-slate-500">Aucun retard de paiement pour le moment.</td>
+                <td colSpan={7}>
+                  <EmptyState icon={ClockAlert} title="Aucun retard de paiement" description="Les relances et retards de paiement détectés ou ajoutés manuellement apparaîtront ici." />
+                </td>
               </tr>
             )}
           </tbody>

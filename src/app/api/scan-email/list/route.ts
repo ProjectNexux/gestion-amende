@@ -24,6 +24,7 @@ export async function GET() {
       parsedData: true,
       receivedAt: true,
       processedAt: true,
+      origine: true,
     },
     orderBy: { receivedAt: "desc" },
     take: 50,

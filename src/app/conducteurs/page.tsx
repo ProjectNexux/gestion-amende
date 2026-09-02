@@ -3,6 +3,8 @@ import { createConducteur, deleteConducteur } from "./actions";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import AddConducteurPanel from "./AddConducteurPanel";
 import Link from "next/link";
+import { Users } from "lucide-react";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +16,9 @@ export default async function ConducteursPage() {
     <div className="space-y-6">
       <AddConducteurPanel action={createConducteur} />
 
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="table-shell">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-600">
+          <thead className="table-head">
             <tr>
               <th className="text-left p-3">Société</th>
               <th className="text-left p-3">Code</th>
@@ -28,8 +30,19 @@ export default async function ConducteursPage() {
             </tr>
           </thead>
           <tbody>
+            {items.length === 0 && (
+              <tr>
+                <td colSpan={7}>
+                  <EmptyState
+                    icon={Users}
+                    title="Aucun conducteur enregistré"
+                    description="Ajoutez votre premier conducteur pour l'associer à des véhicules et des contraventions."
+                  />
+                </td>
+              </tr>
+            )}
             {items.map((c) => (
-              <tr key={c.id} className="border-t border-gray-100">
+              <tr key={c.id} className="table-row">
                 <td className="p-3">{c.societe}</td>
                 <td className="p-3 font-mono text-xs">{c.code}</td>
                 <td className="p-3 font-medium">{c.civilite} {c.prenom} {c.nom}</td>

@@ -58,8 +58,11 @@ const MOTIF_PATTERNS: [RegExp, string][] = [
 ];
 
 const reDateDoc = /\b(\d{2})[\/.-](\d{2})[\/.-](\d{4})\b/;
-const reMontant = /(\d{1,3}(?:[ .]\d{3})*(?:[,.]\d{2})?)\s*€/g;
-const reMontantTotal = /(?:total|s[''’]?[ée]l[èe]ve\s+[àa]|somme\s+de|montant\s+d[ûu])[^\d]{0,20}(\d{1,3}(?:[ .]\d{3})*(?:[,.]\d{2})?)\s*€/i;
+// \d{1,4} (not {1,3}) for the leading group: OCR often drops the space/period thousands
+// separator (e.g. "3250,00 €" instead of "3 250,00 €") — {1,3} would then only capture the
+// last 3 digits ("250") and silently lose the leading digit. Same fix as fine-parser.ts.
+const reMontant = /(\d{1,4}(?:[ .]\d{3})*(?:[,.]\d{2})?)\s*€/g;
+const reMontantTotal = /(?:total|s[''’]?[ée]l[èe]ve\s+[àa]|somme\s+de|montant\s+d[ûu])[^\d]{0,20}(\d{1,4}(?:[ .]\d{3})*(?:[,.]\d{2})?)\s*€/i;
 const reReferenceLine = /(?:dossier|r[ée]f[ée]rence|contrat|facture|courrier)\s*n?[°ºo]?\s*[:#]?\s*([^\n.]{2,60})/i;
 const reDelayRelative = /(?:sous\s+|dans\s+un\s+d[ée]lai\s+de\s+|d[''’]un\s+d[ée]lai\s+de\s+)(\d{1,3})\s+jours?/i;
 const reDelayAbsolute = /avant\s+le\s+(\d{2}[\/.-]\d{2}[\/.-]\d{4})/i;

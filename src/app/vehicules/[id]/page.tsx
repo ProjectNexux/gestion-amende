@@ -10,7 +10,7 @@ type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-const inp = "w-full px-3 py-2 border border-gray-300 rounded-md text-sm";
+const inp = "field";
 
 export default async function VehiculeDetailPage({ params }: PageProps) {
   const { id } = await params;
@@ -48,16 +48,16 @@ export default async function VehiculeDetailPage({ params }: PageProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Fiche véhicule</h1>
-          <p className="text-sm text-gray-500">{vehicule.immatriculation} · {vehicule.code}</p>
+          <p className="text-sm text-slate-500">{vehicule.immatriculation} · {vehicule.code}</p>
         </div>
-        <Link href="/vehicules" className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+        <Link href="/vehicules" className="btn-secondary">
           Retour à la liste
         </Link>
       </div>
 
-      <form action={updateVehicule.bind(null, vehicule.id)} className="space-y-6 rounded-lg border border-gray-200 bg-white p-5">
+      <form action={updateVehicule.bind(null, vehicule.id)} className="space-y-6 card p-5">
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-700">Informations véhicule</h2>
+          <h2 className="text-sm font-semibold text-slate-700">Informations véhicule</h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <input name="code" defaultValue={vehicule.code} placeholder="Code" className={inp} />
             <input name="immatriculation" defaultValue={vehicule.immatriculation} placeholder="Immatriculation *" required className={inp} />
@@ -73,8 +73,8 @@ export default async function VehiculeDetailPage({ params }: PageProps) {
           </div>
         </section>
 
-        <section className="space-y-3 border-t border-gray-100 pt-4">
-          <h2 className="text-sm font-semibold text-gray-700">Conducteur attitré</h2>
+        <section className="space-y-3 border-t border-slate-100 pt-4">
+          <h2 className="text-sm font-semibold text-slate-700">Conducteur attitré</h2>
           <select name="conducteurAttitre" defaultValue={vehicule.conducteurAttitre ?? ""} className={`${inp} max-w-xl`}>
             <option value="">— Aucun conducteur attitré —</option>
             {conducteurs.map((c) => (
@@ -85,11 +85,11 @@ export default async function VehiculeDetailPage({ params }: PageProps) {
           </select>
 
           {selectedConducteur ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
               <div className="font-medium text-gray-800">{selectedConducteur.civilite ? `${selectedConducteur.civilite} ` : ""}{selectedConducteur.prenom} {selectedConducteur.nom}</div>
-              <div className="mt-1 text-gray-600">N° permis: {selectedConducteur.numPermis ?? "—"}</div>
-              <div className="text-gray-600">N° carte d'identité: {selectedConducteur.numCarteIdentite ?? "—"}</div>
-              <div className="text-gray-600">Date d'expiration CNI: {selectedConducteur.dateExpirationCni ?? "—"}</div>
+              <div className="mt-1 text-slate-600">N° permis: {selectedConducteur.numPermis ?? "—"}</div>
+              <div className="text-slate-600">N° carte d'identité: {selectedConducteur.numCarteIdentite ?? "—"}</div>
+              <div className="text-slate-600">Date d'expiration CNI: {selectedConducteur.dateExpirationCni ?? "—"}</div>
               <div className="mt-2 flex flex-wrap gap-3 text-xs">
                 <Link href={`/conducteurs/${selectedConducteur.id}`} className="text-[var(--color-brand)] underline">Voir la fiche conducteur</Link>
                 {selectedConducteur.cniRectoNom && (
@@ -107,9 +107,9 @@ export default async function VehiculeDetailPage({ params }: PageProps) {
               </div>
             </div>
           ) : (
-            <p className="text-xs text-gray-500">Aucun conducteur attitré sélectionné.</p>
+            <p className="text-xs text-slate-500">Aucun conducteur attitré sélectionné.</p>
           )}
-          <p className="text-xs text-gray-500">Les documents d'identité restent protégés côté serveur et ne sont accessibles qu'aux utilisateurs autorisés.</p>
+          <p className="text-xs text-slate-500">Les documents d'identité restent protégés côté serveur et ne sont accessibles qu'aux utilisateurs autorisés.</p>
         </section>
 
         <div className="flex justify-end">

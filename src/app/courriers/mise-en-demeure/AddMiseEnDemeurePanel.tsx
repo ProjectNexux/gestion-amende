@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { MISE_EN_DEMEURE_STATUTS } from "@/lib/courriers";
 
-const inp = "px-3 py-2 border border-gray-300 rounded-md text-sm";
+const inp = "field";
 
 function todayIso() {
   const d = new Date();
@@ -43,7 +43,7 @@ export default function AddMiseEnDemeurePanel({
           (open ? "max-h-[900px] opacity-100 translate-y-0" : "max-h-0 opacity-0 -translate-y-1")
         }
       >
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
+        <div className="card p-5">
           <form action={action} className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="md:col-span-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Informations principales</h3>
@@ -72,7 +72,7 @@ export default function AddMiseEnDemeurePanel({
               <input name="destinataire" className={`${inp} w-full`} />
             </div>
 
-            <div className="md:col-span-2 border-t border-gray-100 pt-3">
+            <div className="md:col-span-2 border-t border-slate-100 pt-3">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Document</h3>
             </div>
             <div>
@@ -88,7 +88,7 @@ export default function AddMiseEnDemeurePanel({
               <input name="reference" className={`${inp} w-full`} />
             </div>
 
-            <div className="md:col-span-2 border-t border-gray-100 pt-3">
+            <div className="md:col-span-2 border-t border-slate-100 pt-3">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Motif</h3>
             </div>
             <div className="md:col-span-2">
@@ -96,18 +96,18 @@ export default function AddMiseEnDemeurePanel({
               <textarea name="motif" rows={2} className={`${inp} w-full`} />
             </div>
 
-            <div className="border-t border-gray-100 pt-3">
+            <div className="border-t border-slate-100 pt-3">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Financier</h3>
               <label className="mb-1 mt-2 block text-xs font-medium text-slate-500">Montant réclamé (€)</label>
               <input name="montant" placeholder="4523.17" className={`${inp} w-full`} />
             </div>
-            <div className="border-t border-gray-100 pt-3">
+            <div className="border-t border-slate-100 pt-3">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Échéance</h3>
               <label className="mb-1 mt-2 block text-xs font-medium text-slate-500">Date limite de réponse / paiement</label>
               <input name="echeance" placeholder="31/08/2026" className={`${inp} w-full`} />
             </div>
 
-            <div className="md:col-span-2 border-t border-gray-100 pt-3">
+            <div className="md:col-span-2 border-t border-slate-100 pt-3">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pièce jointe</h3>
             </div>
             <div>
@@ -133,7 +133,7 @@ export default function AddMiseEnDemeurePanel({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                className="btn-secondary"
               >
                 Annuler
               </button>

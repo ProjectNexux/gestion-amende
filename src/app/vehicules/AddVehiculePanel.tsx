@@ -4,26 +4,30 @@ import { useState } from "react";
 
 type Props = {
   action: (formData: FormData) => void | Promise<void>;
+  extraActions?: React.ReactNode;
 };
 
-const inp = "px-3 py-2 border border-gray-300 rounded-md text-sm";
+const inp = "field";
 
-export default function AddVehiculePanel({ action }: Props) {
+export default function AddVehiculePanel({ action, extraActions }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Véhicules</h1>
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[var(--color-brand-dark)]"
-          aria-expanded={open}
-          aria-controls="add-vehicule-form"
-        >
-          + Ajouter un véhicule
-        </button>
+        <div className="flex items-center gap-2">
+          {extraActions}
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex items-center rounded-lg bg-[var(--color-brand)] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[var(--color-brand-dark)]"
+            aria-expanded={open}
+            aria-controls="add-vehicule-form"
+          >
+            + Ajouter un véhicule
+          </button>
+        </div>
       </div>
 
       <div
@@ -34,7 +38,7 @@ export default function AddVehiculePanel({ action }: Props) {
           (open ? "max-h-[540px] opacity-100 translate-y-0" : "max-h-0 opacity-0 -translate-y-1")
         }
       >
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
+        <div className="card p-5">
           <form action={action} className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <input name="code" placeholder="Code (auto)" className={inp} />
             <input name="immatriculation" placeholder="Immatriculation *" required className={inp} />
@@ -46,7 +50,7 @@ export default function AddVehiculePanel({ action }: Props) {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                className="btn-secondary"
               >
                 Annuler
               </button>

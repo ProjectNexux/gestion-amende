@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { Eye, MoreHorizontal, Search } from "lucide-react";
+import { Eye, MoreHorizontal, Search, Scale } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { createMiseEnDemeureManuelle, deleteMiseEnDemeure } from "./actions";
 import AddMiseEnDemeurePanel from "./AddMiseEnDemeurePanel";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { getMiseEnDemeureData, origineLabel } from "@/lib/courriers";
 import { fmtMoney } from "@/lib/utils";
 
@@ -103,23 +104,23 @@ export default async function MiseEnDemeurePage({
 
       <AddMiseEnDemeurePanel action={createMiseEnDemeureManuelle} societeOptions={societeOptions} defaultSociete={societe} />
 
-      <form className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white p-3" method="get">
+      <form className="flex flex-wrap items-center gap-2 card p-3" method="get">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             name="q"
             defaultValue={one(sp.q)}
             placeholder="Société, expéditeur, destinataire, référence, motif…"
-            className="w-full rounded-md border border-gray-300 py-2 pl-8 pr-3 text-sm"
+            className="field pl-8"
           />
         </div>
-        <select name="sens" defaultValue={filterSens} className="rounded-md border border-gray-300 px-2 py-2 text-sm">
+        <select name="sens" defaultValue={filterSens} className="field w-auto">
           <option value="">Tous les sens</option>
           <option value="recue">Reçue</option>
           <option value="envoyee">Envoyée</option>
           <option value="a_verifier">À vérifier</option>
         </select>
-        <select name="statut" defaultValue={filterStatut} className="rounded-md border border-gray-300 px-2 py-2 text-sm">
+        <select name="statut" defaultValue={filterStatut} className="field w-auto">
           <option value="">Tous les statuts</option>
           <option value="Nouveau">Nouveau</option>
           <option value="À vérifier">À vérifier</option>
@@ -129,7 +130,7 @@ export default async function MiseEnDemeurePage({
           <option value="Archivé">Archivé</option>
         </select>
         {isAdmin && (
-          <select name="societe" defaultValue={filterSociete} className="rounded-md border border-gray-300 px-2 py-2 text-sm">
+          <select name="societe" defaultValue={filterSociete} className="field w-auto">
             <option value="">Toutes les sociétés</option>
             {societeOptions.map((nom) => (
               <option key={nom} value={nom}>{nom}</option>
@@ -146,7 +147,7 @@ export default async function MiseEnDemeurePage({
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
+          <thead className="bg-indigo-50/50 text-slate-600">
             <tr>
               <th className="p-3 text-left">Date</th>
               <th className="p-3 text-left">Sens</th>
@@ -208,7 +209,13 @@ export default async function MiseEnDemeurePage({
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={11} className="p-8 text-center text-slate-500">Aucune mise en demeure pour le moment.</td>
+                <td colSpan={11}>
+                  <EmptyState
+                    icon={Scale}
+                    title="Aucune mise en demeure pour le moment"
+                    description="Les mises en demeure reçues ou envoyées, détectées ou ajoutées manuellement, apparaîtront ici."
+                  />
+                </td>
               </tr>
             )}
           </tbody>

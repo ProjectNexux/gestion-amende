@@ -6,7 +6,7 @@ type Props = {
   action: (formData: FormData) => void | Promise<void>;
 };
 
-const inp = "px-3 py-2 border border-gray-300 rounded-md text-sm";
+const inp = "field";
 
 export default function AddConducteurPanel({ action }: Props) {
   const [open, setOpen] = useState(false);
@@ -34,7 +34,7 @@ export default function AddConducteurPanel({ action }: Props) {
           (open ? "max-h-[540px] opacity-100 translate-y-0" : "max-h-0 opacity-0 -translate-y-1")
         }
       >
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
+        <div className="card p-5">
           <form action={action} className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <select name="civilite" className={inp}>
               <option value="">Civilité</option>
@@ -47,14 +47,14 @@ export default function AddConducteurPanel({ action }: Props) {
             <input name="email" placeholder="Email" className={inp} />
             <input name="numPermis" placeholder="N° Permis" className={inp} />
 
-            <div className="md:col-span-3 mt-2 border-t border-gray-100 pt-4">
-              <h2 className="text-sm font-semibold text-gray-700">Carte d'identité</h2>
+            <div className="md:col-span-3 mt-2 border-t border-slate-100 pt-4">
+              <h2 className="text-sm font-semibold text-slate-700">Carte d'identité</h2>
             </div>
             <input name="numCarteIdentite" placeholder="N° de carte d'identité" className={inp} />
             <input name="dateDelivranceCni" placeholder="Date de délivrance (jj/mm/aaaa)" className={inp} />
             <input name="dateExpirationCni" placeholder="Date d'expiration (jj/mm/aaaa)" className={inp} />
 
-            <label className="md:col-span-3 grid gap-1 text-sm text-gray-700">
+            <label className="md:col-span-3 grid gap-1 text-sm text-slate-700">
               <span>Télécharger le recto de la carte d'identité</span>
               <input
                 type="file"
@@ -64,7 +64,7 @@ export default function AddConducteurPanel({ action }: Props) {
               />
             </label>
 
-            <label className="md:col-span-3 grid gap-1 text-sm text-gray-700">
+            <label className="md:col-span-3 grid gap-1 text-sm text-slate-700">
               <span>Télécharger le verso de la carte d'identité</span>
               <input
                 type="file"
@@ -78,7 +78,7 @@ export default function AddConducteurPanel({ action }: Props) {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                className="btn-secondary"
               >
                 Annuler
               </button>
