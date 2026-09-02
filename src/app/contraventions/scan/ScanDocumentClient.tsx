@@ -90,6 +90,38 @@ export default function ScanDocumentClient() {
     else setPreviewUrl(null);
   }, []);
 
+  async function submitConfirm(payload: {
+    scanId: string;
+    finalType: string;
+    fields: Record<string, string>;
+    duplicate: DuplicateMatch;
+    duplicateAction: DuplicateAction;
+    societe: string;
+    visibleClient: boolean;
+  }) {
+    const res = await fetch(`/api/documents/${payload.scanId}/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        finalType: payload.finalType,
+        fields: payload.fields,
+        duplicate: payload.duplicate,
+        duplicateAction: payload.duplicateAction,
+        societe: payload.societe,
+        visibleClient: payload.visibleClient,
+      }),
+    });
+    const json = await safeJson(res);
+    if (!res.ok) {
+      throw new Error(
+        typeof json.error === "string"
+          ? json.error
+          : `Le serveur n'a pas répondu correctement (HTTP ${res.status}). Vérifiez la connexion à la base de données et réessayez.`,
+      );
+    }
+    return json as { redirectPath?: string };
+  }
+
   async function analyze() {
     if (!file) return;
     setLoading(true);
@@ -120,18 +152,44 @@ export default function ScanDocumentClient() {
       }
 
       const analysisResult = json.analysis as DocumentAnalysis;
-      setScanId(json.id as string);
-      setAnalysis(analysisResult);
-      setDuplicate(json.duplicate as DuplicateMatch);
-      setFinalType(analysisResult.type);
+      const scanIdValue = json.id as string;
+      const duplicateMatch = (json.duplicate as DuplicateMatch) ?? null;
       const initialFields: Record<string, string> = {};
       Object.entries(analysisResult.fields as Record<string, unknown>).forEach(([k, v]) => {
         initialFields[k] = v === null || v === undefined ? "" : String(v);
       });
+      const societesList = (json.societes as string[]) ?? [];
+      const defaultSociete = (json.defaultSociete as string) ?? "";
+
+      setScanId(scanIdValue);
+      setAnalysis(analysisResult);
+      setDuplicate(duplicateMatch);
+      setFinalType(analysisResult.type);
       setFields(initialFields);
       setDuplicateAction("ignorer");
-      setSocietes((json.societes as string[]) ?? []);
-      setTargetSociete((json.defaultSociete as string) ?? "");
+      setSocietes(societesList);
+      setTargetSociete(defaultSociete);
+
+      // No conflicting duplicate: file it straight into its section, no manual review needed —
+      // a genuine potential-duplicate match (numAvis/immat/référence already existing) is the
+      // only case that still requires a human decision (ignorer/rattacher/créer quand même).
+      if (!duplicateMatch) {
+        const saved = await submitConfirm({
+          scanId: scanIdValue,
+          finalType: analysisResult.type,
+          fields: initialFields,
+          duplicate: null,
+          duplicateAction: "ignorer",
+          societe: defaultSociete,
+          // Safe default: auto-filing skips the review step, so it must NOT also auto-publish to
+          // the client portal — visibilité stays an explicit admin action from the record itself.
+          visibleClient: false,
+        });
+        setResult(saved);
+        setStep("result");
+        return;
+      }
+
       setStep("review");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inattendue.");
@@ -146,20 +204,8 @@ export default function ScanDocumentClient() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/documents/${scanId}/confirm`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ finalType, fields, duplicate, duplicateAction, societe: targetSociete, visibleClient: sendToClient }),
-      });
-      const json = await safeJson(res);
-      if (!res.ok) {
-        throw new Error(
-          typeof json.error === "string"
-            ? json.error
-            : `Le serveur n'a pas répondu correctement (HTTP ${res.status}). Vérifiez la connexion à la base de données et réessayez.`,
-        );
-      }
-      setResult(json as { redirectPath?: string });
+      const saved = await submitConfirm({ scanId, finalType, fields, duplicate, duplicateAction, societe: targetSociete, visibleClient: sendToClient });
+      setResult(saved);
       setStep("result");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inattendue.");
@@ -181,7 +227,8 @@ export default function ScanDocumentClient() {
         <div className="space-y-4">
           <p className="text-sm text-slate-500">
             Importez n&apos;importe quel document (contravention, mise en demeure / URSSAF, certificat d&apos;immatriculation,
-            facture, impôt, sinistre, permis de conduire, carte d&apos;identité, pub…) : l&apos;OCR détecte automatiquement de quoi il s&apos;agit.
+            facture, impôt, sinistre, permis de conduire, carte d&apos;identité, pub…) : l&apos;OCR détecte automatiquement de quoi il s&apos;agit
+            et l&apos;enregistre directement dans la bonne section.
           </p>
 
           {!file ? (
@@ -238,7 +285,7 @@ export default function ScanDocumentClient() {
       {step === "analyzing" && (
         <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
           <Loader2 className="animate-spin text-brand-600" size={32} />
-          <p className="text-sm font-medium text-slate-700">Stockage sécurisé du document, OCR et classification en cours…</p>
+          <p className="text-sm font-medium text-slate-700">Stockage sécurisé, OCR, classification et enregistrement dans la bonne section…</p>
           <p className="text-xs text-slate-500">Cela peut prendre quelques secondes selon la taille du document.</p>
         </div>
       )}
