@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { createSocieteAction, deleteSocieteAction } from "./actions";
+import { createSocieteAction, deleteSocieteAction, generateSetupLinkAction } from "./actions";
 import Link from "next/link";
 import { isAdminSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { buildSetupUrl, isSetupTokenExpired } from "@/lib/societe-setup";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export default async function AdminSocietesPage() {
   if (!(await isAdminSession())) redirect("/login");
 
   const societes = await prisma.societe.findMany({ orderBy: { nom: "asc" } });
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-8">
@@ -26,8 +28,11 @@ export default async function AdminSocietesPage() {
         <h2 className="text-sm font-semibold">Nouvelle société</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <input name="nom" required placeholder="Nom de la société" className="field" />
-          <input name="codeAcces" required placeholder="Code d'accès" className="field" />
+          <input name="codeAcces" placeholder="Code d'accès (facultatif)" className="field" />
         </div>
+        <p className="text-xs text-slate-500">
+          Laissez le code d&apos;accès vide pour générer un lien à envoyer au client : il pourra alors créer lui-même son propre code d&apos;accès.
+        </p>
         <button type="submit" className="btn-primary">Créer</button>
       </form>
 
@@ -42,18 +47,41 @@ export default async function AdminSocietesPage() {
             </tr>
           </thead>
           <tbody>
-            {societes.map((s) => (
-              <tr key={s.id} className="table-row">
-                <td className="p-3 font-medium">{s.nom}</td>
-                <td className="p-3 font-mono text-xs">{s.codeAcces}</td>
-                <td className="p-3 text-slate-500">{s.createdAt.toLocaleDateString("fr-FR")}</td>
-                <td className="p-3 text-right">
-                  <form action={deleteSocieteAction.bind(null, s.id)}>
-                    <button className="text-xs text-red-600 hover:underline">Suppr.</button>
-                  </form>
-                </td>
-              </tr>
-            ))}
+            {societes.map((s) => {
+              const pendingSetup = !!s.codeAccesSetupToken;
+              const expired = pendingSetup && isSetupTokenExpired(s.codeAccesSetupExpiresAt);
+              const setupUrl = pendingSetup && s.codeAccesSetupToken ? buildSetupUrl(appUrl, s.codeAccesSetupToken) : null;
+              return (
+                <tr key={s.id} className="table-row align-top">
+                  <td className="p-3 font-medium">{s.nom}</td>
+                  <td className="p-3 font-mono text-xs">
+                    {pendingSetup ? (
+                      <div className="space-y-1">
+                        <div className={expired ? "text-amber-600" : "text-slate-500"}>
+                          {expired ? "Lien de création expiré" : "En attente — le client crée son code"}
+                        </div>
+                        {!expired && setupUrl && (
+                          <div className="max-w-[260px] break-all font-mono text-[11px] text-brand-600">{setupUrl}</div>
+                        )}
+                        <form action={generateSetupLinkAction.bind(null, s.id)}>
+                          <button className="text-[11px] text-brand-600 hover:underline">
+                            {expired ? "Générer un nouveau lien" : "Régénérer le lien"}
+                          </button>
+                        </form>
+                      </div>
+                    ) : (
+                      s.codeAcces
+                    )}
+                  </td>
+                  <td className="p-3 text-slate-500">{s.createdAt.toLocaleDateString("fr-FR")}</td>
+                  <td className="p-3 text-right">
+                    <form action={deleteSocieteAction.bind(null, s.id)}>
+                      <button className="text-xs text-red-600 hover:underline">Suppr.</button>
+                    </form>
+                  </td>
+                </tr>
+              );
+            })}
             {societes.length === 0 && (
               <tr><td colSpan={4} className="p-6 text-center text-slate-400">Aucune société créée</td></tr>
             )}
@@ -63,3 +91,4 @@ export default async function AdminSocietesPage() {
     </div>
   );
 }
+

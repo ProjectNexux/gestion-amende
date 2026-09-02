@@ -12,6 +12,13 @@ model Societe {
   id                String   @id @default(cuid())
   nom               String   @unique
   codeAcces         String
+  // Self-service access code creation (2026-09-02): when an admin creates a société without
+  // typing a code directly, a one-time setup link is generated instead so the CLIENT can pick
+  // their own code_acces at /client-setup/[token]. Cleared (both set back to null) as soon as
+  // the client actually sets their code — single-use, same "unguessable capability link"
+  // convention already used for /paiement/[id].
+  codeAccesSetupToken     String?   @unique
+  codeAccesSetupExpiresAt DateTime?
   emailTransmission String? // adresse à laquelle transmettre les courriers administratifs de cette société
   createdAt         DateTime @default(now())
 

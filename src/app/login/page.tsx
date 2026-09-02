@@ -11,6 +11,7 @@ export default async function LoginPage({
 }) {
   const params = searchParams ? await searchParams : {};
   const error = params.error === "1";
+  const setupDone = params.setup === "1";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f6f7fb] p-4">
@@ -22,6 +23,12 @@ export default async function LoginPage({
           <h1 className="mt-4 text-2xl font-semibold text-slate-900">Connexion</h1>
           <p className="mt-1 text-sm text-slate-500">Accédez à l&apos;espace de votre société</p>
         </div>
+
+        {setupDone && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-700">
+            Votre code d&apos;accès a été créé avec succès. Vous pouvez maintenant vous connecter.
+          </div>
+        )}
 
         {error && (
           <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-center text-sm text-rose-700">

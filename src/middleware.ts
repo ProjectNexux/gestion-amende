@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
  * poll scheduler's internal fetch) are left untouched — existing per-page requireSociete()/login
  * redirects already handle that case.
  */
-const CLIENT_ALLOWED_PREFIXES = ["/client", "/login", "/api/logout", "/api/client"];
+const CLIENT_ALLOWED_PREFIXES = ["/client", "/login", "/api/logout", "/api/client", "/client-setup"];
 
 function isAllowedForClient(pathname: string): boolean {
   return CLIENT_ALLOWED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
