@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import {
   FilePlus2, Upload, FileText, Image as ImageIcon, X, Loader2, CheckCircle2,
-  AlertTriangle, ArrowRight, Copy, ScanLine, Receipt, Landmark, Car, Users, IdCard,
+  AlertTriangle, ArrowRight, Copy, Receipt, Landmark, Car, Users, IdCard,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
@@ -15,7 +15,6 @@ import type { DocumentAnalysis, DuplicateMatch, DuplicateAction, ConfidenceLabel
 type Step = "select" | "analyzing" | "review" | "duplicate-file" | "result";
 
 const SHORTCUTS = [
-  { href: "/contraventions/scan", label: "Scanner un document", icon: ScanLine },
   { href: "/comptabilite/factures/new", label: "Ajouter une facture", icon: Receipt },
   { href: "/comptabilite/impots/new", label: "Ajouter un document fiscal", icon: Landmark },
   { href: "/vehicules", label: "Ajouter un véhicule", icon: Car },

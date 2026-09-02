@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, Bell, ChevronDown, LogOut, Loader2 } from "lucide-react";
+import { Search, Bell, ChevronDown, LogOut, Loader2, ScanLine } from "lucide-react";
 import { NewDocumentMenu } from "@/components/NewDocumentMenu";
 import type { SearchResultGroup } from "@/app/api/search/route";
 
@@ -162,7 +162,13 @@ export function Topbar({ societe, admin }: { societe: string; admin: boolean }) 
         <Bell size={17} />
       </Link>
 
-      <NewDocumentMenu />
+      <div className="flex items-center gap-2">
+        <Link href="/contraventions/scan" className="btn-secondary">
+          <ScanLine size={16} />
+          Scanner un document
+        </Link>
+        <NewDocumentMenu />
+      </div>
 
       <div ref={ref} className="relative border-l border-slate-200 pl-3.5">
         <button type="button" onClick={() => setMenuOpen((v) => !v)} className="flex items-center gap-2 rounded-lg py-1 transition-colors duration-150 hover:opacity-80">
