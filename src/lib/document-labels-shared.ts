@@ -63,4 +63,5 @@ export const DOCUMENT_FIELD_LABELS: Record<string, string> = {
   numCarteIdentite: "N° de carte d'identité",
   dateDelivrance: "Date de délivrance",
   dateExpiration: "Date d'expiration",
+  typeDetecte: "Type détecté (estimé)",
 };

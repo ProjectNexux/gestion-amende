@@ -57,6 +57,10 @@ export default async function CourriersPage() {
               const statut = item.type === "mise_en_demeure" ? getMiseEnDemeureData(item.data).statut : null;
               const pub = item.type === "pub" ? getPubData(item.data) : null;
               const pubMinutes = pub ? pubMinutesRemaining(item.expiresAt) : null;
+              const typeDetecte =
+                item.type === "document" && item.data && typeof item.data === "object" && "typeDetecte" in item.data
+                  ? ((item.data as Record<string, unknown>).typeDetecte as string | null)
+                  : null;
               return (
                 <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50">
                   <td className="p-3">
@@ -72,6 +76,9 @@ export default async function CourriersPage() {
                     </div>
                     {pub && !pub.conserve && pubMinutes !== null && (
                       <div className="mt-0.5 text-[11px] text-amber-600">Suppression automatique dans {pubMinutes} min</div>
+                    )}
+                    {typeDetecte && (
+                      <div className="mt-0.5 max-w-[220px] truncate text-[11px] text-slate-500" title={typeDetecte}>{typeDetecte}</div>
                     )}
                   </td>
                   <td className="p-3">{item.societe}</td>

@@ -183,6 +183,52 @@ export function classifyDocument(ocrText: string): { type: DocumentType; score: 
   return { type: "inconnu", score: 0 };
 }
 
+// Free-text "nature du document" guesses for documents that don't belong to any of the app's
+// dedicated sections (contrat, devis, bulletin de paie, relevé bancaire, convocation, etc.) —
+// this does NOT create a new DocumentType/storage bucket (still lands as "inconnu" → generic
+// "Document à classer"), it only gives the reviewer a meaningful label instead of a blank field
+// so a document is never scanned without at least an educated guess at what it is.
+const GENERIC_NATURE_HINTS: [RegExp, string][] = [
+  [/bulletin\s+de\s+(?:paie|salaire)/i, "Bulletin de paie"],
+  [/contrat\s+de\s+travail/i, "Contrat de travail"],
+  [/contrat\s+de\s+(?:bail|location)/i, "Contrat de bail / location"],
+  [/contrat\s+d[''’]assurance/i, "Contrat d'assurance"],
+  [/\bcontrat\b/i, "Contrat"],
+  [/\bdevis\s+n[°ºo]?/i, "Devis"],
+  [/bon\s+de\s+commande/i, "Bon de commande"],
+  [/quittance\s+de\s+loyer/i, "Quittance de loyer"],
+  [/attestation\s+d[''’]assurance/i, "Attestation d'assurance"],
+  [/attestation\s+(?:employeur|de\s+travail)/i, "Attestation employeur"],
+  [/\battestation\b/i, "Attestation"],
+  [/convocation\s+(?:au\s+tribunal|devant\s+le\s+tribunal)/i, "Convocation au tribunal"],
+  [/convocation\s+[àa]\s+un\s+entretien/i, "Convocation à un entretien"],
+  [/\bconvocation\b/i, "Convocation"],
+  [/relev[ée]\s+(?:bancaire|de\s+compte)/i, "Relevé bancaire"],
+  [/r[ée]siliation/i, "Résiliation"],
+  [/jugement|d[ée]cision\s+de\s+justice/i, "Décision de justice"],
+  [/proc[èe]s[-\s]verbal\s+d[''’]assembl[ée]e/i, "Procès-verbal d'assemblée"],
+  [/bulletin\s+d[''’]adh[ée]sion/i, "Bulletin d'adhésion"],
+  [/note\s+de\s+service/i, "Note de service"],
+  [/compte[-\s]rendu/i, "Compte-rendu"],
+  [/relance\s+de\s+paiement|lettre\s+de\s+relance/i, "Relance de paiement"],
+  [/carte\s+professionnelle/i, "Carte professionnelle"],
+  [/attestation\s+de\s+formation|certificat\s+de\s+formation/i, "Attestation de formation"],
+];
+
+/** Best-effort human-readable guess at what an unrecognized document actually is — never guesses a value it can't support with real text. */
+export function guessGenericDocumentNature(text: string): string | null {
+  for (const [re, label] of GENERIC_NATURE_HINTS) {
+    if (re.test(text)) return label;
+  }
+  // Fallback: the first substantial line (title/letterhead-like) that isn't just a date or a
+  // single word — better than leaving the reviewer with a completely blank "type" field.
+  const line = text
+    .split(/\n/)
+    .map((l) => l.trim())
+    .find((l) => l.length >= 6 && l.length <= 90 && /[a-zA-ZÀ-ÿ]{3,}/.test(l) && !/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}$/.test(l));
+  return line ?? null;
+}
+
 /** True only when a facture/impot classification is decisive enough to auto-forward without human review. */
 export function isComptabiliteClassificationConfident(score: number, competingScore: number): boolean {
   return score >= 2 && (competingScore === 0 || score - competingScore >= 2);

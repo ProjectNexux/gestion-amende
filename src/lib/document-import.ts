@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { classifyDocument, detectSimpleExpediteur, isComptabiliteClassificationConfident, type DocumentType } from "@/lib/document-classifier";
+import { classifyDocument, detectSimpleExpediteur, isComptabiliteClassificationConfident, guessGenericDocumentNature, type DocumentType } from "@/lib/document-classifier";
 import { parseFine, findImmat, type ParsedFine } from "@/lib/fine-parser";
 import { parseMiseEnDemeure } from "@/lib/mise-en-demeure-parser";
 import { parseFacture, parseImpot } from "@/lib/comptabilite-parser";
@@ -182,7 +182,12 @@ export function analyzeDocumentText(ocrText: string, societe: string, knownPlate
     };
   }
 
-  return { type: "inconnu", confidenceLabel: "Faible", confidenceScore: 0, fields: {} };
+  return {
+    type: "inconnu",
+    confidenceLabel: "Faible",
+    confidenceScore: 0,
+    fields: { typeDetecte: guessGenericDocumentNature(ocrText), expediteur: detectSimpleExpediteur(ocrText) },
+  };
 }
 
 /** Read-only duplicate check, using the same identifiers already used elsewhere in the app for each type. */
@@ -554,13 +559,15 @@ export async function commitDocumentAnalysis(
     case "inconnu":
     default: {
       // Generic "à classer" bucket — still lands in "Tous les courriers", per spec §6/§7, never
-      // silently discarded and never force-classified into a wrong category.
+      // silently discarded and never force-classified into a wrong category. Keeps the guessed
+      // `typeDetecte`/`expediteur` (see guessGenericDocumentNature()) so it's never a totally
+      // blank/unlabeled row even when no dedicated section exists for it.
       const courrier = await prisma.courrier.create({
         data: {
           societe,
           type: "document",
           source: "IMPORT",
-          data: { statutClassification: "À classer" },
+          data: { statutClassification: "À classer", typeDetecte: str(f.typeDetecte), expediteur: str(f.expediteur) },
           fileName: scan.fileName,
           fileMime: scan.fileMime,
           fileSize: scan.fileSize,
