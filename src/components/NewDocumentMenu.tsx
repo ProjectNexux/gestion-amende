@@ -70,7 +70,7 @@ export function NewDocumentMenu({ className }: { className?: string }) {
   const [finalType, setFinalType] = useState<string>("");
   const [fields, setFields] = useState<Record<string, string>>({});
   const [duplicateAction, setDuplicateAction] = useState<DuplicateAction>("ignorer");
-  const [result, setResult] = useState<{ redirectPath?: string } | null>(null);
+  const [result, setResult] = useState<{ redirectPath?: string; societe?: string } | null>(null);
   // "Envoyer vers l'espace client" (2026-09-01): only populated for admins (see /api/documents/
   // import response) — lets the reviewer pick which société the document actually belongs to and
   // expose it immediately in that société's client portal, instead of it always staying filed
@@ -169,7 +169,7 @@ export function NewDocumentMenu({ className }: { className?: string }) {
           : `Le serveur n'a pas répondu correctement (HTTP ${res.status}). Vérifiez la connexion à la base de données et réessayez.`,
       );
     }
-    return json as { redirectPath?: string };
+    return json as { redirectPath?: string; societe?: string };
   }
 
   async function analyze() {
@@ -210,6 +210,10 @@ export function NewDocumentMenu({ className }: { className?: string }) {
       });
       const societesList = (json.societes as string[]) ?? [];
       const defaultSociete = (json.defaultSociete as string) ?? "";
+      // Destinataire auto-detection: file the document under whichever known société it actually
+      // names, instead of always defaulting to the uploader's own société.
+      const detectedSociete = (json.detectedSociete as string | null) ?? null;
+      const targetSocieteValue = detectedSociete ?? defaultSociete;
 
       setScanId(scanIdValue);
       setAnalysis(analysisResult);
@@ -218,7 +222,7 @@ export function NewDocumentMenu({ className }: { className?: string }) {
       setFields(initialFields);
       setDuplicateAction("ignorer");
       setSocietes(societesList);
-      setTargetSociete(defaultSociete);
+      setTargetSociete(targetSocieteValue);
 
       // No conflicting duplicate: file it straight into its section, no manual review needed —
       // a genuine potential-duplicate match (numAvis/immat/référence already existing) is the
@@ -230,7 +234,7 @@ export function NewDocumentMenu({ className }: { className?: string }) {
           fields: initialFields,
           duplicate: null,
           duplicateAction: "ignorer",
-          societe: defaultSociete,
+          societe: targetSocieteValue,
           // Safe default: auto-filing skips the review step, so it must NOT also auto-publish to
           // the client portal — visibilité stays an explicit admin action from the record itself.
           visibleClient: false,
@@ -485,7 +489,10 @@ export function NewDocumentMenu({ className }: { className?: string }) {
           <div className="space-y-3">
             <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
               <CheckCircle2 size={20} />
-              <p className="font-medium">Document classé automatiquement.</p>
+              <div>
+                <p className="font-medium">Document classé automatiquement.</p>
+                {result.societe && <p className="text-xs text-emerald-700">Société concernée : {result.societe}</p>}
+              </div>
             </div>
           </div>
         )}

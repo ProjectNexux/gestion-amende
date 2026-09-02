@@ -247,7 +247,7 @@ async function nextSinistreReference(societe: string): Promise<string> {
 
 export type DuplicateAction = "ignorer" | "rattacher" | "creer_quand_meme";
 
-export type CommitResult = { status: "created" | "linked" | "ignored"; recordId?: string; redirectPath?: string };
+export type CommitResult = { status: "created" | "linked" | "ignored"; recordId?: string; redirectPath?: string; societe?: string };
 
 /**
  * Finalizes a manually-imported EmailScan row: creates the target record (or links to an
@@ -296,7 +296,7 @@ export async function commitDocumentAnalysis(
         processedAt: new Date(),
       },
     });
-    return { status: "linked", recordId: opts.duplicate.id };
+    return { status: "linked", recordId: opts.duplicate.id, societe };
   }
 
   const f = opts.fields;
@@ -333,7 +333,7 @@ export async function commitDocumentAnalysis(
         },
       });
       await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", contraventionId: contravention.id, processedAt: new Date() } });
-      return { status: "created", recordId: contravention.id, redirectPath: `/contraventions/${contravention.id}` };
+      return { status: "created", recordId: contravention.id, redirectPath: `/contraventions/${contravention.id}`, societe };
     }
 
     case "mise_en_demeure": {
@@ -380,7 +380,7 @@ export async function commitDocumentAnalysis(
         },
       });
       await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
-      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/mise-en-demeure/${courrier.id}` };
+      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/mise-en-demeure/${courrier.id}`, societe };
     }
 
     case "facture":
@@ -416,6 +416,7 @@ export async function commitDocumentAnalysis(
         status: "created",
         recordId: courrier.id,
         redirectPath: opts.finalType === "facture" ? `/comptabilite/factures/${courrier.id}` : `/comptabilite/impots/${courrier.id}`,
+        societe,
       };
     }
 
@@ -437,7 +438,7 @@ export async function commitDocumentAnalysis(
         },
       });
       await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
-      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/certificats-immatriculation/${courrier.id}` };
+      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/certificats-immatriculation/${courrier.id}`, societe };
     }
 
     case "pub": {
@@ -458,7 +459,7 @@ export async function commitDocumentAnalysis(
         },
       });
       await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
-      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/pub` };
+      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/pub`, societe };
     }
 
     // Sinistre now has a real OCR extractor (see sinistre-parser.ts) — fields are pre-filled when
@@ -504,7 +505,7 @@ export async function commitDocumentAnalysis(
         },
       });
       await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
-      return { status: "created", recordId: sinistre.id, redirectPath: `/courriers/sinistres/${sinistre.id}` };
+      return { status: "created", recordId: sinistre.id, redirectPath: `/courriers/sinistres/${sinistre.id}`, societe };
     }
 
     // Permis de conduire / carte d'identité (2026-09-02): these belong to a Conducteur record
@@ -530,7 +531,7 @@ export async function commitDocumentAnalysis(
         },
       });
       await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
-      return { status: "created", recordId: courrier.id, redirectPath: `/courriers` };
+      return { status: "created", recordId: courrier.id, redirectPath: `/courriers`, societe };
     }
 
     // "retard_paiement" is an internal payment-reminder Beneficiaire is always CSPL/NETECO/
@@ -553,7 +554,7 @@ export async function commitDocumentAnalysis(
         },
       });
       await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
-      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/retards-paiement/${courrier.id}` };
+      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/retards-paiement/${courrier.id}`, societe };
     }
 
     case "inconnu":
@@ -577,7 +578,7 @@ export async function commitDocumentAnalysis(
         },
       });
       await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
-      return { status: "created", recordId: courrier.id, redirectPath: `/courriers` };
+      return { status: "created", recordId: courrier.id, redirectPath: `/courriers`, societe };
     }
   }
 }

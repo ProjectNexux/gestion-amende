@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSociete, getUserId, isAdminSession } from "@/lib/auth";
 import { serverOcr } from "@/lib/server-ocr";
 import { analyzeDocumentText, findPotentialDuplicate, fileHash, RECLASS_OPTIONS } from "@/lib/document-import";
+import { detectDestinataireSociete } from "@/lib/societe-detector";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,10 @@ export async function POST(req: NextRequest) {
     // under the concerned client's société instead of always staying under the admin's own.
     const isAdmin = await isAdminSession();
     const societes = isAdmin ? (await prisma.societe.findMany({ select: { nom: true }, orderBy: { nom: "asc" } })).map((s) => s.nom) : [];
+    // Destinataire auto-detection (2026-09-02): scans the OCR text for a real mention of one of
+    // the known sociétés' names so the document is filed under the correct client right away
+    // instead of always defaulting to the uploader's own société. Admin-only (same list as above).
+    const detectedSociete = isAdmin ? detectDestinataireSociete(ocrText, societes) : null;
 
     return NextResponse.json({
       id: scan.id,
@@ -113,6 +118,7 @@ export async function POST(req: NextRequest) {
       reclassOptions: RECLASS_OPTIONS,
       societes,
       defaultSociete: societe,
+      detectedSociete,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur d'analyse inconnue.";
