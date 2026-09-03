@@ -30,7 +30,9 @@ export async function sendMail(opts: {
   to: string[];
   subject: string;
   text: string;
-  attachment: MailAttachment;
+  html?: string;
+  replyTo?: string;
+  attachment?: MailAttachment;
 }): Promise<SendMailResult> {
   if (opts.to.length === 0) throw new Error("Aucun destinataire configuré.");
 
@@ -42,7 +44,11 @@ export async function sendMail(opts: {
     to: opts.to.join(", "),
     subject: opts.subject,
     text: opts.text,
-    attachments: [{ filename: opts.attachment.filename, content: opts.attachment.content, contentType: opts.attachment.contentType }],
+    html: opts.html,
+    replyTo: opts.replyTo,
+    attachments: opts.attachment
+      ? [{ filename: opts.attachment.filename, content: opts.attachment.content, contentType: opts.attachment.contentType }]
+      : undefined,
   });
 
   log(`Envoyé à ${opts.to.length} destinataire(s), messageId=${info.messageId}`);

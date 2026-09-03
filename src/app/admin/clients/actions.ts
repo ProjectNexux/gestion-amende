@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { isAdminSession } from "@/lib/auth";
-import { generateSetupToken, setupTokenExpiryDate, generatePlaceholderCodeAcces } from "@/lib/societe-setup";
+import { generateSetupToken, setupTokenExpiryDate, generatePlaceholderCodeAcces, buildSetupUrl, isSetupTokenExpired } from "@/lib/societe-setup";
 import { normalizeSiret, isValidSiret } from "@/lib/siret";
+import { sendClientInvitationEmail } from "@/lib/client-invitation-email";
 
 const LIST_PATH = "/admin/clients";
 
@@ -154,7 +155,55 @@ export async function regenerateSetupLinkAction(id: string) {
 export async function markInvitationSentAction(id: string) {
   await requireAdmin();
   await prisma.societe.update({ where: { id }, data: { invitationSentAt: new Date() } });
-  await audit(id, "invitation_envoyee", "Invitation marquée comme envoyée");
+  await audit(id, "invitation_envoyee", "Invitation marquée comme envoyée manuellement");
+  revalidatePath(`${LIST_PATH}/${id}`);
+  revalidatePath(LIST_PATH);
+}
+
+/**
+ * Sends the invitation e-mail to the client (contact email on the fiche) with their one-time
+ * setup link. Regenerates the setup token first if it's already expired so the link the client
+ * receives is always usable. Failure surfaces via the `SocieteAudit` log (audit action with the
+ * error message) and via a re-thrown error the calling page handles.
+ */
+export async function sendInvitationAction(id: string) {
+  await requireAdmin();
+  const societe = await prisma.societe.findUnique({ where: { id } });
+  if (!societe) notFound();
+  if (!societe.email) {
+    await audit(id, "invitation_envoyee", "Échec envoi : aucune adresse e-mail renseignée");
+    throw new Error("Aucune adresse e-mail renseignée pour ce client.");
+  }
+
+  // Refresh the setup token when it's missing or expired — an admin should never send a link
+  // that will fail the moment the client clicks it.
+  let token = societe.codeAccesSetupToken;
+  if (!token || isSetupTokenExpired(societe.codeAccesSetupExpiresAt)) {
+    token = generateSetupToken();
+    await prisma.societe.update({
+      where: { id },
+      data: { codeAccesSetupToken: token, codeAccesSetupExpiresAt: setupTokenExpiryDate() },
+    });
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://gestion-amende.vercel.app";
+  const setupUrl = buildSetupUrl(appUrl, token);
+
+  try {
+    await sendClientInvitationEmail({
+      to: societe.email,
+      societeName: societe.nom,
+      setupUrl,
+      contactFirstName: societe.contactFirstName,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await audit(id, "invitation_envoyee", `Échec envoi : ${msg}`);
+    throw new Error(`Échec de l'envoi de l'invitation : ${msg}`);
+  }
+
+  await prisma.societe.update({ where: { id }, data: { invitationSentAt: new Date() } });
+  await audit(id, "invitation_envoyee", `E-mail envoyé à ${societe.email}`);
   revalidatePath(`${LIST_PATH}/${id}`);
   revalidatePath(LIST_PATH);
 }

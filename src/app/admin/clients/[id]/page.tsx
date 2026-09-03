@@ -9,7 +9,7 @@ import { CLIENT_STATUS_LABELS, clientStatusTone, deriveClientStatus } from "@/li
 import { fmtDateTime, fmtMoney } from "@/lib/utils";
 import { buildSetupUrl, isSetupTokenExpired } from "@/lib/societe-setup";
 import { courrierTypeLabel } from "@/lib/courriers";
-import { regenerateSetupLinkAction, markInvitationSentAction, deactivateClientAction, reactivateClientAction, updateClientAction } from "../actions";
+import { regenerateSetupLinkAction, markInvitationSentAction, deactivateClientAction, reactivateClientAction, updateClientAction, sendInvitationAction } from "../actions";
 import { CopyLinkButton } from "./CopyLinkButton";
 
 export const dynamic = "force-dynamic";
@@ -210,16 +210,25 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               )}
 
               <div className="flex flex-wrap gap-2">
+                {s.email ? (
+                  <form action={sendInvitationAction.bind(null, s.id)}>
+                    <button className="btn-primary" type="submit"><Send size={14} /> Envoyer l&apos;invitation par e-mail</button>
+                  </form>
+                ) : (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    Renseignez une adresse e-mail principale pour pouvoir envoyer l&apos;invitation.
+                  </div>
+                )}
                 <form action={regenerateSetupLinkAction.bind(null, s.id)}>
                   <button className="btn-secondary" type="submit"><RefreshCw size={14} /> Régénérer le lien</button>
                 </form>
-                {s.email && (
-                  <form action={markInvitationSentAction.bind(null, s.id)}>
-                    <button className="btn-secondary" type="submit"><Send size={14} /> Marquer invitation envoyée</button>
-                  </form>
-                )}
                 {setupUrl && (
                   <CopyLinkButton url={setupUrl} />
+                )}
+                {s.email && (
+                  <form action={markInvitationSentAction.bind(null, s.id)}>
+                    <button className="text-xs text-slate-500 hover:underline" type="submit">Marquer comme envoyée manuellement</button>
+                  </form>
                 )}
               </div>
             </div>
