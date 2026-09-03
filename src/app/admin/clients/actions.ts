@@ -225,3 +225,59 @@ export async function reactivateClientAction(id: string) {
   revalidatePath(`${LIST_PATH}/${id}`);
   revalidatePath(LIST_PATH);
 }
+
+/**
+ * Manually mark a client account as activated (without waiting for the client's first login).
+ * Useful when the admin already knows the client is up and running (e.g. code shared verbally)
+ * and just wants the badge to switch to "Actif" immediately.
+ */
+export async function activateClientAction(id: string) {
+  await requireAdmin();
+  const s = await prisma.societe.findUnique({ where: { id } });
+  if (!s) notFound();
+  await prisma.societe.update({
+    where: { id },
+    data: { activatedAt: s.activatedAt ?? new Date(), archivedAt: null },
+  });
+  await prisma.user.updateMany({ where: { societeId: id }, data: { isActive: true } });
+  await audit(id, "compte_active", "Compte activé manuellement par l'admin");
+  revalidatePath(`${LIST_PATH}/${id}`);
+  revalidatePath(LIST_PATH);
+}
+
+/**
+ * Smart delete: archives (soft delete) by default, so linked data stays intact. Hard delete is
+ * ONLY allowed when the client owns zero linked records (documents / courriers / contraventions /
+ * véhicules / conducteurs / sinistres) — otherwise falls back to archive with a message. The
+ * calling UI is responsible for the double confirmation.
+ */
+export async function deleteClientAction(id: string) {
+  await requireAdmin();
+  const s = await prisma.societe.findUnique({ where: { id } });
+  if (!s) notFound();
+
+  const [courriers, contraventions, vehicules, conducteurs, sinistres] = await Promise.all([
+    prisma.courrier.count({ where: { societe: s.nom } }),
+    prisma.contravention.count({ where: { societe: s.nom } }),
+    prisma.vehicule.count({ where: { societe: s.nom } }),
+    prisma.conducteur.count({ where: { societe: s.nom } }),
+    prisma.sinistre.count({ where: { societe: s.nom } }),
+  ]);
+  const hasData = courriers + contraventions + vehicules + conducteurs + sinistres > 0;
+
+  if (hasData) {
+    // Fall back to archive — never orphan a document/vehicule row silently.
+    await prisma.societe.update({ where: { id }, data: { archivedAt: new Date() } });
+    await prisma.user.updateMany({ where: { societeId: id }, data: { isActive: false } });
+    await audit(id, "archivage", `Suppression demandée mais des données existent — archivage à la place (${courriers} courriers, ${contraventions} contraventions, ${vehicules} véhicules, ${conducteurs} conducteurs)`);
+    revalidatePath(LIST_PATH);
+    redirect(LIST_PATH);
+  }
+
+  // No linked data — safe to delete for real.
+  await prisma.societeAudit.deleteMany({ where: { societeId: id } });
+  await prisma.user.deleteMany({ where: { societeId: id } });
+  await prisma.societe.delete({ where: { id } });
+  revalidatePath(LIST_PATH);
+  redirect(LIST_PATH);
+}
