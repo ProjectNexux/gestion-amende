@@ -26,6 +26,7 @@ const BREADCRUMBS: { prefix: string; section: string; page: string }[] = [
   { prefix: "/courriers", section: "Courriers", page: "Tous les courriers" },
   { prefix: "/comptabilite/factures", section: "Comptabilité", page: "Factures" },
   { prefix: "/comptabilite/impots", section: "Comptabilité", page: "Impôts" },
+  { prefix: "/admin/clients", section: "Administration", page: "Clients" },
   { prefix: "/admin", section: "Administration", page: "Sociétés" },
 ];
 

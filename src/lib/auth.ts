@@ -145,9 +145,24 @@ export async function loginAction(fd: FormData) {
     await registerFailedLogin(nom);
     redirect("/login?error=1");
   }
+  if (societe.archivedAt) {
+    // Archived (désactivé) — treat like a failed login rather than leaking a distinct error.
+    await registerFailedLogin(nom);
+    redirect("/login?error=1");
+  }
 
   clearFailedLogins(nom, ip);
   const user = await ensureUserForSociete(societe.nom, "client");
+
+  // Clients module timestamps: track first activation + every login (fiche client "dernière connexion").
+  const now = new Date();
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: now } });
+  if (!societe.activatedAt) {
+    await prisma.societe.update({ where: { id: societe.id }, data: { activatedAt: now } });
+    await prisma.societeAudit.create({ data: { societeId: societe.id, action: "compte_active", details: "Première connexion du client", acteur: "Client" } }).catch(() => {});
+  }
+  await prisma.societeAudit.create({ data: { societeId: societe.id, action: "connexion", acteur: societe.nom } }).catch(() => {});
+
   jar.set("societe", societe.nom, {
     httpOnly: true,
     sameSite: "lax",

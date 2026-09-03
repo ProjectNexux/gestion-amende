@@ -20,13 +20,62 @@ model Societe {
   codeAccesSetupToken     String?   @unique
   codeAccesSetupExpiresAt DateTime?
   emailTransmission String? // adresse à laquelle transmettre les courriers administratifs de cette société
+
+  // Clients module (2026-09-03): official company data fetched from recherche-entreprises.api.gouv.fr
+  // (INSEE Sirene). Every field is nullable — a legacy Societe row created before this migration
+  // still works exactly as before with all these NULL.
+  siret          String? @unique
+  siren          String?
+  tradeName      String? // nom commercial
+  legalForm      String? // forme juridique
+  vatNumber      String? // n° TVA intracommunautaire
+  nafCode        String? // code activité principale
+  activityLabel  String? // libellé de l'activité
+  addressLine1   String?
+  addressLine2   String?
+  postalCode     String?
+  city           String?
+  country        String? @default("France")
+
+  contactCivilite  String? // M., Mme, Autre
+  contactFirstName String?
+  contactLastName  String?
+  contactRole      String? // fonction du contact
+  phone            String?
+  phoneSecondary   String?
+  email            String?
+  emailSecondary   String?
+
+  // Lifecycle timestamps — used to derive the statut affiché in the admin UI (Actif / Invitation
+  // envoyée / Compte non activé / Désactivé) instead of storing a redundant enum column.
+  invitationSentAt DateTime?
+  activatedAt      DateTime?
+  archivedAt       DateTime?
+
   createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt @default(now())
 
   users       User[]
   vehicules   Vehicule[]   @relation("VehiculeSociete")
   conducteurs Conducteur[] @relation("ConducteurSociete")
   courriers   Courrier[]   @relation("CourrierSociete")
   sinistres   Sinistre[]   @relation("SinistreSociete")
+  audits      SocieteAudit[] @relation("SocieteAudit")
+}
+
+// Small append-only audit log of admin/client actions on a Societe row. Used to render the
+// "Journal d'activité" section on the fiche client. Kept intentionally narrow — one row per
+// human-relevant event, no automated system noise.
+model SocieteAudit {
+  id         String   @id @default(cuid())
+  societeId  String
+  societe    Societe  @relation("SocieteAudit", fields: [societeId], references: [id], onDelete: Cascade)
+  action     String   // creation, invitation_envoyee, compte_active, connexion, code_regenere, informations_modifiees, desactivation, reactivation, archivage
+  details    String?
+  acteur     String?  // "Admin", nom société, ou "Client"
+  createdAt  DateTime @default(now())
+
+  @@index([societeId, createdAt])
 }
 
 model User {
@@ -39,6 +88,7 @@ model User {
   telephone String?
   role      String   @default("member")
   isActive  Boolean  @default(true)
+  lastLoginAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
