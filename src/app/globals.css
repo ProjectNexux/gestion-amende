@@ -3,22 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --bg-page: #F5F3EE;
-  --bg-subtle: #EFEEE9;
+  --bg-page: #F3F1ED;
+  --bg-subtle: #EEEAE4;
   --surface: #FFFFFF;
-  --surface-panel: #F7F6F3;
-  --text: #171A21;
-  --text-muted: #6B7280;
-  --border: #E3E0D8;
-  --brand: #3158D4;
-  --brand-hover: #2748B5;
-  --brand-soft: #E9EEFF;
-  --success: #23866F;
-  --warning: #B7792B;
-  --danger: #C94F49;
-  --navy: #17191F;
-  --navy-strong: #22252D;
-  --shadow-soft: 0 1px 0 rgba(17, 24, 39, 0.02), 0 8px 24px -18px rgba(17, 24, 39, 0.18);
+  --surface-panel: #F9F7F4;
+  --surface-strong: #F5F3F0;
+  --text: #171B22;
+  --text-muted: #5F6673;
+  --border: #E7E1D8;
+  --brand: #2D5BDE;
+  --brand-hover: #1F4CC7;
+  --brand-soft: #EAF0FF;
+  --success: #1F7B63;
+  --warning: #B7762F;
+  --danger: #C84E4B;
+  --navy: #171A21;
+  --navy-strong: #20252E;
+  --shadow-soft: 0 1px 0 rgba(17, 24, 39, 0.025), 0 12px 30px -18px rgba(17, 24, 39, 0.2);
 }
 
 html, body {

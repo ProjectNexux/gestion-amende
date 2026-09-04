@@ -22,7 +22,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="fr" className={manrope.variable}>
       <body>
-        <div className="min-h-screen bg-surface-base" style={{ backgroundImage: "radial-gradient(1200px 520px at 15% -10%, rgba(49,88,212,0.06), transparent 60%)" }}>
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(45,91,222,0.08),_transparent_35%),_#f3f1ed]" >
           <div className="flex min-h-screen">
             {societe && !isClient && <Sidebar societe={societe} admin={isAdmin} />}
             <div className="flex min-w-0 flex-1 flex-col">

@@ -14,14 +14,14 @@ export default async function LoginPage({
   const setupDone = params.setup === "1";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_#f4f7ff_0%,_#eef2ff_24%,_#f5f3ee_55%,_#efeae5_100%)] p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(23,26,33,0.98),_rgba(23,26,33,0.95)_16%,_rgba(243,241,237,1)_52%,_rgba(238,234,228,1)_100%)] p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-brand-600 text-white shadow-[0_18px_40px_-20px_rgba(49,88,212,0.8)]">
             <ShieldCheck size={24} strokeWidth={2} />
           </div>
           <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-900">Connexion</h1>
-          <p className="mt-2 text-sm text-slate-500">Accédez à l&apos;espace de votre société</p>
+          <p className="mt-2 text-sm text-slate-600">Accédez à l&apos;espace de votre société</p>
         </div>
 
         {setupDone && (

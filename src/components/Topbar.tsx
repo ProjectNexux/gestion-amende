@@ -107,7 +107,7 @@ export function Topbar({ societe, admin }: { societe: string; admin: boolean }) 
   const showBackButton = pathname !== "/" && pathname !== "/login";
 
   return (
-    <header className="sticky top-0 z-20 flex h-[68px] shrink-0 items-center gap-3 border-b border-slate-200/80 bg-[#FBFBFE]/90 px-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur-md sm:px-6">
+    <header className="sticky top-0 z-20 flex h-[68px] shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white/80 px-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur-md sm:px-6">
       {showBackButton && (
         <button
           type="button"
