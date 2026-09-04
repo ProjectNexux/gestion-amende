@@ -51,14 +51,14 @@ export default async function VehiculesPage({ searchParams }: PageProps) {
         <table className="w-full text-sm">
           <thead className="table-head">
             <tr>
-              <th className="text-left p-3">Société</th>
-              <th className="text-left p-3">Code</th>
-              <th className="text-left p-3">Immat.</th>
-              <th className="text-left p-3">Marque / Modèle</th>
-              <th className="text-left p-3">Type</th>
-              <th className="text-left p-3">Service</th>
-              <th className="text-left p-3">Statut</th>
-              <th className="text-left p-3">Actions</th>
+              <th className="p-3 text-left">Société</th>
+              <th className="p-3 text-left">Code</th>
+              <th className="p-3 text-left">Immat.</th>
+              <th className="p-3 text-left">Marque / Modèle</th>
+              <th className="p-3 text-left">Type</th>
+              <th className="p-3 text-left">Service</th>
+              <th className="p-3 text-left">Statut</th>
+              <th className="p-3 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -75,18 +75,18 @@ export default async function VehiculesPage({ searchParams }: PageProps) {
             )}
             {items.map((v) => (
               <tr key={v.id} className="table-row">
-                <td className="p-3">{v.societe}</td>
-                <td className="p-3 font-mono text-xs">{v.code}</td>
-                <td className="p-3 font-medium">{v.immatriculation}</td>
-                <td className="p-3">{v.marque} {v.modele}</td>
-                <td className="p-3">{v.typeVehicule ?? "—"}</td>
-                <td className="p-3">{v.service ?? "—"}</td>
-                <td className="p-3">{v.statut}</td>
+                <td className="p-3 text-slate-700">{v.societe}</td>
+                <td className="p-3 font-mono text-xs text-slate-600">{v.code}</td>
+                <td className="p-3 font-medium text-slate-900">{v.immatriculation}</td>
+                <td className="p-3 text-slate-600">{v.marque} {v.modele}</td>
+                <td className="p-3 text-slate-600">{v.typeVehicule ?? "—"}</td>
+                <td className="p-3 text-slate-600">{v.service ?? "—"}</td>
+                <td className="p-3 text-slate-600">{v.statut}</td>
                 <td className="p-3 text-right">
                   <div className="flex items-center justify-end gap-3">
-                    <Link href={`/vehicules/${v.id}`} className="text-xs text-[var(--color-brand)] hover:underline">Voir / Modifier</Link>
+                    <Link href={`/vehicules/${v.id}`} className="text-xs font-medium text-brand-700 hover:underline">Voir / Modifier</Link>
                     <form action={deleteVehicule.bind(null, v.id)}>
-                      <button className="text-xs text-red-600 hover:underline">Suppr.</button>
+                      <button className="text-xs font-medium text-rose-700 hover:underline">Suppr.</button>
                     </form>
                   </div>
                 </td>

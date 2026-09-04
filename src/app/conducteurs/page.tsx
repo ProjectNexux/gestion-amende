@@ -20,13 +20,13 @@ export default async function ConducteursPage() {
         <table className="w-full text-sm">
           <thead className="table-head">
             <tr>
-              <th className="text-left p-3">Société</th>
-              <th className="text-left p-3">Code</th>
-              <th className="text-left p-3">Nom complet</th>
-              <th className="text-left p-3">Téléphone</th>
-              <th className="text-left p-3">Email</th>
-              <th className="text-left p-3">N° Permis</th>
-              <th className="text-left p-3">Actions</th>
+              <th className="p-3 text-left">Société</th>
+              <th className="p-3 text-left">Code</th>
+              <th className="p-3 text-left">Nom complet</th>
+              <th className="p-3 text-left">Téléphone</th>
+              <th className="p-3 text-left">Email</th>
+              <th className="p-3 text-left">N° Permis</th>
+              <th className="p-3 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -43,17 +43,17 @@ export default async function ConducteursPage() {
             )}
             {items.map((c) => (
               <tr key={c.id} className="table-row">
-                <td className="p-3">{c.societe}</td>
-                <td className="p-3 font-mono text-xs">{c.code}</td>
-                <td className="p-3 font-medium">{c.civilite} {c.prenom} {c.nom}</td>
-                <td className="p-3">{c.telephone ?? "—"}</td>
-                <td className="p-3">{c.email ?? "—"}</td>
-                <td className="p-3">{c.numPermis ?? "—"}</td>
+                <td className="p-3 text-slate-700">{c.societe}</td>
+                <td className="p-3 font-mono text-xs text-slate-600">{c.code}</td>
+                <td className="p-3 font-medium text-slate-900">{c.civilite} {c.prenom} {c.nom}</td>
+                <td className="p-3 text-slate-600">{c.telephone ?? "—"}</td>
+                <td className="p-3 text-slate-600">{c.email ?? "—"}</td>
+                <td className="p-3 text-slate-600">{c.numPermis ?? "—"}</td>
                 <td className="p-3 text-right">
                   <div className="flex items-center justify-end gap-3">
-                    <Link href={`/conducteurs/${c.id}`} className="text-xs text-[var(--color-brand)] hover:underline">Voir / Modifier</Link>
+                    <Link href={`/conducteurs/${c.id}`} className="text-xs font-medium text-brand-700 hover:underline">Voir / Modifier</Link>
                     <form action={deleteConducteur.bind(null, c.id)}>
-                      <button className="text-xs text-red-600 hover:underline">Suppr.</button>
+                      <button className="text-xs font-medium text-rose-700 hover:underline">Suppr.</button>
                     </form>
                   </div>
                 </td>

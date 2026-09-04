@@ -17,7 +17,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   secondary: "bg-slate-900 text-white hover:bg-slate-800",
   outline: "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
   ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-  danger: "bg-rose-600 text-white hover:bg-rose-700",
+  danger: "bg-danger-500 text-white hover:bg-danger-600",
 };
 
 /** Builds the shared button classes so links styled as buttons can reuse the same visual language. */

@@ -53,17 +53,18 @@ export default async function ContraventionsListPage({
     <div className="space-y-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Contraventions</h1>
-          <p className="text-sm text-slate-500">{filteredItems.length} dossier(s) affiché(s)</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">Suivi</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Contraventions</h1>
+          <p className="mt-1 text-sm text-slate-500">{filteredItems.length} dossier(s) affiché(s)</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/contraventions/scan" className="inline-flex items-center gap-2 rounded-md bg-[var(--color-brand)] px-3 py-2 text-sm font-medium text-white transition hover:bg-[var(--color-brand-dark)]">
+          <Link href="/contraventions/scan" className="btn-primary">
             <ScanLine size={16} /> Scanner
           </Link>
-          <Link href="/contraventions/new" className="inline-flex items-center gap-2 field w-auto font-medium text-slate-700 transition hover:bg-slate-50">
+          <Link href="/contraventions/new" className="btn-secondary">
             <Plus size={16} /> Saisir
           </Link>
-          <a href="https://www.antai.gouv.fr" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 field w-auto font-medium text-slate-700 transition hover:bg-slate-50">
+          <a href="https://www.antai.gouv.fr" target="_blank" rel="noopener noreferrer" className="btn-secondary">
             <ExternalLink size={16} /> ANTAI
           </a>
         </div>
@@ -76,36 +77,36 @@ export default async function ContraventionsListPage({
         <FilterLink href="/contraventions?view=retards" label="Retards" count={counts.retards} active={view === "retards"} />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="table-shell overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-indigo-50/50 text-slate-600">
+          <thead className="table-head">
             <tr>
-              <th className="text-left p-3">Société</th>
-              <th className="text-left p-3">N° Dossier</th>
-              <th className="text-left p-3">Date infraction</th>
-              <th className="text-left p-3">Nature</th>
-              <th className="text-left p-3">Lieu</th>
-              <th className="text-left p-3">Véhicule</th>
-              <th className="text-left p-3">Conducteur</th>
-              <th className="text-right p-3">Montant</th>
-              <th className="text-left p-3">Dénonciation</th>
-              <th className="text-left p-3">Paiement</th>
-              {isAdmin && <th className="text-left p-3">Client</th>}
+              <th className="p-3 text-left">Société</th>
+              <th className="p-3 text-left">N° Dossier</th>
+              <th className="p-3 text-left">Date infraction</th>
+              <th className="p-3 text-left">Nature</th>
+              <th className="p-3 text-left">Lieu</th>
+              <th className="p-3 text-left">Véhicule</th>
+              <th className="p-3 text-left">Conducteur</th>
+              <th className="p-3 text-right">Montant</th>
+              <th className="p-3 text-left">Dénonciation</th>
+              <th className="p-3 text-left">Paiement</th>
+              {isAdmin && <th className="p-3 text-left">Client</th>}
             </tr>
           </thead>
           <tbody>
             {filteredItems.map((c) => (
-              <tr key={c.id} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className="p-3">{c.societe}</td>
+              <tr key={c.id} className="table-row">
+                <td className="p-3 text-slate-700">{c.societe}</td>
                 <td className="p-3 font-mono text-xs">
-                  <Link href={`/contraventions/${c.id}`} className="text-[var(--color-brand)] hover:underline">{c.numDossier}</Link>
+                  <Link href={`/contraventions/${c.id}`} className="font-medium text-brand-700 hover:underline">{c.numDossier}</Link>
                 </td>
-                <td className="p-3">{c.dateInfraction ?? "—"} {c.heureInfraction ?? ""}</td>
-                <td className="p-3 max-w-xs truncate" title={c.natureInfraction ?? ""}>{c.natureInfraction ?? "—"}</td>
-                <td className="p-3 max-w-xs truncate" title={c.lieuInfraction ?? ""}>{c.lieuInfraction ?? "—"}</td>
-                <td className="p-3">{c.vehicule?.immatriculation ?? c.immatriculationOcr ?? "—"}</td>
-                <td className="p-3">{c.conducteur ? `${c.conducteur.prenom} ${c.conducteur.nom}` : "—"}</td>
-                <td className="p-3 text-right">{fmtMoney(c.montantAmende)}</td>
+                <td className="p-3 text-slate-600">{c.dateInfraction ?? "—"} {c.heureInfraction ?? ""}</td>
+                <td className="p-3 max-w-xs truncate text-slate-600" title={c.natureInfraction ?? ""}>{c.natureInfraction ?? "—"}</td>
+                <td className="p-3 max-w-xs truncate text-slate-600" title={c.lieuInfraction ?? ""}>{c.lieuInfraction ?? "—"}</td>
+                <td className="p-3 text-slate-600">{c.vehicule?.immatriculation ?? c.immatriculationOcr ?? "—"}</td>
+                <td className="p-3 text-slate-600">{c.conducteur ? `${c.conducteur.prenom} ${c.conducteur.nom}` : "—"}</td>
+                <td className="p-3 text-right font-medium text-slate-900">{fmtMoney(c.montantAmende)}</td>
                 <td className="p-3">
                   <span className={badge(c.statutDenonciation)}>{c.statutDenonciation}</span>
                 </td>
@@ -118,7 +119,7 @@ export default async function ContraventionsListPage({
                       <button
                         type="submit"
                         className={
-                          "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition " +
+                          "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition " +
                           (c.visibleClient
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                             : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100")
@@ -154,16 +155,16 @@ export default async function ContraventionsListPage({
 
 function FilterLink({ href, label, count, active }: { href: string; label: string; count: number; active: boolean }) {
   return (
-    <Link href={href} className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${active ? "border-[var(--color-brand)] bg-[var(--color-brand)] text-white" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"}`}>
+    <Link href={href} className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${active ? "border-brand-600 bg-brand-600 text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"}`}>
       {label} <span className={active ? "text-white/80" : "text-slate-500"}>({count})</span>
     </Link>
   );
 }
 
 function badge(s?: string | null) {
-  const base = "inline-block rounded-full px-2.5 py-1 text-xs font-medium ";
-  if (s === "Effectuée" || s === "Payé") return base + "bg-emerald-100 text-emerald-800";
-  if (s === "En retard") return base + "bg-rose-100 text-rose-800";
-  if (s === "À effectuer" || s === "En attente") return base + "bg-amber-100 text-amber-800";
-  return base + "bg-slate-100 text-slate-700";
+  const base = "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ";
+  if (s === "Effectuée" || s === "Payé") return base + "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (s === "En retard") return base + "border-rose-200 bg-rose-50 text-rose-700";
+  if (s === "À effectuer" || s === "En attente") return base + "border-amber-200 bg-amber-50 text-amber-700";
+  return base + "border-slate-200 bg-slate-50 text-slate-600";
 }

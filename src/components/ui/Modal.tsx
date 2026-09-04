@@ -52,17 +52,17 @@ export function Modal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm animate-[fadeIn_150ms_ease-out]"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] animate-[fadeIn_150ms_ease-out]"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col rounded-2xl border border-slate-200 bg-white shadow-popover animate-[modalIn_150ms_ease-out]",
+          "flex max-h-[calc(100vh-2rem)] w-full max-w-lg flex-col rounded-[16px] border border-slate-200 bg-white shadow-popover animate-[modalIn_150ms_ease-out]",
           className
         )}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
           <div className="flex min-w-0 items-center gap-2">
             {onBack && (
               <button

@@ -5,24 +5,24 @@ import { cn } from "@/lib/utils";
 export type OverviewTone = "brand" | "warning" | "danger" | "violet";
 
 const toneCell: Record<OverviewTone, string> = {
-  brand: "bg-blue-50/70",
-  warning: "bg-amber-50/70",
-  danger: "bg-coral-50/70",
-  violet: "bg-violet-50/60",
+  brand: "bg-white",
+  warning: "bg-white",
+  danger: "bg-white",
+  violet: "bg-white",
 };
 
 const toneChip: Record<OverviewTone, string> = {
-  brand: "bg-blue-100/80 text-blue-600",
-  warning: "bg-amber-100/70 text-amber-600",
-  danger: "bg-coral-100/70 text-coral-600",
-  violet: "bg-violet-100/70 text-violet-600",
+  brand: "bg-brand-50 text-brand-700",
+  warning: "bg-warning-50 text-warning-600",
+  danger: "bg-danger-50 text-danger-500",
+  violet: "bg-violet-50 text-violet-700",
 };
 
 const toneHint: Record<OverviewTone, string> = {
-  brand: "text-blue-600",
-  warning: "text-amber-600",
-  danger: "text-coral-600",
-  violet: "text-violet-600",
+  brand: "text-brand-700",
+  warning: "text-warning-600",
+  danger: "text-danger-500",
+  violet: "text-violet-700",
 };
 
 export type OverviewStat = {
@@ -42,17 +42,17 @@ export type OverviewStat = {
  */
 export function OverviewBlock({ stats, className }: { stats: OverviewStat[]; className?: string }) {
   return (
-    <div className={cn("relative overflow-hidden rounded-2xl border border-slate-200/70 bg-surface-raised shadow-card", className)}>
-      <div className="flex items-center justify-between px-6 pb-2 pt-5">
-        <h2 className="text-[15px] font-bold text-slate-900">Vue d&apos;ensemble</h2>
-        <span className="text-[11px] font-medium text-slate-400">Aujourd&apos;hui</span>
+    <div className={cn("relative overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-card", className)}>
+      <div className="flex items-center justify-between px-5 pb-2 pt-5">
+        <h2 className="text-[15px] font-bold tracking-[-0.02em] text-slate-900">Vue d&apos;ensemble</h2>
+        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">Aujourd&apos;hui</span>
       </div>
-      <div className="grid grid-cols-2 gap-2.5 px-3 pb-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 px-3 pb-3 sm:grid-cols-4">
         {stats.map((s, i) => {
           const cellClass = cn(
-            "rounded-xl px-4 py-4 text-left transition-shadow",
+            "rounded-[14px] border border-slate-200 px-4 py-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-card-hover",
             toneCell[s.tone],
-            s.href && "cursor-pointer hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+            s.href && "cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           );
           const content = (
             <>

@@ -44,20 +44,21 @@ export default async function VehiculeDetailPage({ params }: PageProps) {
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 lg:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Fiche véhicule</h1>
-          <p className="text-sm text-slate-500">{vehicule.immatriculation} · {vehicule.code}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">Flotte</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Fiche véhicule</h1>
+          <p className="mt-1 text-sm text-slate-500">{vehicule.immatriculation} · {vehicule.code}</p>
         </div>
         <Link href="/vehicules" className="btn-secondary">
           Retour à la liste
         </Link>
       </div>
 
-      <form action={updateVehicule.bind(null, vehicule.id)} className="space-y-6 card p-5">
+      <form action={updateVehicule.bind(null, vehicule.id)} className="space-y-6 rounded-[18px] border border-slate-200 bg-white p-5 shadow-card">
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-slate-700">Informations véhicule</h2>
+          <h2 className="text-sm font-semibold text-slate-800">Informations véhicule</h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <input name="code" defaultValue={vehicule.code} placeholder="Code" className={inp} />
             <input name="immatriculation" defaultValue={vehicule.immatriculation} placeholder="Immatriculation *" required className={inp} />
@@ -74,7 +75,7 @@ export default async function VehiculeDetailPage({ params }: PageProps) {
         </section>
 
         <section className="space-y-3 border-t border-slate-100 pt-4">
-          <h2 className="text-sm font-semibold text-slate-700">Conducteur attitré</h2>
+          <h2 className="text-sm font-semibold text-slate-800">Conducteur attitré</h2>
           <select name="conducteurAttitre" defaultValue={vehicule.conducteurAttitre ?? ""} className={`${inp} max-w-xl`}>
             <option value="">— Aucun conducteur attitré —</option>
             {conducteurs.map((c) => (
@@ -85,24 +86,24 @@ export default async function VehiculeDetailPage({ params }: PageProps) {
           </select>
 
           {selectedConducteur ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm">
-              <div className="font-medium text-gray-800">{selectedConducteur.civilite ? `${selectedConducteur.civilite} ` : ""}{selectedConducteur.prenom} {selectedConducteur.nom}</div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+              <div className="font-medium text-slate-900">{selectedConducteur.civilite ? `${selectedConducteur.civilite} ` : ""}{selectedConducteur.prenom} {selectedConducteur.nom}</div>
               <div className="mt-1 text-slate-600">N° permis: {selectedConducteur.numPermis ?? "—"}</div>
               <div className="text-slate-600">N° carte d'identité: {selectedConducteur.numCarteIdentite ?? "—"}</div>
               <div className="text-slate-600">Date d'expiration CNI: {selectedConducteur.dateExpirationCni ?? "—"}</div>
-              <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                <Link href={`/conducteurs/${selectedConducteur.id}`} className="text-[var(--color-brand)] underline">Voir la fiche conducteur</Link>
+              <div className="mt-3 flex flex-wrap gap-3 text-xs">
+                <Link href={`/conducteurs/${selectedConducteur.id}`} className="font-medium text-brand-700 underline">Voir la fiche conducteur</Link>
                 {selectedConducteur.cniRectoNom && (
-                  <Link href={`/api/conducteurs/${selectedConducteur.id}/identite/recto`} className="text-[var(--color-brand)] underline">Consulter recto CNI</Link>
+                  <Link href={`/api/conducteurs/${selectedConducteur.id}/identite/recto`} className="font-medium text-brand-700 underline">Consulter recto CNI</Link>
                 )}
                 {selectedConducteur.cniRectoNom && (
-                  <Link href={`/api/conducteurs/${selectedConducteur.id}/identite/recto?download=1`} className="text-[var(--color-brand)] underline">Télécharger recto CNI</Link>
+                  <Link href={`/api/conducteurs/${selectedConducteur.id}/identite/recto?download=1`} className="font-medium text-brand-700 underline">Télécharger recto CNI</Link>
                 )}
                 {selectedConducteur.cniVersoNom && (
-                  <Link href={`/api/conducteurs/${selectedConducteur.id}/identite/verso`} className="text-[var(--color-brand)] underline">Consulter verso CNI</Link>
+                  <Link href={`/api/conducteurs/${selectedConducteur.id}/identite/verso`} className="font-medium text-brand-700 underline">Consulter verso CNI</Link>
                 )}
                 {selectedConducteur.cniVersoNom && (
-                  <Link href={`/api/conducteurs/${selectedConducteur.id}/identite/verso?download=1`} className="text-[var(--color-brand)] underline">Télécharger verso CNI</Link>
+                  <Link href={`/api/conducteurs/${selectedConducteur.id}/identite/verso?download=1`} className="font-medium text-brand-700 underline">Télécharger verso CNI</Link>
                 )}
               </div>
             </div>
@@ -113,7 +114,7 @@ export default async function VehiculeDetailPage({ params }: PageProps) {
         </section>
 
         <div className="flex justify-end">
-          <button className="rounded-md bg-[var(--color-brand)] px-4 py-2 text-sm text-white hover:bg-[var(--color-brand-dark)]">
+          <button className="btn-primary">
             Enregistrer les modifications
           </button>
         </div>

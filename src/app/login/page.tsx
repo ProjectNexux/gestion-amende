@@ -14,35 +14,35 @@ export default async function LoginPage({
   const setupDone = params.setup === "1";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f6f7fb] p-4">
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_#f4f7ff_0%,_#eef2ff_24%,_#f5f3ee_55%,_#efeae5_100%)] p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-brand-600 text-white shadow-card">
-            <ShieldCheck size={22} strokeWidth={2} />
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-brand-600 text-white shadow-[0_18px_40px_-20px_rgba(49,88,212,0.8)]">
+            <ShieldCheck size={24} strokeWidth={2} />
           </div>
-          <h1 className="mt-4 text-2xl font-semibold text-slate-900">Connexion</h1>
-          <p className="mt-1 text-sm text-slate-500">Accédez à l&apos;espace de votre société</p>
+          <h1 className="mt-5 text-3xl font-semibold tracking-tight text-slate-900">Connexion</h1>
+          <p className="mt-2 text-sm text-slate-500">Accédez à l&apos;espace de votre société</p>
         </div>
 
         {setupDone && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-700">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-700">
             Votre code d&apos;accès a été créé avec succès. Vous pouvez maintenant vous connecter.
           </div>
         )}
 
         {error && (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-center text-sm text-rose-700">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-center text-sm text-rose-700">
             Nom de société ou code d&apos;accès incorrect.
           </div>
         )}
 
-        <form action={loginAction} className="space-y-4 card p-6">
+        <form action={loginAction} className="space-y-4 rounded-[22px] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_48px_-24px_rgba(15,23,42,0.28)] backdrop-blur-sm">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Nom de la société</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Nom de la société</label>
             <input name="nom" required placeholder="Ex: Transports Atlas" className="field" />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Code d&apos;accès</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Code d&apos;accès</label>
             <input name="code" type="password" required placeholder="••••••" className="field" />
           </div>
           <button type="submit" className="btn-primary w-full py-2.5">
@@ -51,7 +51,9 @@ export default async function LoginPage({
         </form>
 
         <p className="text-center text-xs text-slate-400">
-          <Link href="/admin/societes" className="hover:underline">Administration des sociétés</Link>
+          <Link href="/admin/societes" className="font-medium text-slate-600 transition hover:text-slate-800 hover:underline">
+            Administration des sociétés
+          </Link>
         </p>
       </div>
     </div>

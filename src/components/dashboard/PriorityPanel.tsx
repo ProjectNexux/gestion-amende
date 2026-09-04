@@ -16,19 +16,19 @@ export type PriorityItem = {
 };
 
 const toneDot: Record<PriorityItem["tone"], string> = {
-  info: "bg-blue-500",
-  warning: "bg-amber-500",
-  danger: "bg-coral-500",
+  info: "bg-brand-500",
+  warning: "bg-warning-500",
+  danger: "bg-danger-500",
 };
 const toneChip: Record<PriorityItem["tone"], string> = {
-  info: "bg-blue-50 text-blue-600",
-  warning: "bg-amber-50 text-amber-600",
-  danger: "bg-coral-50 text-coral-600",
+  info: "bg-brand-50 text-brand-700",
+  warning: "bg-warning-50 text-warning-600",
+  danger: "bg-danger-50 text-danger-500",
 };
 const toneMeta: Record<PriorityItem["tone"], string> = {
-  info: "text-blue-600",
-  warning: "text-amber-600",
-  danger: "text-coral-600",
+  info: "text-brand-700",
+  warning: "text-warning-600",
+  danger: "text-danger-500",
 };
 
 /** Top-of-dashboard "needs attention" block, fed with items from any module regardless of origin.
@@ -36,14 +36,14 @@ const toneMeta: Record<PriorityItem["tone"], string> = {
 export function PriorityPanel({ items, title = "À traiter", className }: { items: PriorityItem[]; title?: string; className?: string }) {
   const hasUrgent = items.length > 0;
   return (
-    <div className={cn("flex h-full flex-col overflow-hidden rounded-2xl border shadow-card", hasUrgent ? "border-coral-200/60 bg-coral-50/30" : "border-slate-200/70 bg-surface-raised", className)}>
-      <div className={cn("flex items-center justify-between gap-2 border-b px-5 py-3.5", hasUrgent ? "border-coral-100 bg-coral-50/50" : "border-slate-100 bg-slate-50/60")}>
+    <div className={cn("flex h-full flex-col overflow-hidden rounded-[16px] border bg-white shadow-card", hasUrgent ? "border-danger-100" : "border-slate-200", className)}>
+      <div className={cn("flex items-center justify-between gap-2 border-b px-5 py-3.5", hasUrgent ? "border-danger-100 bg-danger-50/40" : "border-slate-200 bg-slate-50/70")}>
         <div className="flex items-center gap-2">
           <ListChecks size={15} className="text-brand-600" />
           <h2 className="text-[14px] font-bold text-slate-900">{title}</h2>
         </div>
         {items.length > 0 && (
-          <span className="grid h-5 min-w-5 place-items-center rounded-full bg-coral-500 px-1.5 text-[11px] font-bold text-white">{items.length}</span>
+          <span className="grid h-5 min-w-5 place-items-center rounded-full bg-danger-500 px-1.5 text-[11px] font-bold text-white">{items.length}</span>
         )}
       </div>
       <div className="flex-1 px-2 py-1.5">
@@ -61,7 +61,7 @@ export function PriorityPanel({ items, title = "À traiter", className }: { item
               <Link
                 key={i}
                 href={item.href}
-                className="group relative flex items-center gap-3 py-2.5 pl-3 pr-1 transition-colors duration-150 hover:bg-blue-50/50"
+                className="group relative flex items-center gap-3 py-2.5 pl-3 pr-1 transition-colors duration-150 hover:bg-brand-50/60"
               >
                 <span className={cn("absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full", toneDot[item.tone])} />
                 <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", toneChip[item.tone])}>

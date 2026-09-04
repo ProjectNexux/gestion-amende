@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { courrierTypeLabel } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
-import { Eye, Mail } from "lucide-react";
+import { Download, Eye, Mail } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -49,16 +49,27 @@ export default async function ClientCourriersPage() {
                   <td className="p-3 max-w-xs truncate" title={item.fileName}>{item.fileName}</td>
                   <td className="p-3">{fmtDateTime(item.receivedAt)}</td>
                   <td className="p-3 text-right">
-                    <DocumentViewerTrigger
-                      fileUrl={`/api/client/courriers/${item.id}/document`}
-                      downloadUrl={`/api/client/courriers/${item.id}/document?download=1`}
-                      fileName={item.fileName}
-                      fileMime={item.fileMime}
-                      title="Visualiser"
-                      className="ml-auto inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
-                    >
-                      <Eye size={15} />
-                    </DocumentViewerTrigger>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <DocumentViewerTrigger
+                        fileUrl={`/api/client/courriers/${item.id}/document`}
+                        downloadUrl={`/api/client/courriers/${item.id}/document?download=1`}
+                        fileName={item.fileName}
+                        fileMime={item.fileMime}
+                        title="Visualiser"
+                        className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                      >
+                        <Eye size={15} />
+                      </DocumentViewerTrigger>
+
+                      <a
+                        href={`/api/client/courriers/${item.id}/document?download=1`}
+                        download={item.fileName}
+                        title="Télécharger"
+                        className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                      >
+                        <Download size={15} />
+                      </a>
+                    </div>
                   </td>
                 </tr>
               ))}

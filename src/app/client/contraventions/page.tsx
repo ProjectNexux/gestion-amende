@@ -35,7 +35,7 @@ export default async function ClientContraventionsPage({
   const items = filtre === "a_traiter" ? allItems.filter((c) => c.statutPaiement !== "Payé") : allItems;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <PageHeader
         title="Mes contraventions"
         description={
@@ -45,16 +45,16 @@ export default async function ClientContraventionsPage({
         }
         actions={
           filtre === "a_traiter" ? (
-            <Link href="/client/contraventions" className="text-xs font-medium text-brand-600 hover:underline">
+            <Link href="/client/contraventions" className="text-xs font-medium text-brand-700 hover:underline">
               Voir tous les dossiers
             </Link>
           ) : undefined
         }
       />
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="table-shell overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-600">
+          <thead className="table-head">
             <tr>
               <th className="p-3 text-left">Référence</th>
               <th className="p-3 text-left">N° Avis</th>
@@ -68,18 +68,18 @@ export default async function ClientContraventionsPage({
           </thead>
           <tbody>
             {items.map((c) => (
-              <tr key={c.id} className="border-t border-slate-100 hover:bg-slate-50">
+              <tr key={c.id} className="table-row">
                 <td className="p-3">
-                  <Link href={`/client/contraventions/${c.id}`} className="font-mono text-xs font-medium text-brand-600 hover:underline">
+                  <Link href={`/client/contraventions/${c.id}`} className="font-mono text-xs font-medium text-brand-700 hover:underline">
                     {c.numDossier}
                   </Link>
                 </td>
-                <td className="p-3 font-mono text-xs">{c.numAvis ?? "—"}</td>
-                <td className="p-3">{c.dateInfraction ?? "—"}</td>
-                <td className="p-3 max-w-xs truncate" title={c.natureInfraction ?? ""}>{c.natureInfraction ?? "—"}</td>
-                <td className="p-3">{c.vehicule?.immatriculation ?? c.immatriculationOcr ?? "—"}</td>
-                <td className="p-3 text-right">{fmtMoney(c.montantAmende)}</td>
-                <td className="p-3">{c.dateLimitePaiement ?? "—"}</td>
+                <td className="p-3 font-mono text-xs text-slate-600">{c.numAvis ?? "—"}</td>
+                <td className="p-3 text-slate-600">{c.dateInfraction ?? "—"}</td>
+                <td className="p-3 max-w-xs truncate text-slate-600" title={c.natureInfraction ?? ""}>{c.natureInfraction ?? "—"}</td>
+                <td className="p-3 text-slate-600">{c.vehicule?.immatriculation ?? c.immatriculationOcr ?? "—"}</td>
+                <td className="p-3 text-right font-medium text-slate-900">{fmtMoney(c.montantAmende)}</td>
+                <td className="p-3 text-slate-600">{c.dateLimitePaiement ?? "—"}</td>
                 <td className="p-3"><Badge tone={statutTone(c.statutPaiement)}>{c.statutPaiement ?? "—"}</Badge></td>
               </tr>
             ))}

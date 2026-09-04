@@ -35,18 +35,19 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
   const isManuel = d.origine === "manuel";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 lg:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Facture</h1>
-          <p className="text-sm text-slate-500">{item.fileName}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">Comptabilité</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Facture</h1>
+          <p className="mt-1 text-sm text-slate-500">{item.fileName}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge tone={classificationTone(d.statutClassification)}>{d.statutClassification ?? "Nouveau"}</Badge>
           <Badge tone={d.origine === "manuel" ? "info" : "neutral"}>{origineLabel(d.origine)}</Badge>
           <Badge tone={forwardStatutTone(forward?.statut)}>{forward?.statut ?? "Non transmis"}</Badge>
           {isManuel && (
-            <Link href={`/comptabilite/factures/${id}/edit`} className="inline-flex items-center gap-1.5 btn-secondary">
+            <Link href={`/comptabilite/factures/${id}/edit`} className="btn-secondary inline-flex items-center gap-1.5">
               <Pencil size={14} /> Modifier
             </Link>
           )}
@@ -57,19 +58,19 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-4 card p-5">
-          <h2 className="text-sm font-semibold text-slate-700">Informations extraites</h2>
+        <div className="space-y-4 rounded-[18px] border border-slate-200 bg-white p-5 shadow-card">
+          <h2 className="text-sm font-semibold text-slate-800">Informations extraites</h2>
           <dl className="grid grid-cols-2 gap-3 text-sm">
-            <div><dt className="text-xs font-medium text-slate-500">Société concernée</dt><dd className="text-slate-900">{d.societeConcernee ?? item.societe}</dd></div>
-            <div><dt className="text-xs font-medium text-slate-500">Émetteur / Fournisseur</dt><dd className="text-slate-900">{d.emetteur ?? "Non détecté"}</dd></div>
-            <div><dt className="text-xs font-medium text-slate-500">N° facture</dt><dd className="text-slate-900">{d.reference ?? "Non détecté"}</dd></div>
-            <div><dt className="text-xs font-medium text-slate-500">Référence / Bon de commande</dt><dd className="text-slate-900">{d.referenceCommande ?? "—"}</dd></div>
-            <div><dt className="text-xs font-medium text-slate-500">Date de facture</dt><dd className="text-slate-900">{d.dateDocument ?? "Non détectée"}</dd></div>
-            <div><dt className="text-xs font-medium text-slate-500">Date d&apos;échéance</dt><dd className="text-slate-900">{d.echeance ?? "—"}</dd></div>
-            <div><dt className="text-xs font-medium text-slate-500">Montant HT</dt><dd className="text-slate-900">{d.montantHT != null ? fmtMoney(d.montantHT) : "—"}</dd></div>
-            <div><dt className="text-xs font-medium text-slate-500">TVA</dt><dd className="text-slate-900">{d.tva != null ? fmtMoney(d.tva) : "—"}</dd></div>
-            <div><dt className="text-xs font-medium text-slate-500">Montant TTC</dt><dd className="text-slate-900">{d.montant != null ? fmtMoney(d.montant) : "Non détecté"}{d.devise && d.devise !== "EUR" ? ` (${d.devise})` : ""}</dd></div>
-            {d.commentaire && <div className="col-span-2"><dt className="text-xs font-medium text-slate-500">Commentaire</dt><dd className="text-slate-900">{d.commentaire}</dd></div>}
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Société concernée</dt><dd className="mt-1 text-slate-900">{d.societeConcernee ?? item.societe}</dd></div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Émetteur / Fournisseur</dt><dd className="mt-1 text-slate-900">{d.emetteur ?? "Non détecté"}</dd></div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">N° facture</dt><dd className="mt-1 text-slate-900">{d.reference ?? "Non détecté"}</dd></div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Référence / Bon de commande</dt><dd className="mt-1 text-slate-900">{d.referenceCommande ?? "—"}</dd></div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Date de facture</dt><dd className="mt-1 text-slate-900">{d.dateDocument ?? "Non détectée"}</dd></div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Date d&apos;échéance</dt><dd className="mt-1 text-slate-900">{d.echeance ?? "—"}</dd></div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Montant HT</dt><dd className="mt-1 text-slate-900">{d.montantHT != null ? fmtMoney(d.montantHT) : "—"}</dd></div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">TVA</dt><dd className="mt-1 text-slate-900">{d.tva != null ? fmtMoney(d.tva) : "—"}</dd></div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 col-span-2"><dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Montant TTC</dt><dd className="mt-1 text-slate-900">{d.montant != null ? fmtMoney(d.montant) : "Non détecté"}{d.devise && d.devise !== "EUR" ? ` (${d.devise})` : ""}</dd></div>
+            {d.commentaire && <div className="col-span-2 rounded-xl border border-slate-100 bg-slate-50 p-3"><dt className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Commentaire</dt><dd className="mt-1 text-slate-900">{d.commentaire}</dd></div>}
           </dl>
 
           <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
@@ -88,13 +89,13 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
 
-        <div className="space-y-4 card p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700">Transmission</h2>
+        <div className="space-y-4 rounded-[18px] border border-slate-200 bg-white p-5 shadow-card">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-slate-800">Transmission</h2>
             <form action={deleteFacture.bind(null, item.id)}>
               <ConfirmSubmitButton
                 confirmMessage={alreadySent ? "Cette facture a déjà été transmise à la comptabilité. Supprimer définitivement ce document ?" : "Supprimer définitivement cette facture ?"}
-                className="text-xs text-red-600 hover:underline"
+                className="text-xs font-medium text-rose-700 hover:underline"
               >
                 Supprimer
               </ConfirmSubmitButton>
@@ -107,7 +108,7 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
                 <div className="text-xs font-medium text-slate-500">Transmis à :</div>
                 <ul className="mt-1 space-y-0.5">
                   {forward.destinataires.map((email) => (
-                    <li key={email}><a href={`mailto:${email}`} className="text-blue-600 hover:underline">{email}</a></li>
+                    <li key={email}><a href={`mailto:${email}`} className="text-brand-700 hover:underline">{email}</a></li>
                   ))}
                 </ul>
               </div>
@@ -125,7 +126,7 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
           )}
 
           {forward?.statut === "Erreur d'envoi" && forward.derniereErreur && (
-            <div className="rounded-md bg-rose-50 p-3 text-xs text-rose-700">
+            <div className="rounded-xl bg-rose-50 p-3 text-xs text-rose-700">
               Erreur : {forward.derniereErreur} ({forward.tentatives} tentative(s))
             </div>
           )}
@@ -147,7 +148,7 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Historique</h3>
               <ul className="mt-2 space-y-1.5 text-xs text-slate-600">
                 {[...forward.historique].reverse().map((h, i) => (
-                  <li key={i} className="flex items-center justify-between gap-2">
+                  <li key={i} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2 py-1.5">
                     <span>{h.action.replace(/_/g, " ")}{h.details ? ` — ${h.details}` : ""}</span>
                     <span className="shrink-0 text-slate-400">{fmtDateTime(h.date)}</span>
                   </li>

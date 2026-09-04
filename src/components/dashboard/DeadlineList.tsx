@@ -6,15 +6,15 @@ import { cn } from "@/lib/utils";
 export type DeadlineTone = "brand" | "warning" | "danger";
 
 const iconToneClasses: Record<DeadlineTone, string> = {
-  brand: "bg-blue-50 text-blue-600",
-  warning: "bg-amber-50 text-amber-600",
-  danger: "bg-coral-50 text-coral-600",
+  brand: "bg-brand-50 text-brand-700",
+  warning: "bg-warning-50 text-warning-600",
+  danger: "bg-danger-50 text-danger-500",
 };
 
 const textToneClasses: Record<DeadlineTone, string> = {
-  brand: "text-blue-600",
-  warning: "text-amber-600",
-  danger: "text-coral-600",
+  brand: "text-brand-700",
+  warning: "text-warning-600",
+  danger: "text-danger-500",
 };
 
 export type DeadlineItem = {
@@ -45,7 +45,7 @@ export function DeadlineList({ items }: { items: DeadlineItem[] }) {
       {items.map((item, i) => {
         const { text, tone } = urgency(new Date(item.date));
         return (
-          <Link key={i} href={item.href} className="flex items-center gap-3 py-3 transition-colors hover:bg-slate-50">
+          <Link key={i} href={item.href} className="flex items-center gap-3 rounded-[12px] px-2 py-2.5 transition-colors hover:bg-slate-50">
             <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", iconToneClasses[tone])}>
               <item.icon size={16} strokeWidth={1.9} />
             </span>

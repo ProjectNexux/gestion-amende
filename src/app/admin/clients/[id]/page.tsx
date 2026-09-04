@@ -80,20 +80,21 @@ export default async function ClientDetailPage({
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6 lg:p-8">
-      {/* Header */}
       <div>
-        <Link href="/admin/clients" className="inline-flex items-center gap-1 text-sm text-brand-600 hover:underline">
+        <Link href="/admin/clients" className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 transition hover:text-brand-800">
           <ArrowLeft size={14} /> Retour à la liste
         </Link>
-        <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+        <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Building2 size={22} className="text-slate-400" />
-              <h1 className="text-2xl font-semibold text-slate-900">{s.nom}</h1>
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-brand-50 text-brand-700">
+                <Building2 size={18} />
+              </div>
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{s.nom}</h1>
               <Badge tone={clientStatusTone(status)}>{CLIENT_STATUS_LABELS[status]}</Badge>
             </div>
-            {s.tradeName && <p className="text-sm text-slate-500">{s.tradeName}</p>}
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+            {s.tradeName && <p className="mt-2 text-sm text-slate-500">{s.tradeName}</p>}
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
               <span>Créé le {fmtDateTime(s.createdAt)}</span>
               {lastLogin && <span>Dernière connexion : {fmtDateTime(lastLogin)}</span>}
               {s.city && <span className="inline-flex items-center gap-1"><MapPin size={11} /> {s.city}</span>}
@@ -137,7 +138,6 @@ export default async function ClientDetailPage({
         </div>
       </div>
 
-      {/* Stats cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard icon={Car} label="Véhicules" value={nVehicules} href={`/admin/clients/${s.id}?tab=vehicules`} />
         <StatCard icon={Users} label="Conducteurs" value={nConducteurs} href={`/admin/clients/${s.id}?tab=conducteurs`} />
@@ -145,7 +145,6 @@ export default async function ClientDetailPage({
         <StatCard icon={FileWarning} label="Contraventions" value={nContraventions} href={`/admin/clients/${s.id}?tab=contraventions`} />
       </div>
 
-      {/* Tabs bar */}
       <nav className="flex flex-wrap gap-1 border-b border-slate-200">
         {TABS.map((t) => {
           const active = activeTab === t.id;
@@ -166,9 +165,8 @@ export default async function ClientDetailPage({
         })}
       </nav>
 
-      {/* Tabs content */}
       {activeTab === "infos" && (
-        <form action={updateClientAction.bind(null, s.id)} className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <form action={updateClientAction.bind(null, s.id)} className="space-y-6 rounded-[18px] border border-slate-200 bg-white p-6 shadow-card">
           <SectionHeader title="Informations société" description="Coordonnées officielles récupérées depuis l'INSEE." />
           <div className="grid gap-3 sm:grid-cols-2">
             <Field name="nom" label="Raison sociale *" defaultValue={s.nom} required />
@@ -216,7 +214,7 @@ export default async function ClientDetailPage({
       )}
 
       {activeTab === "compte" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+        <div className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-card space-y-4">
           <SectionHeader title="Compte client" description="Statut et accès au portail client." />
           <div className="grid gap-3 sm:grid-cols-2 text-sm">
             <KV k="Statut" v={<Badge tone={clientStatusTone(status)}>{CLIENT_STATUS_LABELS[status]}</Badge>} />
@@ -227,13 +225,13 @@ export default async function ClientDetailPage({
           </div>
 
           {setupUrl && !setupExpired ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <div className="text-xs font-medium text-slate-500 mb-1">Lien de création du code d&apos;accès</div>
-              <div className="break-all text-xs font-mono text-brand-600">{setupUrl}</div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="mb-1 text-xs font-medium text-slate-500">Lien de création du code d&apos;accès</div>
+              <div className="break-all text-xs font-mono text-brand-700">{setupUrl}</div>
               <div className="mt-1 text-[11px] text-slate-500">Ce lien permet au client de créer lui-même son code d&apos;accès. Utilisation unique.</div>
             </div>
           ) : (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
               {setupExpired && setupUrl ? "Ce lien a expiré." : "Ce compte a déjà un code d'accès défini."}
             </div>
           )}
@@ -263,78 +261,82 @@ export default async function ClientDetailPage({
       )}
 
       {activeTab === "documents" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-card">
           <SectionHeader title="Documents & courriers" description={`${nCourriers} document(s) au total, ${courriers.length} affiché(s).`} />
           {courriers.length === 0 ? (
             <p className="text-sm text-slate-500">Aucun document pour cette société.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="text-slate-500">
-                <tr>
-                  <th className="text-left py-1">Type</th>
-                  <th className="text-left py-1">Fichier</th>
-                  <th className="text-left py-1">Reçu le</th>
-                  <th className="text-right py-1"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {courriers.map((c) => (
-                  <tr key={c.id} className="border-t border-slate-100">
-                    <td className="py-2">{courrierTypeLabel(c.type)}</td>
-                    <td className="py-2 text-slate-600">{c.fileName ?? "—"}</td>
-                    <td className="py-2 text-slate-500">{fmtDateTime(c.receivedAt)}</td>
-                    <td className="py-2 text-right"><Link href="/courriers" className="text-xs text-brand-600 hover:underline">Voir</Link></td>
+            <div className="table-shell overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="table-head">
+                  <tr>
+                    <th className="p-3 text-left">Type</th>
+                    <th className="p-3 text-left">Fichier</th>
+                    <th className="p-3 text-left">Reçu le</th>
+                    <th className="p-3 text-right"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {courriers.map((c) => (
+                    <tr key={c.id} className="table-row">
+                      <td className="p-3 text-slate-700">{courrierTypeLabel(c.type)}</td>
+                      <td className="p-3 text-slate-600">{c.fileName ?? "—"}</td>
+                      <td className="p-3 text-slate-500">{fmtDateTime(c.receivedAt)}</td>
+                      <td className="p-3 text-right"><Link href="/courriers" className="text-xs font-medium text-brand-700 hover:underline">Voir</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
 
       {activeTab === "contraventions" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-card">
           <SectionHeader title="Contraventions" description={`${nContraventions} dossier(s) au total.`} />
           {contraventions.length === 0 ? (
             <p className="text-sm text-slate-500">Aucune contravention.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="text-slate-500">
-                <tr>
-                  <th className="text-left py-1">N° dossier</th>
-                  <th className="text-left py-1">Date</th>
-                  <th className="text-left py-1">Nature</th>
-                  <th className="text-right py-1">Montant</th>
-                  <th className="text-left py-1">Statut</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contraventions.map((c) => (
-                  <tr key={c.id} className="border-t border-slate-100">
-                    <td className="py-2"><Link href={`/contraventions/${c.id}`} className="text-brand-600 hover:underline">{c.numDossier}</Link></td>
-                    <td className="py-2">{c.dateInfraction ?? "—"}</td>
-                    <td className="py-2 text-slate-600">{c.natureInfraction ?? "—"}</td>
-                    <td className="py-2 text-right">{c.montantAmende != null ? fmtMoney(c.montantAmende) : "—"}</td>
-                    <td className="py-2">{c.statutPaiement ?? "—"}</td>
+            <div className="table-shell overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="table-head">
+                  <tr>
+                    <th className="p-3 text-left">N° dossier</th>
+                    <th className="p-3 text-left">Date</th>
+                    <th className="p-3 text-left">Nature</th>
+                    <th className="p-3 text-right">Montant</th>
+                    <th className="p-3 text-left">Statut</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {contraventions.map((c) => (
+                    <tr key={c.id} className="table-row">
+                      <td className="p-3"><Link href={`/contraventions/${c.id}`} className="font-medium text-brand-700 hover:underline">{c.numDossier}</Link></td>
+                      <td className="p-3 text-slate-600">{c.dateInfraction ?? "—"}</td>
+                      <td className="p-3 text-slate-600">{c.natureInfraction ?? "—"}</td>
+                      <td className="p-3 text-right font-medium text-slate-900">{c.montantAmende != null ? fmtMoney(c.montantAmende) : "—"}</td>
+                      <td className="p-3 text-slate-600">{c.statutPaiement ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
 
       {activeTab === "vehicules" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-card">
           <SectionHeader title="Véhicules" description={`${nVehicules} véhicule(s).`} />
           {vehicules.length === 0 ? (
             <p className="text-sm text-slate-500">Aucun véhicule enregistré.</p>
           ) : (
-            <ul className="grid gap-2 sm:grid-cols-2">
+            <ul className="grid gap-3 sm:grid-cols-2">
               {vehicules.map((v) => (
-                <li key={v.id} className="rounded-lg border border-slate-200 p-3 text-sm">
-                  <div className="font-medium">{v.immatriculation}</div>
-                  <div className="text-xs text-slate-500">{[v.marque, v.modele].filter(Boolean).join(" ") || "—"}</div>
+                <li key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                  <div className="font-medium text-slate-900">{v.immatriculation}</div>
+                  <div className="mt-1 text-xs text-slate-500">{[v.marque, v.modele].filter(Boolean).join(" ") || "—"}</div>
                 </li>
               ))}
             </ul>
@@ -343,15 +345,15 @@ export default async function ClientDetailPage({
       )}
 
       {activeTab === "conducteurs" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-card">
           <SectionHeader title="Conducteurs" description={`${nConducteurs} conducteur(s).`} />
           {conducteurs.length === 0 ? (
             <p className="text-sm text-slate-500">Aucun conducteur.</p>
           ) : (
             <ul className="divide-y divide-slate-100">
               {conducteurs.map((c) => (
-                <li key={c.id} className="py-2 text-sm">
-                  <span className="font-medium">{c.prenom} {c.nom}</span>
+                <li key={c.id} className="py-3 text-sm">
+                  <span className="font-medium text-slate-900">{c.prenom} {c.nom}</span>
                   {c.email && <span className="text-xs text-slate-500"> · {c.email}</span>}
                 </li>
               ))}
@@ -361,15 +363,15 @@ export default async function ClientDetailPage({
       )}
 
       {activeTab === "historique" && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-[18px] border border-slate-200 bg-white p-6 shadow-card">
           <SectionHeader title="Journal d'activité" description={`${s.audits.length} événement(s) récent(s).`} />
           {s.audits.length === 0 ? (
             <p className="text-sm text-slate-500">Aucun événement.</p>
           ) : (
             <ul className="space-y-3 text-sm">
               {s.audits.map((a) => (
-                <li key={a.id} className="flex items-start gap-3">
-                  <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand-500" />
+                <li key={a.id} className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-500" />
                   <div>
                     <div className="font-medium text-slate-800">{humanizeAction(a.action)}</div>
                     {a.details && <div className="text-xs text-slate-500">{a.details}</div>}

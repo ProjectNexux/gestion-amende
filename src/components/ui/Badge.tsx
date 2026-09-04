@@ -3,34 +3,32 @@ import { cn } from "@/lib/utils";
 export type BadgeTone = "success" | "warning" | "danger" | "info" | "neutral" | "indigo" | "turquoise" | "coral" | "orange" | "violet" | "emerald" | "slate";
 
 const toneClasses: Record<BadgeTone, string> = {
-  success: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  warning: "bg-amber-50 text-amber-700 ring-amber-600/20",
-  danger: "bg-rose-50 text-rose-700 ring-rose-600/20",
-  info: "bg-blue-50 text-blue-700 ring-blue-600/20",
+  success: "bg-success-50 text-success-600 ring-success-500/15",
+  warning: "bg-warning-50 text-warning-600 ring-warning-500/15",
+  danger: "bg-danger-50 text-danger-500 ring-danger-500/15",
+  info: "bg-brand-50 text-brand-700 ring-brand-500/15",
   neutral: "bg-slate-100 text-slate-600 ring-slate-500/10",
-  // Document-category tones (2026-08-25 palette pass) — same soft-pastel-bg/darker-text shape as
-  // the tones above, just extending the palette so each document type reads as its own color.
-  indigo: "bg-indigo-50 text-indigo-700 ring-indigo-600/20",
-  turquoise: "bg-teal-50 text-teal-700 ring-teal-600/20",
-  coral: "bg-coral-50 text-coral-700 ring-coral-600/20",
-  orange: "bg-orange-50 text-orange-700 ring-orange-600/20",
-  violet: "bg-violet-50 text-violet-700 ring-violet-600/20",
-  emerald: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+  indigo: "bg-brand-50 text-brand-700 ring-brand-500/15",
+  turquoise: "bg-sky-50 text-sky-700 ring-sky-500/15",
+  coral: "bg-orange-50 text-orange-700 ring-orange-500/15",
+  orange: "bg-warning-50 text-warning-600 ring-warning-500/15",
+  violet: "bg-violet-50 text-violet-700 ring-violet-500/15",
+  emerald: "bg-success-50 text-success-600 ring-success-500/15",
   slate: "bg-slate-100 text-slate-600 ring-slate-500/10",
 };
 
 const dotClasses: Record<BadgeTone, string> = {
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
-  danger: "bg-rose-500",
-  info: "bg-blue-500",
+  success: "bg-success-500",
+  warning: "bg-warning-500",
+  danger: "bg-danger-500",
+  info: "bg-brand-500",
   neutral: "bg-slate-400",
-  indigo: "bg-indigo-500",
-  turquoise: "bg-teal-500",
-  coral: "bg-coral-500",
-  orange: "bg-orange-500",
+  indigo: "bg-brand-500",
+  turquoise: "bg-sky-500",
+  coral: "bg-orange-500",
+  orange: "bg-warning-500",
   violet: "bg-violet-500",
-  emerald: "bg-emerald-500",
+  emerald: "bg-success-500",
   slate: "bg-slate-400",
 };
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, Bell, ChevronDown, LogOut, Loader2, ScanLine } from "lucide-react";
+import { Search, Bell, ChevronDown, LogOut, Loader2, ScanLine, ArrowLeft } from "lucide-react";
 import { NewDocumentMenu } from "@/components/NewDocumentMenu";
 import type { SearchResultGroup } from "@/app/api/search/route";
 
@@ -96,8 +96,28 @@ export function Topbar({ societe, admin }: { societe: string; admin: boolean }) 
     router.push(href);
   }
 
+  function handleBack() {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push("/");
+  }
+
+  const showBackButton = pathname !== "/" && pathname !== "/login";
+
   return (
     <header className="sticky top-0 z-20 flex h-[68px] shrink-0 items-center gap-3 border-b border-slate-200/80 bg-[#FBFBFE]/90 px-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur-md sm:px-6">
+      {showBackButton && (
+        <button
+          type="button"
+          onClick={handleBack}
+          aria-label="Retour à la page précédente"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition-all duration-150 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+        >
+          <ArrowLeft size={17} />
+        </button>
+      )}
       <div className="min-w-0 flex-1">
         <div className="truncate text-[10.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">{section}</div>
         <div className="truncate text-[15px] font-bold leading-tight text-slate-900">{page}</div>

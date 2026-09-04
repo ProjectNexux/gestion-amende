@@ -6,7 +6,7 @@ import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { getClientEnvoiData } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
-import { Eye, Send } from "lucide-react";
+import { Download, Eye, Send } from "lucide-react";
 import { EnvoyerDocumentButton } from "./EnvoyerDocumentModal";
 
 export const dynamic = "force-dynamic";
@@ -63,16 +63,27 @@ export default async function DocumentsEnvoyesPage() {
                     <td className="p-3">{fmtDateTime(item.receivedAt)}</td>
                     <td className="p-3"><Badge tone={statutTone(d.statut)}>{d.statut ?? "Nouveau"}</Badge></td>
                     <td className="p-3 text-right">
-                      <DocumentViewerTrigger
-                        fileUrl={`/api/client/courriers/${item.id}/document`}
-                        downloadUrl={`/api/client/courriers/${item.id}/document?download=1`}
-                        fileName={item.fileName}
-                        fileMime={item.fileMime}
-                        title="Visualiser"
-                        className="ml-auto inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
-                      >
-                        <Eye size={15} />
-                      </DocumentViewerTrigger>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <DocumentViewerTrigger
+                          fileUrl={`/api/client/courriers/${item.id}/document`}
+                          downloadUrl={`/api/client/courriers/${item.id}/document?download=1`}
+                          fileName={item.fileName}
+                          fileMime={item.fileMime}
+                          title="Visualiser"
+                          className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                        >
+                          <Eye size={15} />
+                        </DocumentViewerTrigger>
+
+                        <a
+                          href={`/api/client/courriers/${item.id}/document?download=1`}
+                          download={item.fileName}
+                          title="Télécharger"
+                          className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                        >
+                          <Download size={15} />
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 );

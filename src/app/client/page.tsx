@@ -105,16 +105,18 @@ export default async function ClientDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-[18px] border border-slate-200 bg-white p-5 shadow-card sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl">Bonjour {societe},</h1>
-          <p className="text-lg font-medium text-slate-700">Bienvenue dans votre espace client.</p>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-400">Espace client</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-900">Bonjour {societe},</h1>
+          <p className="mt-1 text-base font-medium text-slate-700">Bienvenue dans votre espace client.</p>
           <p className="mt-1 text-sm text-slate-500">
             Consultez les documents transmis par notre équipe et les actions qui nécessitent votre attention.
           </p>
         </div>
-        {/* Envoi de document remonté en haut de page, per demande explicite (§9). */}
-        <EnvoyerDocumentButton />
+        <div className="flex items-center self-start">
+          <EnvoyerDocumentButton />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -132,7 +134,7 @@ export default async function ClientDashboardPage() {
       </div>
 
       {actionsAEffectuer.length > 0 && (
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle>Actions à effectuer</CardTitle>
           </CardHeader>
@@ -140,10 +142,10 @@ export default async function ClientDashboardPage() {
             <ul className="divide-y divide-slate-100">
               {actionsAEffectuer.slice(0, 6).map((item) => (
                 <li key={item.id}>
-                  <Link href={item.href} className="flex items-center justify-between gap-3 py-3 text-sm transition hover:opacity-80">
+                  <Link href={item.href} className="flex items-center justify-between gap-3 rounded-[10px] px-1 py-3 text-sm transition hover:bg-slate-50">
                     <div className="min-w-0">
                       <div className="truncate font-medium text-slate-800">{item.label}</div>
-                      <div className="truncate text-xs font-medium text-brand-600">→ {item.action}</div>
+                      <div className="truncate text-xs font-medium text-brand-700">→ {item.action}</div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {item.retardJours != null && (
@@ -160,7 +162,7 @@ export default async function ClientDashboardPage() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 overflow-hidden">
           <CardHeader>
             <CardTitle>Documents récents</CardTitle>
           </CardHeader>
@@ -177,7 +179,7 @@ export default async function ClientDashboardPage() {
               <ul className="divide-y divide-slate-100">
                 {documentsRecents.map((d) => (
                   <li key={`${d.kind}-${d.id}`}>
-                    <Link href={d.href} className="flex items-center justify-between gap-3 py-3 text-sm transition hover:opacity-80">
+                    <Link href={d.href} className="flex items-center justify-between gap-3 rounded-[10px] px-1 py-3 text-sm transition hover:bg-slate-50">
                       <div className="min-w-0">
                         <div className="truncate font-medium text-slate-800">{d.label}</div>
                         <div className="text-xs text-slate-400">
@@ -187,7 +189,7 @@ export default async function ClientDashboardPage() {
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         {d.statut && <Badge tone={statusTone(d.statut)}>{d.statut}</Badge>}
-                        <span className="hidden text-xs font-medium text-brand-600 sm:inline">Consulter</span>
+                        <span className="hidden text-xs font-medium text-brand-700 sm:inline">Consulter</span>
                         <ArrowRight size={14} className="text-slate-300" />
                       </div>
                     </Link>
@@ -219,17 +221,17 @@ export default async function ClientDashboardPage() {
             </Card>
           )}
 
-          <div className="rounded-2xl bg-gradient-to-br from-brand-600 to-navy-900 p-5 text-white shadow-card">
-            <div className="grid h-10 w-10 place-items-center rounded-full bg-white/15">
+          <div className="rounded-[16px] border border-brand-100 bg-brand-700 p-5 text-white shadow-card">
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-white/10">
               <ShieldCheck size={20} />
             </div>
-            <h3 className="mt-3 text-sm font-semibold">Un accompagnement réactif</h3>
-            <p className="mt-1 text-xs text-white/80">
+            <h3 className="mt-3 text-base font-semibold">Un accompagnement réactif</h3>
+            <p className="mt-1 text-sm text-brand-50/90">
               Notre équipe reste à votre écoute pour toute question ou demande de précision.
             </p>
             <a
               href={`mailto:${SUPPORT_EMAIL}`}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/15"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-white/10 px-3 py-2 text-xs font-medium text-white transition hover:bg-white/15"
             >
               <MessageCircle size={14} /> Contacter notre équipe
             </a>

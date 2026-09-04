@@ -4,20 +4,20 @@ import { cn } from "@/lib/utils";
 export type StatTone = "brand" | "info" | "warning" | "danger" | "success" | "neutral";
 
 const iconToneClasses: Record<StatTone, string> = {
-  brand: "bg-brand-50 text-brand-600",
-  info: "bg-blue-50 text-blue-600",
-  warning: "bg-amber-50 text-amber-600",
-  danger: "bg-rose-50 text-rose-600",
-  success: "bg-emerald-50 text-emerald-600",
+  brand: "bg-brand-50 text-brand-700",
+  info: "bg-brand-50 text-brand-700",
+  warning: "bg-warning-50 text-warning-600",
+  danger: "bg-danger-50 text-danger-500",
+  success: "bg-success-50 text-success-600",
   neutral: "bg-slate-100 text-slate-600",
 };
 
 const hoverBorderClasses: Record<StatTone, string> = {
   brand: "hover:border-brand-200",
-  info: "hover:border-blue-200",
-  warning: "hover:border-amber-200",
-  danger: "hover:border-rose-200",
-  success: "hover:border-emerald-200",
+  info: "hover:border-brand-200",
+  warning: "hover:border-warning-200",
+  danger: "hover:border-danger-200",
+  success: "hover:border-success-200",
   neutral: "hover:border-slate-300",
 };
 
@@ -50,7 +50,7 @@ export function StatCard({
   );
 
   const classes = cn(
-    "group flex items-center gap-2.5 rounded-xl border border-slate-200/80 bg-white p-3 shadow-card transition-colors",
+    "group flex items-center gap-3 rounded-[14px] border border-slate-200 bg-white p-3.5 shadow-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-card-hover",
     href && hoverBorderClasses[tone]
   );
 

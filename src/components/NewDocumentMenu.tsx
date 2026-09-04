@@ -271,8 +271,8 @@ export function NewDocumentMenu({ className }: { className?: string }) {
     }
   }
 
-  const isImage = file?.type.startsWith("image/");
-  const isPdf = file && (file.type === "application/pdf" || /\.pdf$/i.test(file.name));
+  const isImage = !!file && (file.type.startsWith("image/") || /\.(png|jpe?g|webp|tif|tiff|bmp)$/i.test(file.name));
+  const isPdf = !!file && (file.type === "application/pdf" || /\.pdf$/i.test(file.name));
 
   return (
     <div className={className}>
@@ -345,11 +345,11 @@ export function NewDocumentMenu({ className }: { className?: string }) {
               >
                 <Upload className="text-slate-400" size={28} />
                 <p className="text-sm font-medium text-slate-700">Glissez-déposez un fichier ou cliquez pour sélectionner</p>
-                <p className="text-xs text-slate-500">Formats acceptés : PDF, JPG, JPEG, PNG</p>
+                <p className="text-xs text-slate-500">Formats acceptés : PDF, JPG, JPEG, PNG, WEBP, TIFF, BMP</p>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.bmp,application/pdf,image/jpeg,image/png,image/webp,image/tiff,image/bmp"
                   className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
                 />
@@ -388,10 +388,21 @@ export function NewDocumentMenu({ className }: { className?: string }) {
         )}
 
         {step === "analyzing" && (
-          <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-            <Loader2 className="animate-spin text-brand-600" size={32} />
-            <p className="text-sm font-medium text-slate-700">Stockage sécurisé, OCR, classification et enregistrement dans la bonne section…</p>
-            <p className="text-xs text-slate-500">Cela peut prendre quelques secondes selon la taille du document.</p>
+          <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+            <div className="relative">
+              <Loader2 className="animate-spin text-brand-600" size={34} />
+              <div className="absolute inset-0 rounded-full border-2 border-brand-200/60" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-base font-semibold text-slate-800">Analyse OCR en cours…</p>
+              <p className="text-sm text-slate-600">Lecture du document, extraction du texte et reconnaissance du type…</p>
+            </div>
+            <div className="w-full max-w-md">
+              <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+                <div className="h-full w-1/2 animate-[pulse_1.6s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-brand-500 to-blue-500" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500">Cela peut prendre quelques secondes selon la taille du document et le format importé.</p>
           </div>
         )}
 

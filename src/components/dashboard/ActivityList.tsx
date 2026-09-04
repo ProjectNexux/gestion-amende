@@ -5,18 +5,18 @@ import { cn } from "@/lib/utils";
 export type ActivityTone = "brand" | "success" | "warning" | "violet" | "neutral";
 
 const dotClasses: Record<ActivityTone, string> = {
-  brand: "bg-blue-500",
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
+  brand: "bg-brand-500",
+  success: "bg-success-500",
+  warning: "bg-warning-500",
   violet: "bg-violet-500",
   neutral: "bg-slate-400",
 };
 
 const toneClasses: Record<ActivityTone, string> = {
-  brand: "bg-blue-50 text-blue-600",
-  success: "bg-emerald-50 text-emerald-600",
-  warning: "bg-amber-50 text-amber-600",
-  violet: "bg-violet-50 text-violet-600",
+  brand: "bg-brand-50 text-brand-700",
+  success: "bg-success-50 text-success-600",
+  warning: "bg-warning-50 text-warning-600",
+  violet: "bg-violet-50 text-violet-700",
   neutral: "bg-slate-100 text-slate-500",
 };
 

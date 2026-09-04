@@ -21,12 +21,12 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-2 px-6 py-14 text-center", className)}>
-      <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-400">
+    <div className={cn("flex flex-col items-center justify-center gap-2 px-6 py-12 text-center", className)}>
+      <div className="grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-brand-700">
         <Icon size={20} strokeWidth={1.75} />
       </div>
-      <p className="mt-1 text-sm font-medium text-slate-700">{title}</p>
-      {description && <p className="max-w-sm text-sm text-slate-500">{description}</p>}
+      <p className="mt-1 text-base font-semibold text-slate-800">{title}</p>
+      {description && <p className="max-w-sm text-sm leading-6 text-slate-500">{description}</p>}
       {action && (
         "href" in action ? (
           <Link href={action.href} className="mt-2 btn-primary">
