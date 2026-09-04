@@ -10,13 +10,19 @@ export const CLIENT_NAV_SECTIONS: ClientNavSection[] = [
   {
     label: "Documents",
     items: [
-      { href: "/client/courriers", label: "Mes courriers", icon: "Mail" },
-      { href: "/client/contraventions", label: "Mes contraventions", icon: "FileWarning" },
+      { href: "/client/courriers", label: "Documents reçus", icon: "Mail" },
+      { href: "/client/contraventions", label: "Contraventions", icon: "FileWarning" },
       { href: "/client/documents-envoyes", label: "Documents envoyés", icon: "Send" },
     ],
   },
   {
+    label: "Assistance",
+    // Contact déjà configuré dans l'app (mailto) — pas de fausse messagerie tant qu'aucune
+    // vraie interface de messagerie n'existe.
+    items: [{ href: "mailto:contact@gestion-amendes.local", label: "Assistance", icon: "LifeBuoy" }],
+  },
+  {
     label: "Mon espace",
-    items: [{ href: "/client/profil", label: "Mon profil", icon: "UserCircle" }],
+    items: [{ href: "/client/profil", label: "Mon compte", icon: "UserCircle" }],
   },
 ];

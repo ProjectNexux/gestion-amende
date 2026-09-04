@@ -12,6 +12,7 @@ const ICONS: Record<string, LucideIcon> = {
   Mail,
   Send,
   UserCircle,
+  LifeBuoy,
 };
 
 /**
@@ -57,19 +58,27 @@ export function ClientSidebar({ societe, sections }: { societe: string; sections
               <div className="space-y-1">
                 {section.items.map((item) => {
                   const Icon = ICONS[item.icon];
-                  const active = item.href === "/client" ? pathname === "/client" : pathname.startsWith(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      title={collapsed ? item.label : undefined}
-                      className={
-                        "flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition " +
-                        (active ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white")
-                      }
-                    >
+                  const isExternal = item.href.startsWith("mailto:") || item.href.startsWith("http");
+                  const active = !isExternal && (item.href === "/client" ? pathname === "/client" : pathname.startsWith(item.href));
+                  const linkClassName =
+                    "flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium transition " +
+                    (active ? "bg-white/10 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white");
+                  const content = (
+                    <>
                       {Icon && <Icon size={17} className={"shrink-0 " + (active ? "text-brand-400" : "text-slate-500")} />}
                       {!collapsed && <span className="sidebar-label truncate">{item.label}</span>}
+                    </>
+                  );
+                  if (isExternal) {
+                    return (
+                      <a key={item.href} href={item.href} title={collapsed ? item.label : undefined} className={linkClassName}>
+                        {content}
+                      </a>
+                    );
+                  }
+                  return (
+                    <Link key={item.href} href={item.href} title={collapsed ? item.label : undefined} className={linkClassName}>
+                      {content}
                     </Link>
                   );
                 })}

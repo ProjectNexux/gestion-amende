@@ -16,18 +16,41 @@ function statutTone(statut: string | null | undefined): BadgeTone {
   return "neutral";
 }
 
-export default async function ClientContraventionsPage() {
+export default async function ClientContraventionsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const societe = await requireSociete();
+  const resolved = searchParams ? await searchParams : {};
+  const rawFiltre = Array.isArray(resolved.filtre) ? resolved.filtre[0] : resolved.filtre;
+  const filtre = rawFiltre === "a_traiter" ? "a_traiter" : "tous";
+
   // Same strict double filter as the dashboard: société AND visibleClient, in the query itself.
-  const items = await prisma.contravention.findMany({
+  const allItems = await prisma.contravention.findMany({
     where: { societe, visibleClient: true },
     include: { vehicule: true },
     orderBy: { createdAt: "desc" },
   });
+  const items = filtre === "a_traiter" ? allItems.filter((c) => c.statutPaiement !== "Payé") : allItems;
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Mes contraventions" description={`${items.length} dossier(s) partagé(s) par notre équipe`} />
+      <PageHeader
+        title="Mes contraventions"
+        description={
+          filtre === "a_traiter"
+            ? `${items.length} dossier(s) non réglé(s)`
+            : `${items.length} dossier(s) partagé(s) par notre équipe`
+        }
+        actions={
+          filtre === "a_traiter" ? (
+            <Link href="/client/contraventions" className="text-xs font-medium text-brand-600 hover:underline">
+              Voir tous les dossiers
+            </Link>
+          ) : undefined
+        }
+      />
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">

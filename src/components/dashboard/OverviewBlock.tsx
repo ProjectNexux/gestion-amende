@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export type OverviewTone = "brand" | "warning" | "danger" | "violet";
@@ -30,6 +31,7 @@ export type OverviewStat = {
   value: React.ReactNode;
   label: string;
   hint?: string;
+  href?: string;
 };
 
 /**
@@ -46,16 +48,32 @@ export function OverviewBlock({ stats, className }: { stats: OverviewStat[]; cla
         <span className="text-[11px] font-medium text-slate-400">Aujourd&apos;hui</span>
       </div>
       <div className="grid grid-cols-2 gap-2.5 px-3 pb-3 sm:grid-cols-4">
-        {stats.map((s, i) => (
-          <div key={i} className={cn("rounded-xl px-4 py-4", toneCell[s.tone])}>
-            <div className={cn("grid h-9 w-9 place-items-center rounded-lg", toneChip[s.tone])}>
-              <s.icon size={17} strokeWidth={1.9} />
+        {stats.map((s, i) => {
+          const cellClass = cn(
+            "rounded-xl px-4 py-4 text-left transition-shadow",
+            toneCell[s.tone],
+            s.href && "cursor-pointer hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+          );
+          const content = (
+            <>
+              <div className={cn("grid h-9 w-9 place-items-center rounded-lg", toneChip[s.tone])}>
+                <s.icon size={17} strokeWidth={1.9} />
+              </div>
+              <div className="mt-3 text-[26px] font-extrabold leading-none tracking-tight text-slate-900">{s.value}</div>
+              <div className="mt-1.5 text-[13px] font-medium text-slate-600">{s.label}</div>
+              {s.hint && <div className={cn("mt-1.5 text-[11.5px] font-semibold", toneHint[s.tone])}>{s.hint}</div>}
+            </>
+          );
+          return s.href ? (
+            <Link key={i} href={s.href} className={cn(cellClass, "block")}>
+              {content}
+            </Link>
+          ) : (
+            <div key={i} className={cellClass}>
+              {content}
             </div>
-            <div className="mt-3 text-[26px] font-extrabold leading-none tracking-tight text-slate-900">{s.value}</div>
-            <div className="mt-1.5 text-[13px] font-medium text-slate-600">{s.label}</div>
-            {s.hint && <div className={cn("mt-1.5 text-[11.5px] font-semibold", toneHint[s.tone])}>{s.hint}</div>}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

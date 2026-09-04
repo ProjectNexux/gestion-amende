@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { fmtMoney, fmtMoneyCents, fmtDateTime } from "@/lib/utils";
+import { fmtMoney, fmtMoneyCents, fmtDateTime, humanizeFileName } from "@/lib/utils";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -21,10 +21,9 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import { requireSociete, isAdminSession } from "@/lib/auth";
+import { requireSociete, isAdminSession, getUserId } from "@/lib/auth";
 import { Badge, documentTypeTone, type BadgeTone } from "@/components/ui/Badge";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
-import { NewDocumentMenu } from "@/components/NewDocumentMenu";
 import { SectionCard } from "@/components/dashboard/SectionCard";
 import { OverviewBlock, type OverviewStat } from "@/components/dashboard/OverviewBlock";
 import { PriorityPanel, type PriorityItem } from "@/components/dashboard/PriorityPanel";
@@ -56,6 +55,35 @@ function startOfDay(d: Date): Date {
   return copy;
 }
 
+type ActivityBucket = { label: string; recus: number; traites: number };
+
+function buildDailyBuckets(dates: { date: Date; traiteAt?: Date }[], days: number): ActivityBucket[] {
+  const buckets: ActivityBucket[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const day = startOfDay(new Date());
+    day.setDate(day.getDate() - i);
+    const next = new Date(day);
+    next.setDate(day.getDate() + 1);
+    const recus = dates.filter((d) => d.date >= day && d.date < next).length;
+    const traites = dates.filter((d) => d.traiteAt && d.traiteAt >= day && d.traiteAt < next).length;
+    buckets.push({ label: day.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }), recus, traites });
+  }
+  return buckets;
+}
+
+function buildMonthlyBuckets(dates: { date: Date; traiteAt?: Date }[], months: number): ActivityBucket[] {
+  const buckets: ActivityBucket[] = [];
+  const now = new Date();
+  for (let i = months - 1; i >= 0; i--) {
+    const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+    const recus = dates.filter((d) => d.date >= monthStart && d.date < monthEnd).length;
+    const traites = dates.filter((d) => d.traiteAt && d.traiteAt >= monthStart && d.traiteAt < monthEnd).length;
+    buckets.push({ label: monthStart.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }), recus, traites });
+  }
+  return buckets;
+}
+
 // One row of the unified "Derniers documents reçus" table, built from every real document source
 // in the app (contraventions + every Courrier type). No fabricated fields — only what each model
 // actually stores.
@@ -71,6 +99,8 @@ type UnifiedDoc = {
   statutTone: BadgeTone;
   traite: boolean;
   urgent: boolean;
+  /** Action concrète attendue de l'utilisateur pour ce dossier — jamais un simple statut. */
+  action?: string;
   href: string | null;
   viewer?: { fileUrl: string; downloadUrl: string; fileName: string; fileMime: string };
 };
@@ -81,10 +111,24 @@ const DEADLINE_ICONS: Record<string, LucideIcon> = {
   "Retard de paiement": ClockAlert,
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
   const where = isAdmin ? {} : { societe };
+
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const rawPeriod = Array.isArray(resolvedSearchParams.periode) ? resolvedSearchParams.periode[0] : resolvedSearchParams.periode;
+  const periode = rawPeriod === "30" || rawPeriod === "365" ? rawPeriod : "7";
+
+  const userId = await getUserId();
+  const currentUser = userId ? await prisma.user.findUnique({ where: { id: userId } }) : null;
+  // "Admin"/"Compte" are placeholder prénoms auto-assigned at first login (see ensureUserForSociete) —
+  // treated as "no real prénom set" so we never greet someone by a fabricated name.
+  const prenom = currentUser?.prenom && !["Admin", "Compte"].includes(currentUser.prenom) ? currentUser.prenom : null;
 
   const [contraventions, courriers, recentScans] = await Promise.all([
     prisma.contravention.findMany({ where, include: { vehicule: true, conducteur: true }, orderBy: { createdAt: "desc" } }),
@@ -129,6 +173,14 @@ export default async function DashboardPage() {
   // ---- Build the unified document list (single source of truth for KPIs, chart, table) ----
   const docs: UnifiedDoc[] = [];
 
+  function actionAttendueContravention(c: (typeof contraventions)[number]): string {
+    if (!c.conducteurId) return "Identifier le conducteur";
+    if (!c.natureInfraction || !c.montantAmende) return "Compléter les informations manquantes";
+    if (c.statutDenonciation !== "Effectuée") return "Transmettre le document au client";
+    if (c.statutPaiement !== "Payé") return "Effectuer ou confirmer le paiement";
+    return "Classer le document";
+  }
+
   for (const c of contraventions) {
     const s = displayStatus(c);
     const traite = c.statutDenonciation === "Effectuée";
@@ -144,6 +196,7 @@ export default async function DashboardPage() {
       statutTone: s.tone,
       traite,
       urgent: isEnRetard(c) || isEcheanceProche(c),
+      action: actionAttendueContravention(c),
       href: `/contraventions/${c.id}`,
     });
   }
@@ -169,6 +222,11 @@ export default async function DashboardPage() {
         statutTone: traite ? "success" : statut === "À traiter" || statut === "À vérifier" ? "warning" : "info",
         traite,
         urgent: !traite && (overdue || (!!echeance && (echeance.getTime() - Date.now()) / 86400000 <= 3)),
+        action: traite
+          ? undefined
+          : statut === "À vérifier" || (!d.motif && !d.reference)
+            ? "Vérifier les informations extraites"
+            : "Transmettre le document au client",
         href: `/courriers/mise-en-demeure/${item.id}`,
         viewer,
       });
@@ -190,6 +248,7 @@ export default async function DashboardPage() {
         statutTone: traite ? "success" : d.statutPaiement === "Échec de paiement" ? "danger" : reste > 0 ? "warning" : "neutral",
         traite,
         urgent: !traite && (overdue || d.statutPaiement === "Échec de paiement"),
+        action: traite ? undefined : "Effectuer ou confirmer le paiement",
         href: `/courriers/retards-paiement/${item.id}`,
         viewer,
       });
@@ -249,17 +308,9 @@ export default async function DashboardPage() {
   const montantEnAttente = montantContraventionsEnAttente + montantRetardsEnAttente;
   const dossiersNonSoldes = docs.filter((d) => !d.traite).length;
 
-  // ---- Activité des 7 derniers jours ----
-  const weeklyActivity: DayActivity[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const day = startOfDay(new Date());
-    day.setDate(day.getDate() - i);
-    const next = new Date(day);
-    next.setDate(day.getDate() + 1);
-    const recus = docs.filter((d) => d.date >= day && d.date < next).length;
-    const traites = docs.filter((d) => d.traiteAt && d.traiteAt >= day && d.traiteAt < next).length;
-    weeklyActivity.push({ label: day.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }), recus, traites });
-  }
+  // ---- Activité documentaire (période sélectionnable 7j / 30j / 12 mois) ----
+  const weeklyActivity: DayActivity[] =
+    periode === "365" ? buildMonthlyBuckets(docs, 12) : buildDailyBuckets(docs, periode === "30" ? 30 : 7);
 
   // ---- Répartition par catégorie ---- (colors matched to Badge's documentTypeTone palette)
   const categories: CategorySlice[] = [
@@ -271,9 +322,21 @@ export default async function DashboardPage() {
     { label: "Pub", value: docs.filter((d) => d.typeLabel === "Pub").length, color: "#94a3b8" },
   ];
 
-  // ---- Échéances proches ----
-  const deadlineItems: DeadlineItem[] = docs
-    .filter((d) => d.echeance && !d.traite)
+  // ---- Échéances : deux blocs distincts, jamais mélangés (§4 du cahier des charges) ----
+  const futureDeadlines: DeadlineItem[] = docs
+    .filter((d) => d.echeance && !d.traite && d.echeance.getTime() >= now.getTime())
+    .sort((a, b) => a.echeance!.getTime() - b.echeance!.getTime())
+    .slice(0, 6)
+    .map((d) => ({
+      icon: DEADLINE_ICONS[d.typeLabel] ?? Clock,
+      title: d.typeLabel,
+      subtitle: `${d.label} — ${d.societe}`,
+      date: d.echeance!,
+      href: d.href ?? "/courriers",
+    }));
+
+  const overdueDeadlines: DeadlineItem[] = docs
+    .filter((d) => d.echeance && !d.traite && d.echeance.getTime() < now.getTime())
     .sort((a, b) => a.echeance!.getTime() - b.echeance!.getTime())
     .slice(0, 6)
     .map((d) => ({
@@ -287,9 +350,23 @@ export default async function DashboardPage() {
   // ---- Activité récente ----
   const activity: ActivityEntry[] = [];
   for (const scan of recentScans) {
-    activity.push({ icon: ScanLine, tone: "brand", label: "Nouveau scan reçu", meta: scan.fileName, date: scan.receivedAt });
+    activity.push({
+      icon: ScanLine,
+      tone: "brand",
+      label: humanizeFileName(scan.fileName),
+      meta: scan.fileName,
+      societe: scan.societe,
+      date: scan.receivedAt,
+    });
     if (scan.processedAt && (scan.status === "analyzed" || scan.status === "created")) {
-      activity.push({ icon: FileCheck2, tone: "success", label: "Document traité", meta: scan.fileName, date: scan.processedAt });
+      activity.push({
+        icon: FileCheck2,
+        tone: "success",
+        label: `${humanizeFileName(scan.fileName)} — traité`,
+        meta: scan.fileName,
+        societe: scan.societe,
+        date: scan.processedAt,
+      });
     }
   }
   for (const c of contraventions) {
@@ -339,10 +416,12 @@ export default async function DashboardPage() {
         icon: DEADLINE_ICONS[d.typeLabel] ?? AlertTriangle,
         tone: d.statutTone === "danger" || overdue ? "danger" : "warning",
         title: d.typeLabel,
-        subtitle: `${d.label} — ${d.societe}`,
+        subtitle: d.label,
+        societe: d.societe,
+        action: d.action,
         meta: d.echeance
           ? overdue
-            ? "En retard"
+            ? `En retard de ${Math.round((Date.now() - d.echeance.getTime()) / 86400000)} j`
             : d.echeance.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })
           : undefined,
         href: d.href ?? "/courriers",
@@ -350,33 +429,58 @@ export default async function DashboardPage() {
     });
 
   const overviewStats: OverviewStat[] = [
-    { icon: FileText, tone: "brand", value: totalDocuments, label: "Documents", hint: docsThisMonth > 0 ? `+${docsThisMonth} ce mois` : undefined },
-    { icon: Clock, tone: "warning", value: aTraiterCount, label: "À traiter", hint: `${traitesCount} traité${traitesCount > 1 ? "s" : ""}` },
-    { icon: AlertTriangle, tone: "danger", value: urgentsCount, label: "Urgents", hint: urgentsCount > 0 ? "Action requise" : "Aucune action requise" },
-    { icon: Wallet, tone: "violet", value: fmtMoney(montantEnAttente), label: "Montant en attente", hint: dossiersNonSoldes > 0 ? `${dossiersNonSoldes} dossier${dossiersNonSoldes > 1 ? "s" : ""} non soldé${dossiersNonSoldes > 1 ? "s" : ""}` : undefined },
+    { icon: FileText, tone: "brand", value: totalDocuments, label: "Documents reçus", hint: docsThisMonth > 0 ? `+${docsThisMonth} ce mois` : undefined, href: "/courriers" },
+    { icon: Clock, tone: "warning", value: aTraiterCount, label: "Documents à traiter", hint: `${traitesCount} traité${traitesCount > 1 ? "s" : ""}`, href: "/contraventions?view=denonciations" },
+    { icon: AlertTriangle, tone: "danger", value: urgentsCount, label: "Dossiers urgents", hint: urgentsCount > 0 ? "Action requise" : "Aucune action requise", href: "/contraventions?view=retards" },
+    {
+      icon: Wallet,
+      tone: "violet",
+      value: fmtMoney(montantEnAttente),
+      label: "Montant total à régulariser",
+      hint: `Contraventions + retards de paiement non soldés${dossiersNonSoldes > 0 ? ` (${dossiersNonSoldes} dossier${dossiersNonSoldes > 1 ? "s" : ""})` : ""}`,
+      href: "/contraventions?view=paiements",
+    },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-[13px] font-medium text-slate-400">Bonjour,</p>
-          <h1 className="mt-1 text-[26px] font-bold leading-tight tracking-tight text-slate-900">
-            Voici ce qui nécessite votre attention aujourd&apos;hui.
-          </h1>
-        </div>
-        <NewDocumentMenu className="shrink-0" />
+      <div>
+        <p className="text-[13px] font-medium text-slate-400">{prenom ? `Bonjour ${prenom},` : "Bonjour,"}</p>
+        <h1 className="mt-1 text-[22px] font-bold leading-tight tracking-tight text-slate-900">
+          Voici les éléments qui nécessitent votre attention aujourd&apos;hui.
+        </h1>
       </div>
 
       {/* Asymmetric two-column body: colonne principale (synthèse, activité, documents) à
           gauche, colonne secondaire (urgences, répartition, échéances, activité récente) à
           droite — un seul flux vertical par colonne plutôt que des rangées de cartes identiques. */}
       <div className="grid items-start gap-6 xl:grid-cols-3">
-        <div className="space-y-6 xl:col-span-2">
+        <div className="space-y-5 xl:col-span-2">
           <OverviewBlock stats={overviewStats} />
 
-          <SectionCard title="Activité documentaire" description="Documents reçus et traités sur les 7 derniers jours" tint="muted">
+          <SectionCard
+            title="Activité documentaire"
+            description={periode === "365" ? "Sur les 12 derniers mois" : `Sur les ${periode} derniers jours`}
+            tint="muted"
+          >
+            <div className="mb-2 flex items-center justify-end gap-1">
+              {([
+                { key: "7", label: "7 jours" },
+                { key: "30", label: "30 jours" },
+                { key: "365", label: "12 mois" },
+              ] as const).map((opt) => (
+                <Link
+                  key={opt.key}
+                  href={opt.key === "7" ? "/" : `/?periode=${opt.key}`}
+                  className={`rounded-md px-2.5 py-1 text-[11.5px] font-semibold transition ${
+                    periode === opt.key ? "bg-brand-600 text-white" : "text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  {opt.label}
+                </Link>
+              ))}
+            </div>
             <WeeklyActivityChart data={weeklyActivity} />
           </SectionCard>
 
@@ -385,37 +489,33 @@ export default async function DashboardPage() {
               <table className="w-full whitespace-nowrap text-[13px]">
                 <thead className="table-head">
                   <tr>
-                    <th className="p-3.5 pl-5 text-left">Document</th>
-                    <th className="p-3.5 text-left">Catégorie</th>
-                    <th className="p-3.5 text-left">Société</th>
-                    <th className="p-3.5 text-left">Date</th>
-                    <th className="p-3.5 text-left">Échéance</th>
-                    <th className="p-3.5 text-left">Statut</th>
-                    <th className="p-3.5 pr-5 text-right">Actions</th>
+                    <th className="p-3 pl-5 text-left">Document</th>
+                    <th className="p-3 text-left">Catégorie</th>
+                    <th className="p-3 text-left">Société</th>
+                    <th className="p-3 text-left">Date de réception</th>
+                    <th className="p-3 text-left">Statut</th>
+                    <th className="p-3 pr-5 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {derniersDocuments.map((d) => (
                     <tr key={d.id} className="transition-colors duration-100 hover:bg-blue-50/40">
-                      <td className="p-4 pl-5">
+                      <td className="p-3 pl-5">
                         {d.href ? (
-                          <Link href={d.href} className="font-medium text-slate-800 hover:underline">{d.label}</Link>
+                          <Link href={d.href} title={d.label} className="block max-w-[220px] truncate font-medium text-slate-800 hover:underline">{d.label}</Link>
                         ) : (
-                          <span className="font-medium text-slate-800">{d.label}</span>
+                          <span title={d.label} className="block max-w-[220px] truncate font-medium text-slate-800">{d.label}</span>
                         )}
                       </td>
-                      <td className="p-4">
+                      <td className="p-3">
                         <Badge tone={documentTypeTone(d.typeLabel)}>{d.typeLabel}</Badge>
                       </td>
-                      <td className="p-4 text-slate-600">{d.societe}</td>
-                      <td className="p-4 text-slate-600">{fmtDateTime(d.date)}</td>
-                      <td className="p-4 text-slate-600">
-                        {d.echeance ? d.echeance.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"}
-                      </td>
-                      <td className="p-4">
+                      <td className="p-3 text-slate-600">{d.societe}</td>
+                      <td className="p-3 whitespace-nowrap text-slate-600">{fmtDateTime(d.date)}</td>
+                      <td className="p-3">
                         <Badge tone={d.statutTone}>{d.statutLabel}</Badge>
                       </td>
-                      <td className="p-4 pr-5 text-right">
+                      <td className="p-3 pr-5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {d.viewer && (
                             <DocumentViewerTrigger
@@ -444,7 +544,7 @@ export default async function DashboardPage() {
                                 <MoreHorizontal size={16} />
                               </summary>
                               <div className="absolute right-0 z-10 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-card-hover">
-                                <Link href={d.href} className="block px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Voir la fiche</Link>
+                                <Link href={d.href} className="block px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Ouvrir le dossier</Link>
                               </div>
                             </details>
                           )}
@@ -454,7 +554,7 @@ export default async function DashboardPage() {
                   ))}
                   {derniersDocuments.length === 0 && (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={6}>
                         <DashboardEmptyState
                           icon={FilePlus2}
                           title="Aucun document pour le moment"
@@ -469,15 +569,19 @@ export default async function DashboardPage() {
           </SectionCard>
         </div>
 
-        <div className="space-y-6 xl:col-span-1">
+        <div className="space-y-5 xl:col-span-1">
           <PriorityPanel items={priorityItems} title="À traiter aujourd'hui" />
 
           <SectionCard title="Répartition des documents">
             <CategoryDonut segments={categories} total={totalDocuments} />
           </SectionCard>
 
-          <SectionCard title="Échéances proches" action={{ label: "Tout voir", href: "/courriers" }}>
-            <DeadlineList items={deadlineItems} />
+          <SectionCard title="Dossiers en retard" action={{ label: "Tout voir", href: "/courriers" }}>
+            <DeadlineList items={overdueDeadlines} />
+          </SectionCard>
+
+          <SectionCard title="Prochaines échéances" action={{ label: "Tout voir", href: "/courriers" }}>
+            <DeadlineList items={futureDeadlines} />
           </SectionCard>
 
           <SectionCard title="Activité récente">

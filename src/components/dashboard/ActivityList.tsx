@@ -24,6 +24,8 @@ export type ActivityEntry = {
   icon: LucideIcon;
   label: string;
   meta: string;
+  /** Société concernée, affichée en petit à côté du nom de fichier d'origine. */
+  societe?: string;
   date: Date;
   tone?: ActivityTone;
 };
@@ -62,9 +64,14 @@ export function ActivityList({ items }: { items: ActivityEntry[] }) {
                 <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", dotClasses[entry.tone ?? "neutral"])} />
                 {entry.label}
               </div>
-              <div className="truncate pl-3 text-[12px] text-slate-500">{entry.meta}</div>
+              <div className="truncate pl-3 text-[12px] text-slate-500">
+                {entry.meta}
+                {entry.societe && <span className="text-slate-400"> · {entry.societe}</span>}
+              </div>
             </div>
-            <div className="shrink-0 whitespace-nowrap pt-1 text-[11px] text-slate-400">{relativeTime(entry.date)}</div>
+            <div className="shrink-0 whitespace-nowrap pt-1 text-right text-[11px] text-slate-400" title={entry.date.toLocaleString("fr-FR")}>
+              {relativeTime(entry.date)}
+            </div>
           </div>
         ))}
       </div>

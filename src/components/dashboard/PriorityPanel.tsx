@@ -7,6 +7,10 @@ export type PriorityItem = {
   tone: "info" | "warning" | "danger";
   title: string;
   subtitle: string;
+  /** Société concernée par le dossier — affichée explicitement (jamais fusionnée silencieusement). */
+  societe?: string;
+  /** Action concrète attendue de l'utilisateur (ex. "Identifier le conducteur"). */
+  action?: string;
   meta?: string;
   href: string;
 };
@@ -64,15 +68,21 @@ export function PriorityPanel({ items, title = "À traiter", className }: { item
                   <item.icon size={16} strokeWidth={1.9} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-semibold text-slate-800">{item.title}</span>
+                  <span className="flex items-center gap-1.5 truncate text-[13px] font-semibold text-slate-800">
+                    {item.title}
+                    {item.societe && <span className="truncate text-[11px] font-normal text-slate-400">— {item.societe}</span>}
+                  </span>
                   <span className="block truncate text-[12px] text-slate-500">{item.subtitle}</span>
+                  {item.action && (
+                    <span className="mt-0.5 block truncate text-[11.5px] font-medium text-brand-600">→ {item.action}</span>
+                  )}
                 </span>
-                <span className="flex shrink-0 items-center gap-2">
+                <span className="flex shrink-0 flex-col items-end gap-1">
                   {item.meta && (
                     <span className={cn("whitespace-nowrap text-[11px] font-semibold", toneMeta[item.tone])}>{item.meta}</span>
                   )}
                   <span className="flex items-center gap-1 text-[11.5px] font-medium text-slate-400 transition-colors group-hover:text-brand-600">
-                    <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+                    Ouvrir <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
                   </span>
                 </span>
               </Link>

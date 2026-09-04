@@ -27,3 +27,16 @@ export function fmtDateTime(d: Date | string) {
   const timePart = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   return `${datePart} - ${timePart}`;
 }
+
+/**
+ * Turns a technical file name (underscores/dashes, trailing date, extension) into a readable
+ * title for display — purely presentational, the original file name is always kept/shown
+ * alongside it. e.g. "Incident_de_paiement_09-06-2026.pdf" -> "Incident de paiement".
+ */
+export function humanizeFileName(fileName: string): string {
+  const withoutExt = fileName.replace(/\.[a-zA-Z0-9]{2,5}$/, "");
+  const withoutTrailingDate = withoutExt.replace(/[_-]?\d{1,4}[/-]\d{1,2}([/-]\d{1,4})?$/, "");
+  const spaced = withoutTrailingDate.replace(/[_-]+/g, " ").trim();
+  if (!spaced) return fileName;
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
