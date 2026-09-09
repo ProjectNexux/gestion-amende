@@ -227,7 +227,7 @@ export function EmailScanList() {
                 </a>
               )}
 
-              {scan.status === "error" && (
+              {(scan.status === "error" || scan.status === "processing") && (
                 <button
                   onClick={() => retryProcess(scan.id)}
                   disabled={processing === scan.id}

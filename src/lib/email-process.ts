@@ -15,9 +15,22 @@ function log(msg: string) { console.log(`[EMAIL-SCAN] ${msg}`); }
 
 export type ProcessScanResult = { id: string; status: string; error?: string };
 
+const STALE_PROCESSING_MINUTES = 10;
+
 // Extracted from api/scan-email/process route so the auto-poll scheduler can reuse it.
 export async function processPendingEmailScans(id?: string): Promise<{ processed: number; results: ProcessScanResult[]; message?: string }> {
-  const where = id ? { id, status: { in: ["received", "error"] } } : { status: "received" };
+  const staleBefore = new Date(Date.now() - STALE_PROCESSING_MINUTES * 60 * 1000);
+  const where = id
+    ? { id, status: { in: ["received", "error", "processing", "analyzed"] } }
+    : {
+      OR: [
+        { status: "received" },
+        { status: "error" },
+        // If a previous run crashed mid-analysis, processing can stay stuck forever.
+        // Requeue old processing rows automatically so they are never orphaned.
+        { status: "processing", updatedAt: { lt: staleBefore } },
+      ],
+    };
   const scans = await prisma.emailScan.findMany({
     where,
     take: 10,
