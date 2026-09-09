@@ -21,6 +21,7 @@ type EmailScanItem = {
   parsedData: string | null;
   receivedAt: string;
   processedAt: string | null;
+  updatedAt: string;
   origine?: string;
 };
 
@@ -73,7 +74,7 @@ function formatSize(bytes: number) {
 
 function isStaleProcessing(scan: EmailScanItem): boolean {
   if (scan.status !== "processing") return false;
-  const startedAt = new Date(scan.receivedAt).getTime();
+  const startedAt = new Date(scan.updatedAt).getTime();
   if (Number.isNaN(startedAt)) return false;
   return Date.now() - startedAt > STALE_PROCESSING_MINUTES * 60 * 1000;
 }

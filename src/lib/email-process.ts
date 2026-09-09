@@ -16,6 +16,7 @@ function log(msg: string) { console.log(`[EMAIL-SCAN] ${msg}`); }
 export type ProcessScanResult = { id: string; status: string; error?: string };
 
 const STALE_PROCESSING_MINUTES = 10;
+const PROCESS_BATCH_SIZE = Math.max(1, parseInt(process.env.SCAN_PROCESS_BATCH_SIZE ?? "2", 10));
 
 // Extracted from api/scan-email/process route so the auto-poll scheduler can reuse it.
 export async function processPendingEmailScans(id?: string): Promise<{ processed: number; results: ProcessScanResult[]; message?: string }> {
@@ -33,7 +34,9 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
     };
   const scans = await prisma.emailScan.findMany({
     where,
-    take: 10,
+    // Keep batches intentionally small: OCR on large PDFs can exceed serverless limits when
+    // multiple files are processed in one request, which leaves rows stuck in "processing".
+    take: id ? 1 : PROCESS_BATCH_SIZE,
     orderBy: { createdAt: "asc" },
   });
 

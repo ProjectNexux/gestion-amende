@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { fetchEmailsViaImap } from "@/lib/email-scan";
 import { processPendingEmailScans } from "@/lib/email-process";
 
+export const maxDuration = 300;
+
 // Accepts either name: SCAN_CRON_SECRET (this project's original convention) or CRON_SECRET
 // (Vercel's own convention — Vercel Cron Jobs automatically send `Authorization: Bearer
 // $CRON_SECRET` when an env var of that exact name exists, no manual header wiring needed).
