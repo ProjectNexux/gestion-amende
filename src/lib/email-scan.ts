@@ -1,13 +1,7 @@
 import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { execFile } from "child_process";
-import { promisify } from "util";
-import { mkdtemp, readFile, rm, writeFile } from "fs/promises";
-import { tmpdir } from "os";
-import path from "path";
 import { classifyDocument } from "@/lib/document-classifier";
-
-const execFileAsync = promisify(execFile);
+import { PDFDocument } from "pdf-lib";
 
 const ALLOWED_MIMES = new Set([
   "application/pdf",
@@ -181,58 +175,38 @@ function withPartSuffix(filename: string, index: number, total: number, from: nu
 }
 
 async function buildPdfChunks(pdfData: Buffer, ranges: PageRange[], originalName: string): Promise<Attachment[]> {
-  const tmpDir = await mkdtemp(path.join(tmpdir(), "scan-split-"));
-  const inputPath = path.join(tmpDir, "input.pdf");
-  await writeFile(inputPath, pdfData);
+  const source = await PDFDocument.load(pdfData, { ignoreEncryption: true });
+  const total = ranges.length;
+  const result: Attachment[] = [];
 
-  try {
-    const result: Attachment[] = [];
-    const total = ranges.length;
+  for (let i = 0; i < ranges.length; i += 1) {
+    const range = ranges[i];
+    const index = i + 1;
+    const chunk = await PDFDocument.create();
+    const pageIndexes: number[] = [];
 
-    for (let i = 0; i < ranges.length; i += 1) {
-      const range = ranges[i];
-      const index = i + 1;
-
-      if (range.from === range.to) {
-        const singlePrefix = path.join(tmpDir, `single-${index}`);
-        await execFileAsync("pdfseparate", ["-f", String(range.from), "-l", String(range.to), inputPath, `${singlePrefix}-%d.pdf`]);
-        const pagePath = `${singlePrefix}-${range.from}.pdf`;
-        result.push({
-          filename: withPartSuffix(originalName, index, total, range.from, range.to),
-          contentType: "application/pdf",
-          content: await readFile(pagePath),
-          splitFromPage: range.from,
-          splitToPage: range.to,
-          splitIndex: index,
-          splitTotal: total,
-        });
-        continue;
-      }
-
-      const multiPrefix = path.join(tmpDir, `multi-${index}`);
-      await execFileAsync("pdfseparate", ["-f", String(range.from), "-l", String(range.to), inputPath, `${multiPrefix}-%d.pdf`]);
-      const pageFiles = [];
-      for (let p = range.from; p <= range.to; p += 1) {
-        pageFiles.push(`${multiPrefix}-${p}.pdf`);
-      }
-      const mergedPath = path.join(tmpDir, `chunk-${index}.pdf`);
-      await execFileAsync("pdfunite", [...pageFiles, mergedPath]);
-
-      result.push({
-        filename: withPartSuffix(originalName, index, total, range.from, range.to),
-        contentType: "application/pdf",
-        content: await readFile(mergedPath),
-        splitFromPage: range.from,
-        splitToPage: range.to,
-        splitIndex: index,
-        splitTotal: total,
-      });
+    for (let p = range.from; p <= range.to; p += 1) {
+      pageIndexes.push(p - 1);
     }
 
-    return result;
-  } finally {
-    await rm(tmpDir, { recursive: true, force: true });
+    const copiedPages = await chunk.copyPages(source, pageIndexes);
+    for (const page of copiedPages) {
+      chunk.addPage(page);
+    }
+
+    const bytes = await chunk.save({ useObjectStreams: false });
+    result.push({
+      filename: withPartSuffix(originalName, index, total, range.from, range.to),
+      contentType: "application/pdf",
+      content: Buffer.from(bytes),
+      splitFromPage: range.from,
+      splitToPage: range.to,
+      splitIndex: index,
+      splitTotal: total,
+    });
   }
+
+  return result;
 }
 
 async function splitPdfAttachment(att: Attachment): Promise<Attachment[] | null> {
