@@ -17,6 +17,7 @@ export type ProcessScanResult = { id: string; status: string; error?: string };
 
 const STALE_PROCESSING_MINUTES = 10;
 const PROCESS_BATCH_SIZE = Math.max(1, parseInt(process.env.SCAN_PROCESS_BATCH_SIZE ?? "2", 10));
+const PROCESS_MAX_DRAIN_CYCLES = Math.max(1, parseInt(process.env.SCAN_PROCESS_MAX_DRAIN_CYCLES ?? "6", 10));
 
 // Extracted from api/scan-email/process route so the auto-poll scheduler can reuse it.
 export async function processPendingEmailScans(id?: string): Promise<{ processed: number; results: ProcessScanResult[]; message?: string }> {
@@ -527,4 +528,35 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
   }
 
   return { processed, results };
+}
+
+// Repeatedly runs small OCR batches in one request to clear a backlog faster while
+// still respecting PROCESS_BATCH_SIZE and avoiding a single giant long-running batch.
+export async function drainPendingEmailScans(): Promise<{ processed: number; cycles: number; results: ProcessScanResult[]; message?: string }> {
+  let totalProcessed = 0;
+  let cycles = 0;
+  const allResults: ProcessScanResult[] = [];
+
+  while (cycles < PROCESS_MAX_DRAIN_CYCLES) {
+    const batch = await processPendingEmailScans();
+    cycles += 1;
+    totalProcessed += batch.processed;
+    allResults.push(...batch.results);
+
+    if (batch.processed === 0) {
+      return {
+        processed: totalProcessed,
+        cycles,
+        results: allResults,
+        message: totalProcessed === 0 ? (batch.message ?? "Aucun scan à traiter") : "Tous les scans en attente ont été traités.",
+      };
+    }
+  }
+
+  return {
+    processed: totalProcessed,
+    cycles,
+    results: allResults,
+    message: `Limite atteinte (${PROCESS_MAX_DRAIN_CYCLES} cycle(s)). Relancez pour vider le reste si nécessaire.`,
+  };
 }

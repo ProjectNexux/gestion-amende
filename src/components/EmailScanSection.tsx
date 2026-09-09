@@ -125,6 +125,7 @@ export function EmailScanList() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [bulkRetrying, setBulkRetrying] = useState(false);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [viewingScan, setViewingScan] = useState<EmailScanItem | null>(null);
@@ -182,6 +183,20 @@ export function EmailScanList() {
     }
   }
 
+  async function processAllPending() {
+    setBulkProcessing(true);
+    try {
+      await fetch("/api/scan-email/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ drain: true }),
+      });
+      await fetchScans();
+    } finally {
+      setBulkProcessing(false);
+    }
+  }
+
   async function confirmDelete() {
     if (!confirmDeleteId) return;
     const id = confirmDeleteId;
@@ -224,6 +239,14 @@ export function EmailScanList() {
           <p className="text-xs text-slate-500">{scans.length} document(s)</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={processAllPending}
+            disabled={bulkProcessing}
+            className="inline-flex items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 transition hover:bg-brand-100 disabled:opacity-50"
+          >
+            {bulkProcessing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            Traiter tout
+          </button>
           {staleScanIds.length > 0 && (
             <button
               onClick={retryAllStale}

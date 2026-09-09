@@ -16,7 +16,7 @@ async function triggerProcessing() {
   const res = await fetch(`http://127.0.0.1:${port}/api/scan-email/process`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: "{}",
+    body: JSON.stringify({ drain: true }),
   });
   if (!res.ok) throw new Error(`Échec du déclenchement de l'analyse (HTTP ${res.status})`);
 }
