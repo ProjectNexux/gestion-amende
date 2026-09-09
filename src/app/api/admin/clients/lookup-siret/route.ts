@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminSession } from "@/lib/auth";
 import { isValidSiret, normalizeSiret } from "@/lib/siret";
-import { lookupCompanyBySiret } from "@/lib/company-lookup";
+import { CompanyLookupError, lookupCompanyBySiret } from "@/lib/company-lookup";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +30,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Aucune entreprise trouvée avec ce SIRET. Vérifiez le numéro saisi." }, { status: 404 });
     }
     return NextResponse.json({ result });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "La recherche automatique est temporairement indisponible.";
-    return NextResponse.json({ error: message, retryable: true }, { status: 503 });
+  } catch (error) {
+    if (error instanceof CompanyLookupError) {
+      console.error("[lookup-siret] lookup failed", {
+        siret,
+        code: error.code,
+        retryable: error.retryable,
+        status: error.status,
+        message: error.message,
+      });
+
+      return NextResponse.json(
+        {
+          error: error.message,
+          code: error.code,
+          retryable: error.retryable,
+        },
+        { status: error.status },
+      );
+    }
+
+    console.error("[lookup-siret] unexpected lookup failure", { siret, error });
+    return NextResponse.json(
+      {
+        error: "La recherche automatique est temporairement indisponible.",
+        code: "unexpected",
+        retryable: true,
+      },
+      { status: 503 },
+    );
   }
 }

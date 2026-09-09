@@ -5,6 +5,7 @@ import { classifyDocument, detectSimpleExpediteur, isComptabiliteClassificationC
 import { parseMiseEnDemeure } from "@/lib/mise-en-demeure-parser";
 import { parseFacture, parseImpot } from "@/lib/comptabilite-parser";
 import { parseSinistre } from "@/lib/sinistre-parser";
+import { parsePermisConduire, parseCarteIdentite } from "@/lib/identite-parser";
 import { buildInitialForward } from "@/lib/comptabilite";
 import { forwardComptabiliteDocument } from "@/lib/comptabilite-forward";
 import { detectOrganisme, buildTransmission } from "@/lib/transmission";
@@ -148,6 +149,21 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
           results.push({ id: scan.id, status: "created" });
           continue;
         }
+
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: {
+            status: "analyzed",
+            ocrText,
+            errorMessage: "À vérifier : certificat d'immatriculation détecté mais immatriculation introuvable.",
+            processedAt: new Date(),
+          },
+        });
+
+        log(`Certificat d'immatriculation détecté sans plaque lisible: ${scan.fileName} → à vérifier`);
+        processed++;
+        results.push({ id: scan.id, status: "analyzed" });
+        continue;
       }
 
       // Sinistre (accident/déclaration d'assurance, 2026-09-01): creates a dossier straight away
@@ -215,6 +231,83 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
         results.push({ id: scan.id, status: "created" });
         continue;
       }
+
+      if (classification.type === "permis_conduire") {
+        const parsedPermis = parsePermisConduire(ocrText);
+        const courrier = await prisma.courrier.create({
+          data: {
+            societe: scan.societe,
+            type: "permis_conduire",
+            source: "EMAIL_SCAN",
+            data: {
+              numPermis: parsedPermis.numPermis,
+              dateDelivrance: parsedPermis.dateDelivrance,
+              dateExpiration: parsedPermis.dateExpiration,
+              origine: "auto",
+            },
+            fileName: scan.fileName,
+            fileMime: scan.fileMime,
+            fileSize: scan.fileSize,
+            fileData: scan.fileData,
+            receivedAt: scan.receivedAt,
+          },
+        });
+
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: {
+            status: "created",
+            ocrText,
+            courrierId: courrier.id,
+            errorMessage: "À vérifier : associer ce permis au bon conducteur.",
+            processedAt: new Date(),
+          },
+        });
+
+        log(`Permis de conduire détecté: ${scan.fileName} → courrier ${courrier.id} (à vérifier)`);
+        processed++;
+        results.push({ id: scan.id, status: "created" });
+        continue;
+      }
+
+      if (classification.type === "carte_identite") {
+        const parsedIdentite = parseCarteIdentite(ocrText);
+        const courrier = await prisma.courrier.create({
+          data: {
+            societe: scan.societe,
+            type: "carte_identite",
+            source: "EMAIL_SCAN",
+            data: {
+              numCarteIdentite: parsedIdentite.numCarteIdentite,
+              dateDelivrance: parsedIdentite.dateDelivrance,
+              dateExpiration: parsedIdentite.dateExpiration,
+              origine: "auto",
+            },
+            fileName: scan.fileName,
+            fileMime: scan.fileMime,
+            fileSize: scan.fileSize,
+            fileData: scan.fileData,
+            receivedAt: scan.receivedAt,
+          },
+        });
+
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: {
+            status: "created",
+            ocrText,
+            courrierId: courrier.id,
+            errorMessage: "À vérifier : associer cette pièce d'identité au bon conducteur.",
+            processedAt: new Date(),
+          },
+        });
+
+        log(`Carte d'identité détectée: ${scan.fileName} → courrier ${courrier.id} (à vérifier)`);
+        processed++;
+        results.push({ id: scan.id, status: "created" });
+        continue;
+      }
+
       // Facture / Impôt: auto-forwarded by e-mail to the accounting team, but only when the
       // classification is confident enough (see isComptabiliteClassificationConfident) — an
       // ambiguous document is still filed under Comptabilité but stays "À vérifier" and nothing
@@ -398,7 +491,9 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
           ocrText,
           parsedData: parsedJson,
           contraventionId,
-          errorMessage: needsReview && contraventionId ? "À vérifier : données partiellement extraites" : null,
+          errorMessage: needsReview && contraventionId
+            ? "À vérifier : données partiellement extraites"
+            : (!contraventionId ? "À vérifier : type incertain ou données insuffisantes pour créer un dossier." : null),
           processedAt: new Date(),
         },
       });

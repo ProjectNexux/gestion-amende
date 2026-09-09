@@ -31,6 +31,35 @@ Ouvre http://localhost:3000.
 - **Véhicules / Conducteurs** : CRUD complet, rattachement automatique à l'immatriculation détectée par l'OCR.
 - **Export Excel** (`/api/export`) : génère un classeur identique en structure à l'original (3 feuilles + tableau de bord).
 
+## Diagramme de décision (scan document)
+
+```mermaid
+flowchart TD
+  A[Scan depuis imprimante ou import manuel] --> B[Réception du document]
+  B --> C{Contrôles techniques OK ?}
+  C -->|Non| C1[Statut erreur<br/>Alerte: format/taille/fichier vide]
+  C -->|Oui| D{Doublon fichier ?}
+  D -->|Oui| D1[Stop sans création<br/>Alerte doublon]
+  D -->|Non| E[OCR + Classification]
+  E --> F{Texte exploitable ?}
+  F -->|Non| F1[Statut erreur<br/>Alerte document illisible]
+  F -->|Oui| G{Type reconnu avec confiance élevée ?}
+  G -->|Non| G1[Statut à vérifier<br/>Validation manuelle requise]
+  G -->|Oui| H{Doublon métier détecté ?}
+  H -->|Oui| H1[Décision utilisateur<br/>Ignorer / Rattacher / Créer]
+  H -->|Non| I[Classement automatique]
+  I --> J{Société destinataire détectée ?}
+  J -->|Oui| J1[Envoi vers espace client]
+  J -->|Non| J2[Conserver côté interne]
+  J1 --> K[Journalisation du traitement]
+  J2 --> K[Journalisation du traitement]
+  H1 --> K
+  C1 --> K
+  D1 --> K
+  F1 --> K
+  G1 --> K
+```
+
 ## Architecture
 
 ```

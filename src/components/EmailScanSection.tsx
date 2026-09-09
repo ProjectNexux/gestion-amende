@@ -32,7 +32,14 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
   error: { label: "À vérifier", color: "text-red-700 bg-red-50 border-red-200", icon: <AlertTriangle size={12} /> },
 };
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, needsReview }: { status: string; needsReview: boolean }) {
+  if (needsReview) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-amber-700 bg-amber-50 border-amber-200">
+        <AlertTriangle size={12} /> À vérifier
+      </span>
+    );
+  }
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.received;
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${cfg.color}`}>
@@ -209,7 +216,7 @@ export function EmailScanList() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <StatusBadge status={scan.status} />
+              <StatusBadge status={scan.status} needsReview={!!scan.errorMessage && (scan.status === "analyzed" || scan.status === "created")} />
 
               {scan.status === "created" && scan.contraventionId && (
                 <a

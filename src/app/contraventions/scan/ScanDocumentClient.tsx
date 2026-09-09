@@ -16,6 +16,13 @@ function confidenceTone(label: ConfidenceLabel): "success" | "warning" | "danger
   return "danger";
 }
 
+function canAutoCommit(analysis: DocumentAnalysis, hasDuplicate: boolean): boolean {
+  // Keep auto-save strict: low confidence or unknown type must always go through human review.
+  if (hasDuplicate) return false;
+  if (analysis.type === "inconnu") return false;
+  return analysis.confidenceLabel === "Élevée";
+}
+
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} o`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
@@ -174,10 +181,9 @@ export default function ScanDocumentClient() {
       setSocietes(societesList);
       setTargetSociete(targetSocieteValue);
 
-      // No conflicting duplicate: file it straight into its section, no manual review needed —
-      // a genuine potential-duplicate match (numAvis/immat/référence already existing) is the
-      // only case that still requires a human decision (ignorer/rattacher/créer quand même).
-      if (!duplicateMatch) {
+      // Automatic filing remains intentionally conservative: only high-confidence, non-duplicate
+      // analyses skip manual review. Everything else is routed to the review step.
+      if (canAutoCommit(analysisResult, !!duplicateMatch)) {
         const saved = await submitConfirm({
           scanId: scanIdValue,
           finalType: analysisResult.type,

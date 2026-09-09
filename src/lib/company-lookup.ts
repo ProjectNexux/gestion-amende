@@ -27,6 +27,25 @@ export type CompanyLookupResult = {
   dirigeants: Array<{ nom: string | null; prenom: string | null; fonction: string | null }>;
 };
 
+export type CompanyLookupErrorCode =
+  | "invalid_siret"
+  | "api_unavailable"
+  | "rate_limited"
+  | "invalid_response"
+  | "unexpected";
+
+export class CompanyLookupError extends Error {
+  constructor(
+    public readonly code: CompanyLookupErrorCode,
+    public readonly retryable: boolean,
+    message: string,
+    public readonly status: number = 503,
+  ) {
+    super(message);
+    this.name = "CompanyLookupError";
+  }
+}
+
 // The API returns a wrapped shape { results: [{ siege, matching_etablissements, ... }] }. Only the
 // fields we actually use are typed — the rest is `unknown` on purpose (never trust the whole shape).
 type EtablissementApi = {
@@ -61,18 +80,12 @@ type ResultApi = {
 
 function buildAddressLine1(e: EtablissementApi | undefined): string | null {
   if (!e) return null;
-  // Prefer the structured parts when available (cleaner than the concatenated `adresse` field,
-  // which usually already contains "<code postal> <ville>" appended and would then duplicate the
-  // postalCode/city columns we store separately).
   const parts = [e.numero_voie, e.type_voie, e.libelle_voie].filter(Boolean);
   if (parts.length > 0) return parts.join(" ");
   if (!e.adresse) return null;
-  // Fallback: strip a trailing "<5 digits> <city>" from the flat `adresse` field.
   return e.adresse.replace(/\s+\d{5}\s+\S.*$/u, "").trim() || e.adresse;
 }
 
-// The SIREN prefix "FR" + a checksum computed from the SIREN. This exact formula is the official
-// French Business Register rule (bulletin officiel des impôts) — no external call needed.
 function computeFrenchVatNumber(siren: string): string | null {
   if (!/^\d{9}$/.test(siren)) return null;
   const key = (12 + 3 * (parseInt(siren, 10) % 97)) % 97;
@@ -81,24 +94,65 @@ function computeFrenchVatNumber(siren: string): string | null {
 
 export async function lookupCompanyBySiret(siret: string): Promise<CompanyLookupResult | null> {
   const clean = normalizeSiret(siret);
-  if (clean.length !== 14) return null;
+  if (!clean) {
+    throw new CompanyLookupError("invalid_siret", false, "Merci de saisir un SIRET.", 400);
+  }
+  if (clean.length !== 14) {
+    throw new CompanyLookupError("invalid_siret", false, "Le SIRET doit contenir exactement 14 chiffres.", 400);
+  }
 
   const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(clean)}&per_page=1`;
 
   let response: Response;
   try {
     response = await fetch(url, { headers: { Accept: "application/json" }, next: { revalidate: 0 } });
-  } catch {
-    throw new Error("La recherche automatique est temporairement indisponible.");
+  } catch (error) {
+    console.error("[company-lookup] fetch failed", { siret: clean, error });
+    throw new CompanyLookupError(
+      "api_unavailable",
+      true,
+      "La recherche automatique est temporairement indisponible.",
+      503,
+    );
   }
-  if (!response.ok) throw new Error("La recherche automatique est temporairement indisponible.");
 
-  const json = (await response.json()) as { results?: ResultApi[] };
-  const first = json.results?.[0];
+  if (response.status === 429) {
+    console.error("[company-lookup] rate limited", { siret: clean, status: response.status });
+    throw new CompanyLookupError(
+      "rate_limited",
+      true,
+      "La recherche automatique est momentanément limitée. Merci de réessayer dans quelques instants.",
+      429,
+    );
+  }
+
+  if (response.status >= 500) {
+    console.error("[company-lookup] upstream 5xx", { siret: clean, status: response.status });
+    throw new CompanyLookupError("api_unavailable", true, "La recherche automatique est temporairement indisponible.", response.status);
+  }
+
+  if (!response.ok) {
+    console.error("[company-lookup] unexpected upstream status", { siret: clean, status: response.status });
+    throw new CompanyLookupError("api_unavailable", true, "La recherche automatique est temporairement indisponible.", response.status || 503);
+  }
+
+  let json: unknown;
+  try {
+    json = await response.json();
+  } catch (error) {
+    console.error("[company-lookup] invalid JSON payload", { siret: clean, error });
+    throw new CompanyLookupError("invalid_response", true, "La recherche automatique a renvoyé une réponse invalide.", 502);
+  }
+
+  if (!json || typeof json !== "object" || !Array.isArray((json as { results?: unknown[] }).results)) {
+    console.error("[company-lookup] unexpected response shape", { siret: clean, payload: json });
+    throw new CompanyLookupError("invalid_response", true, "La recherche automatique a renvoyé une réponse invalide.", 502);
+  }
+
+  const payload = json as { results?: ResultApi[] };
+  const first = payload.results?.[0];
   if (!first) return null;
 
-  // The lookup was by SIRET; pick the exact matching établissement rather than the siège when they
-  // differ (a query by a secondary établissement's SIRET must return that établissement's address).
   const matching = first.matching_etablissements?.find((e) => e.siret && normalizeSiret(e.siret) === clean);
   const etab = matching ?? first.siege;
 
