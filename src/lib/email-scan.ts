@@ -23,6 +23,8 @@ const PDF_SPLIT_ENABLED = process.env.SCAN_PDF_SPLIT_ENABLED !== "false";
 const PDF_SPLIT_MIN_PAGES = Math.max(2, parseInt(process.env.SCAN_PDF_SPLIT_MIN_PAGES ?? "3", 10));
 const PDF_SPLIT_MAX_PAGES_PER_CHUNK = Math.max(1, parseInt(process.env.SCAN_PDF_SPLIT_MAX_PAGES_PER_CHUNK ?? "2", 10));
 const PDF_SPLIT_MAX_CHUNKS = Math.max(2, parseInt(process.env.SCAN_PDF_SPLIT_MAX_CHUNKS ?? "12", 10));
+const RECENT_LOOKBACK_HOURS = Math.max(1, parseInt(process.env.SCAN_EMAIL_RECENT_LOOKBACK_HOURS ?? "24", 10));
+const RECENT_FALLBACK_MAX_MESSAGES = Math.max(5, parseInt(process.env.SCAN_EMAIL_RECENT_MAX_MESSAGES ?? "20", 10));
 
 function log(msg: string) { console.log(`[EMAIL-SCAN] ${msg}`); }
 function logError(msg: string) { console.error(`[EMAIL-SCAN] ${msg}`); }
@@ -52,6 +54,19 @@ function detectMimeFromBytes(data: Buffer): string | null {
   if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) return "image/png";
   if (data[0] === 0x25 && data[1] === 0x50 && data[2] === 0x44 && data[3] === 0x46) return "application/pdf";
   return null;
+}
+
+function extractPrimaryEmail(addresses: string): string {
+  const match = addresses.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return (match?.[0] ?? addresses).trim();
+}
+
+async function findSocieteInsensitive(name: string): Promise<string | null> {
+  const soc = await prisma.societe.findFirst({
+    where: { nom: { equals: name, mode: "insensitive" } },
+    select: { nom: true },
+  });
+  return soc?.nom ?? null;
 }
 
 function normalizeText(text: string): string {
@@ -240,11 +255,24 @@ async function splitPdfAttachment(att: Attachment): Promise<Attachment[] | null>
   }
 }
 
-function resolveSociete(toAddress: string): string {
-  const local = toAddress.split("@")[0] ?? "";
+async function resolveSociete(toAddress: string): Promise<string> {
+  const primaryEmail = extractPrimaryEmail(toAddress);
+  const local = (primaryEmail.split("@")[0] ?? "").trim();
   const match = local.match(/^scan[+\-](.+)$/i);
-  if (match && match[1]) return match[1];
-  return process.env.SCAN_DEFAULT_SOCIETE ?? "Societe principale";
+
+  const candidates = [
+    match?.[1] ? decodeURIComponent(match[1]).replace(/[._-]+/g, " ").trim() : null,
+    process.env.SCAN_DEFAULT_SOCIETE?.trim() ?? null,
+    process.env.ADMIN_SOCIETE?.trim() ?? null,
+    "Mon espace",
+  ].filter((value): value is string => !!value && value.length > 0);
+
+  for (const candidate of candidates) {
+    const found = await findSocieteInsensitive(candidate);
+    if (found) return found;
+  }
+
+  return process.env.ADMIN_SOCIETE?.trim() || "Mon espace";
 }
 
 export async function processEmailAttachments(opts: {
@@ -255,7 +283,7 @@ export async function processEmailAttachments(opts: {
   attachments: Attachment[];
 }): Promise<{ imported: number; skipped: number; errors: string[] }> {
   const { messageId, from, to, subject, attachments } = opts;
-  const societe = resolveSociete(to);
+  const societe = await resolveSociete(to);
 
   let imported = 0;
   let skipped = 0;
@@ -398,8 +426,23 @@ export async function fetchEmailsViaImap(): Promise<{ processed: number; errors:
         fetched.push(msg);
       }
 
+      let fetchedFromRecentFallback = false;
+      if (fetched.length === 0) {
+        fetchedFromRecentFallback = true;
+        const since = new Date(Date.now() - RECENT_LOOKBACK_HOURS * 60 * 60 * 1000);
+        log(`Aucun e-mail non lu, rattrapage des e-mails récents (${RECENT_LOOKBACK_HOURS}h, max ${RECENT_FALLBACK_MAX_MESSAGES})`);
+
+        for await (const msg of client.fetch(
+          { since },
+          { envelope: true, source: true, flags: true }
+        )) {
+          fetched.push(msg);
+          if (fetched.length >= RECENT_FALLBACK_MAX_MESSAGES) break;
+        }
+      }
+
       for (const msg of fetched) {
-        if (msg.flags?.has("\\Seen")) continue;
+        if (!fetchedFromRecentFallback && msg.flags?.has("\\Seen")) continue;
 
         try {
           const source = msg.source;

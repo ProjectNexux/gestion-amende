@@ -4,16 +4,23 @@ import { processPendingEmailScans } from "@/lib/email-process";
 
 export const maxDuration = 300;
 
-// Accepts either name: SCAN_CRON_SECRET (this project's original convention) or CRON_SECRET
-// (Vercel's own convention — Vercel Cron Jobs automatically send `Authorization: Bearer
-// $CRON_SECRET` when an env var of that exact name exists, no manual header wiring needed).
-const CRON_SECRET = process.env.CRON_SECRET ?? process.env.SCAN_CRON_SECRET;
+// Vercel Cron automatically sends Authorization only for CRON_SECRET. The legacy
+// SCAN_CRON_SECRET is kept for non-Vercel/manual calls, and is tolerated for Vercel Cron
+// requests (header x-vercel-cron) so polling never gets silently blocked in production.
+const CRON_SECRET = process.env.CRON_SECRET;
+const LEGACY_SCAN_CRON_SECRET = process.env.SCAN_CRON_SECRET;
 
 export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const token = url.searchParams.get("secret") ?? request.headers.get("authorization")?.replace("Bearer ", "");
+  const isVercelCronRequest = request.headers.has("x-vercel-cron");
+
   if (CRON_SECRET) {
-    const url = new URL(request.url);
-    const token = url.searchParams.get("secret") ?? request.headers.get("authorization")?.replace("Bearer ", "");
     if (token !== CRON_SECRET) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  } else if (LEGACY_SCAN_CRON_SECRET && token !== LEGACY_SCAN_CRON_SECRET) {
+    if (!isVercelCronRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
