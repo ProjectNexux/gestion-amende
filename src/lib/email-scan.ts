@@ -17,6 +17,7 @@ const PDF_SPLIT_ENABLED = process.env.SCAN_PDF_SPLIT_ENABLED !== "false";
 const PDF_SPLIT_MIN_PAGES = Math.max(2, parseInt(process.env.SCAN_PDF_SPLIT_MIN_PAGES ?? "3", 10));
 const PDF_SPLIT_MAX_PAGES_PER_CHUNK = Math.max(1, parseInt(process.env.SCAN_PDF_SPLIT_MAX_PAGES_PER_CHUNK ?? "2", 10));
 const PDF_SPLIT_MAX_CHUNKS = Math.max(2, parseInt(process.env.SCAN_PDF_SPLIT_MAX_CHUNKS ?? "12", 10));
+const PDF_SPLIT_DEBUG = process.env.SCAN_PDF_SPLIT_DEBUG === "true";
 const RECENT_LOOKBACK_HOURS = Math.max(1, parseInt(process.env.SCAN_EMAIL_RECENT_LOOKBACK_HOURS ?? "24", 10));
 const RECENT_FALLBACK_MAX_MESSAGES = Math.max(5, parseInt(process.env.SCAN_EMAIL_RECENT_MAX_MESSAGES ?? "20", 10));
 
@@ -34,6 +35,16 @@ type Attachment = {
 };
 
 type PageRange = { from: number; to: number };
+type SplitReason = "type+header" | "header-after-content" | "max-pages";
+type SplitDecision = {
+  atPage: number;
+  reason: SplitReason;
+  prevType: string;
+  currType: string;
+  prevMeaningful: number;
+  currMeaningful: number;
+  headerBreak: boolean;
+};
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[^\w.\-]/g, "_").slice(0, 200);
@@ -103,42 +114,64 @@ function looksLikeContinuation(text: string): boolean {
   return CONTINUATION_HINTS.some((re) => re.test(head));
 }
 
-function shouldStartNewChunk(previousPageText: string, currentPageText: string): boolean {
+function detectSplitReason(previousPageText: string, currentPageText: string): Exclude<SplitReason, "max-pages"> | null {
   const prevMeaningful = meaningfulLength(previousPageText);
   const currMeaningful = meaningfulLength(currentPageText);
 
-  if (currMeaningful < 60) return false;
-  if (looksLikeContinuation(currentPageText)) return false;
+  if (currMeaningful < 60) return null;
+  if (looksLikeContinuation(currentPageText)) return null;
 
   const prevType = classifyDocument(previousPageText).type;
   const currType = classifyDocument(currentPageText).type;
   const typeBreak = prevType !== "inconnu" && currType !== "inconnu" && prevType !== currType;
   const headerBreak = hasNewDocumentHeader(currentPageText);
 
-  return (typeBreak && headerBreak) || (headerBreak && prevMeaningful >= 120);
+  if (typeBreak && headerBreak) return "type+header";
+  // Requires substantial content on the previous page to avoid splitting a title page
+  // from its immediate body when the body starts with "Objet:" or similar wording.
+  if (headerBreak && prevMeaningful >= 220) return "header-after-content";
+
+  return null;
 }
 
-function computePdfRanges(pageTexts: string[]): PageRange[] {
-  if (pageTexts.length < PDF_SPLIT_MIN_PAGES) return [{ from: 1, to: pageTexts.length }];
+function computePdfRanges(pageTexts: string[]): { ranges: PageRange[]; decisions: SplitDecision[] } {
+  if (pageTexts.length < PDF_SPLIT_MIN_PAGES) {
+    return { ranges: [{ from: 1, to: pageTexts.length }], decisions: [] };
+  }
 
   const ranges: PageRange[] = [];
+  const decisions: SplitDecision[] = [];
   let start = 1;
 
   for (let page = 2; page <= pageTexts.length; page += 1) {
     const previous = pageTexts[page - 2] ?? "";
     const current = pageTexts[page - 1] ?? "";
+    const prevMeaningful = meaningfulLength(previous);
+    const currMeaningful = meaningfulLength(current);
+    const prevType = classifyDocument(previous).type;
+    const currType = classifyDocument(current).type;
+    const headerBreak = hasNewDocumentHeader(current);
     const currentChunkSize = page - start;
-    const forceSplitBySize = currentChunkSize >= PDF_SPLIT_MAX_PAGES_PER_CHUNK;
-    const detectedBoundary = shouldStartNewChunk(previous, current);
+    const forceSplitBySize = currentChunkSize >= PDF_SPLIT_MAX_PAGES_PER_CHUNK && !looksLikeContinuation(current);
+    const detectedBoundaryReason = detectSplitReason(previous, current);
 
-    if (forceSplitBySize || detectedBoundary) {
+    if (forceSplitBySize || detectedBoundaryReason) {
       ranges.push({ from: start, to: page - 1 });
+      decisions.push({
+        atPage: page,
+        reason: forceSplitBySize ? "max-pages" : detectedBoundaryReason!,
+        prevType,
+        currType,
+        prevMeaningful,
+        currMeaningful,
+        headerBreak,
+      });
       start = page;
     }
   }
 
   ranges.push({ from: start, to: pageTexts.length });
-  return ranges;
+  return { ranges, decisions };
 }
 
 async function extractPdfPagesText(pdfData: Buffer): Promise<string[] | null> {
@@ -214,11 +247,21 @@ async function splitPdfAttachment(att: Attachment): Promise<Attachment[] | null>
   const pageTexts = await extractPdfPagesText(att.content);
   if (!pageTexts || pageTexts.length < PDF_SPLIT_MIN_PAGES) return null;
 
-  const ranges = computePdfRanges(pageTexts);
+  const { ranges, decisions } = computePdfRanges(pageTexts);
   if (ranges.length <= 1) return null;
   if (ranges.length > PDF_SPLIT_MAX_CHUNKS) {
     log(`Découpage ignoré (${ranges.length} blocs > limite ${PDF_SPLIT_MAX_CHUNKS}): ${att.filename}`);
     return null;
+  }
+
+  if (PDF_SPLIT_DEBUG) {
+    const summary = ranges.map((r, idx) => `${idx + 1}:${r.from}-${r.to}`).join(" | ");
+    log(`Découpage planifié (${att.filename}): ${summary}`);
+    for (const d of decisions) {
+      log(
+        `Découpage page ${d.atPage} [${d.reason}] prevType=${d.prevType} currType=${d.currType} prevChars=${d.prevMeaningful} currChars=${d.currMeaningful} header=${d.headerBreak ? "yes" : "no"}`,
+      );
+    }
   }
 
   try {
