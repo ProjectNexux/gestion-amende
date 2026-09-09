@@ -10,6 +10,7 @@ const execFileAsync = promisify(execFile);
 // Local trained data (see public/tessdata/) — avoids tesseract.js falling back to its default
 // CDN download on every worker creation, which is slow and fails without outbound network access.
 const TESSDATA_PATH = path.join(process.cwd(), "public", "tessdata");
+const PDF_OCR_MAX_PAGES = Math.max(1, parseInt(process.env.SCAN_OCR_MAX_PAGES ?? "2", 10));
 
 function log(msg: string) { console.log(`[EMAIL-SCAN][OCR] ${msg}`); }
 
@@ -57,7 +58,8 @@ async function ocrPdf(pdfData: Buffer): Promise<string> {
   // swapping to @napi-rs/canvas caused a fatal native crash alongside
   // sharp/tesseract.js in this process). `pdftoppm` (poppler-utils) is a
   // battle-tested system binary for this and avoids all of that entirely.
-  log(`PDF image détecté, lancement OCR sur ${doc.numPages} page(s)`);
+  const pagesToScan = Math.min(doc.numPages, PDF_OCR_MAX_PAGES);
+  log(`PDF image détecté, lancement OCR sur ${pagesToScan}/${doc.numPages} page(s)`);
   let fullText = "";
 
   const tmpDir = await mkdtemp(path.join(tmpdir(), "scan-ocr-"));
@@ -67,7 +69,7 @@ async function ocrPdf(pdfData: Buffer): Promise<string> {
     const pdfPath = path.join(tmpDir, "input.pdf");
     await writeFile(pdfPath, pdfData);
 
-    for (let i = 1; i <= Math.min(doc.numPages, 5); i++) {
+    for (let i = 1; i <= pagesToScan; i++) {
       const outPrefix = path.join(tmpDir, `page-${i}`);
       await execFileAsync("pdftoppm", [
         "-png",

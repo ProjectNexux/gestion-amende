@@ -124,10 +124,13 @@ export function EmailScanList() {
   const [scans, setScans] = useState<EmailScanItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
+  const [bulkRetrying, setBulkRetrying] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [viewingScan, setViewingScan] = useState<EmailScanItem | null>(null);
   const [expanded, setExpanded] = useState(false);
+
+  const staleScanIds = scans.filter(isStaleProcessing).map((s) => s.id);
 
   const fetchScans = useCallback(async () => {
     try {
@@ -159,6 +162,23 @@ export function EmailScanList() {
       // Transient network error — user can retry via the button.
     } finally {
       setProcessing(null);
+    }
+  }
+
+  async function retryAllStale() {
+    if (staleScanIds.length === 0) return;
+    setBulkRetrying(true);
+    try {
+      for (const id of staleScanIds) {
+        await fetch("/api/scan-email/process", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        });
+      }
+      await fetchScans();
+    } finally {
+      setBulkRetrying(false);
     }
   }
 
@@ -203,12 +223,24 @@ export function EmailScanList() {
           <h3 className="text-sm font-semibold text-slate-900">Scans reçus depuis l'imprimante</h3>
           <p className="text-xs text-slate-500">{scans.length} document(s)</p>
         </div>
-        <button
-          onClick={fetchScans}
-          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
-        >
-          <RefreshCw size={12} /> Actualiser
-        </button>
+        <div className="flex items-center gap-2">
+          {staleScanIds.length > 0 && (
+            <button
+              onClick={retryAllStale}
+              disabled={bulkRetrying}
+              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+            >
+              {bulkRetrying ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+              Relancer les bloqués ({staleScanIds.length})
+            </button>
+          )}
+          <button
+            onClick={fetchScans}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
+          >
+            <RefreshCw size={12} /> Actualiser
+          </button>
+        </div>
       </div>
 
       <div className="divide-y divide-slate-100">
