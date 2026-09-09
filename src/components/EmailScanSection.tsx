@@ -24,6 +24,8 @@ type EmailScanItem = {
   origine?: string;
 };
 
+const STALE_PROCESSING_MINUTES = 10;
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   received: { label: "Reçu", color: "text-blue-700 bg-blue-50 border-blue-200", icon: <Mail size={12} /> },
   processing: { label: "Analyse en cours", color: "text-amber-700 bg-amber-50 border-amber-200", icon: <Loader2 size={12} className="animate-spin" /> },
@@ -32,7 +34,14 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
   error: { label: "À vérifier", color: "text-red-700 bg-red-50 border-red-200", icon: <AlertTriangle size={12} /> },
 };
 
-function StatusBadge({ status, needsReview }: { status: string; needsReview: boolean }) {
+function StatusBadge({ status, needsReview, staleProcessing }: { status: string; needsReview: boolean; staleProcessing: boolean }) {
+  if (staleProcessing) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-red-700 bg-red-50 border-red-200">
+        <AlertTriangle size={12} /> Analyse bloquée
+      </span>
+    );
+  }
   if (needsReview) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium text-amber-700 bg-amber-50 border-amber-200">
@@ -60,6 +69,13 @@ function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} o`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+function isStaleProcessing(scan: EmailScanItem): boolean {
+  if (scan.status !== "processing") return false;
+  const startedAt = new Date(scan.receivedAt).getTime();
+  if (Number.isNaN(startedAt)) return false;
+  return Date.now() - startedAt > STALE_PROCESSING_MINUTES * 60 * 1000;
 }
 
 export function ScanEmailInfo() {
@@ -196,7 +212,7 @@ export function EmailScanList() {
 
       <div className="divide-y divide-slate-100">
         {scans.map((scan) => (
-          <div key={scan.id} className="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 transition">
+          <div key={scan.id} className={`flex items-center gap-4 px-5 py-3 transition ${isStaleProcessing(scan) ? "bg-red-50/40 hover:bg-red-50" : "hover:bg-slate-50"}`}>
             <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500">
               <FileText size={16} />
             </div>
@@ -216,7 +232,11 @@ export function EmailScanList() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <StatusBadge status={scan.status} needsReview={!!scan.errorMessage && (scan.status === "analyzed" || scan.status === "created")} />
+              <StatusBadge
+                status={scan.status}
+                needsReview={!!scan.errorMessage && (scan.status === "analyzed" || scan.status === "created")}
+                staleProcessing={isStaleProcessing(scan)}
+              />
 
               {scan.status === "created" && scan.contraventionId && (
                 <a
