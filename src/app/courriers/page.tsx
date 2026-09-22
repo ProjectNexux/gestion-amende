@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic";
 const DETAIL_PATH: Record<string, (id: string) => string> = {
   certificat_immatriculation: (id) => `/courriers/certificats-immatriculation/${id}`,
   mise_en_demeure: (id) => `/courriers/mise-en-demeure/${id}`,
+  retard_paiement: (id) => `/courriers/retards-paiement/${id}`,
   pub: () => `/courriers/pub`,
   facture: (id) => `/comptabilite/factures/${id}`,
   impot: (id) => `/comptabilite/impots/${id}`,

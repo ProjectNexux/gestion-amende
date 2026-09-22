@@ -130,6 +130,13 @@ const NAV_CONFIG: NavEntry[] = [
     children: [
       {
         type: "link",
+        href: "/admin/scans",
+        label: "Scans reçus",
+        icon: <FileText size={17} strokeWidth={1.75} />,
+        match: (pathname) => pathname.startsWith("/admin/scans"),
+      },
+      {
+        type: "link",
         href: "/courriers",
         label: "Tous les courriers",
         icon: <Inbox size={17} strokeWidth={1.75} />,

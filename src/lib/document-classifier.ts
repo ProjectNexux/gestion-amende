@@ -10,6 +10,7 @@
 export type DocumentType =
   | "contravention"
   | "mise_en_demeure"
+  | "retard_paiement"
   | "certificat_immatriculation"
   | "sinistre"
   | "permis_conduire"
@@ -34,7 +35,19 @@ const MISE_EN_DEMEURE_HINTS = [
   /derni[èe]re\s+relance\s+avant\s+mise\s+en\s+demeure/i,
   /mise\s+en\s+demeure\s+pr[ée]alable/i,
   /lettre\s+de\s+mise\s+en\s+demeure/i,
+  /urssaf/i,
+  /cotisations?\s+sociales?/i,
+  /avis\s+d[''’]échéance\s+de\s+cotisation/i,
+  /appel\s+de\s+cotisation/i,
   /mise\s+en\s+demeure/i,
+];
+
+const RETARD_PAIEMENT_HINTS = [
+  /incident\s+de\s+paiement/i,
+  /retard\s+de\s+paiement/i,
+  /relance\s+de\s+paiement/i,
+  /échéance\s+de\s+paiement/i,
+  /paiement\s+en\s+attente/i,
 ];
 
 // Only used by the manual-import pipeline today (see document-import.ts) — the automatic
@@ -151,6 +164,9 @@ export function classifyDocument(ocrText: string): { type: DocumentType; score: 
 
   const miseEnDemeureScore = MISE_EN_DEMEURE_HINTS.reduce((n, re) => n + (re.test(lower) ? 1 : 0), 0);
   if (miseEnDemeureScore > 0) return { type: "mise_en_demeure", score: miseEnDemeureScore };
+
+  const retardPaiementScore = scoreHints(lower, RETARD_PAIEMENT_HINTS);
+  if (retardPaiementScore > 0) return { type: "retard_paiement", score: retardPaiementScore };
 
   const certificatScore = scoreHints(lower, CERTIFICAT_IMMATRICULATION_HINTS);
   if (certificatScore > 0) return { type: "certificat_immatriculation", score: certificatScore };

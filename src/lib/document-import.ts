@@ -72,6 +72,15 @@ export function analyzeDocumentText(ocrText: string, societe: string, knownPlate
     };
   }
 
+  if (classification.type === "retard_paiement") {
+    return {
+      type: "retard_paiement",
+      confidenceLabel: "Moyenne",
+      confidenceScore: 0.5,
+      fields: { expediteur: detectSimpleExpediteur(ocrText) },
+    };
+  }
+
   if (classification.type === "facture" || classification.type === "impot") {
     const confident = isComptabiliteClassificationConfident(classification.score, classification.competingScore ?? 0);
     const label: ConfidenceLabel = confident ? "Élevée" : "Moyenne";
@@ -249,6 +258,15 @@ export type DuplicateAction = "ignorer" | "rattacher" | "creer_quand_meme";
 
 export type CommitResult = { status: "created" | "linked" | "ignored"; recordId?: string; redirectPath?: string; societe?: string };
 
+type CommitSource = {
+  fileName: string;
+  fileMime: string;
+  fileSize: number;
+  fileData: Buffer;
+  receivedAt: Date;
+  ocrText: string | null;
+};
+
 /**
  * Finalizes a manually-imported EmailScan row: creates the target record (or links to an
  * existing duplicate, or discards), then marks the scan "created"/"error" accordingly.
@@ -270,31 +288,50 @@ export async function commitDocumentAnalysis(
     duplicateAction: DuplicateAction;
     targetSociete?: string;
     visibleClient?: boolean;
+    scanIds?: string[];
+    source?: CommitSource;
+    manualClassifiedByUserId?: string | null;
+    manualClassificationNote?: string | null;
   },
 ): Promise<CommitResult> {
-  const scan = await prisma.emailScan.findFirst({ where: { id: scanId, societe: ownerSociete } });
-  if (!scan) throw new Error("Document introuvable.");
+  const scanIds = [...new Set([scanId, ...(opts.scanIds ?? [])])];
+  const scans = await prisma.emailScan.findMany({ where: { id: { in: scanIds }, societe: ownerSociete } });
+  if (scans.length === 0) throw new Error("Document introuvable.");
+  const scan = scans[0];
+  const source = opts.source ?? {
+    fileName: scan.fileName,
+    fileMime: scan.fileMime,
+    fileSize: scan.fileSize,
+    fileData: scan.fileData,
+    receivedAt: scan.receivedAt,
+    ocrText: scan.ocrText,
+  };
   const societe = opts.targetSociete ?? ownerSociete;
   const visibleClient = opts.visibleClient ?? false;
 
+  const updateBundle = async (data: Record<string, unknown>) => {
+    if (scanIds.length === 1) {
+      await prisma.emailScan.update({ where: { id: scanIds[0] }, data });
+      return;
+    }
+    await prisma.emailScan.updateMany({ where: { id: { in: scanIds } }, data });
+  };
+
   if (opts.duplicate && opts.duplicateAction === "ignorer") {
-    await prisma.emailScan.update({
-      where: { id: scanId },
-      data: { status: "error", errorMessage: "Doublon ignoré par l'utilisateur.", processedAt: new Date() },
-    });
+    await updateBundle({ status: "error", errorMessage: "Doublon ignoré par l'utilisateur.", lastErrorMessage: "Doublon ignoré par l'utilisateur.", lastErrorAt: new Date(), processedAt: new Date() });
     return { status: "ignored" };
   }
 
   if (opts.duplicate && opts.duplicateAction === "rattacher") {
     const isContravention = opts.duplicate.kind === "numAvis";
-    await prisma.emailScan.update({
-      where: { id: scanId },
-      data: {
-        status: "created",
-        contraventionId: isContravention ? opts.duplicate.id : null,
-        courrierId: isContravention ? null : opts.duplicate.id,
-        processedAt: new Date(),
-      },
+    await updateBundle({
+      status: "created",
+      contraventionId: isContravention ? opts.duplicate.id : null,
+      courrierId: isContravention ? null : opts.duplicate.id,
+      processedAt: new Date(),
+      manualClassifiedAt: new Date(),
+      manualClassifiedByUserId: opts.manualClassifiedByUserId ?? null,
+      manualClassificationNote: opts.manualClassificationNote ?? null,
     });
     return { status: "linked", recordId: opts.duplicate.id, societe };
   }
@@ -307,15 +344,27 @@ export async function commitDocumentAnalysis(
     return Number.isNaN(n) ? null : n;
   };
 
+  const manualClassifiedAt = opts.manualClassifiedByUserId ? new Date() : null;
+  const finalizeBundle = async (data: Record<string, unknown>) => {
+    await updateBundle({
+      ...data,
+      processedAt: new Date(),
+      manualClassifiedAt,
+      manualClassifiedByUserId: opts.manualClassifiedByUserId ?? null,
+      manualClassificationNote: opts.manualClassificationNote ?? null,
+    });
+  };
+
   switch (opts.finalType) {
     case "contravention": {
       const numDossier = await nextContraventionNumDossier(societe);
       let vehiculeId: string | null = null;
       const immat = str(f.immatriculation);
       if (immat) {
-        const v = await prisma.vehicule.findFirst({ where: { societe, immatriculation: immat } });
-        if (v) vehiculeId = v.id;
+        const vehicule = await prisma.vehicule.findFirst({ where: { societe, immatriculation: immat } });
+        if (vehicule) vehiculeId = vehicule.id;
       }
+
       const contravention = await prisma.contravention.create({
         data: {
           societe,
@@ -332,7 +381,7 @@ export async function commitDocumentAnalysis(
           visibleClient,
         },
       });
-      await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", contraventionId: contravention.id, processedAt: new Date() } });
+      await finalizeBundle({ status: "created", contraventionId: contravention.id });
       return { status: "created", recordId: contravention.id, redirectPath: `/contraventions/${contravention.id}`, societe };
     }
 
@@ -344,10 +393,11 @@ export async function commitDocumentAnalysis(
         organisme,
         societeConcernee: societeExists ? societe : null,
         societeConnue: !!societeExists,
-        identificationConfidence: 1, // reviewed/confirmed by a human before this write happens
+        identificationConfidence: 1,
         acteur: societe,
         actionLabel: "Import manuel confirmé par l'utilisateur",
       });
+
       const courrier = await prisma.courrier.create({
         data: {
           societe,
@@ -371,15 +421,15 @@ export async function commitDocumentAnalysis(
             origine: "auto",
             transmission,
           },
-          fileName: scan.fileName,
-          fileMime: scan.fileMime,
-          fileSize: scan.fileSize,
-          fileData: scan.fileData,
-          receivedAt: scan.receivedAt,
+          fileName: source.fileName,
+          fileMime: source.fileMime,
+          fileSize: source.fileSize,
+          fileData: source.fileData,
+          receivedAt: source.receivedAt,
           visibleClient,
         },
       });
-      await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
+      await finalizeBundle({ status: "created", courrierId: courrier.id });
       return { status: "created", recordId: courrier.id, redirectPath: `/courriers/mise-en-demeure/${courrier.id}`, societe };
     }
 
@@ -397,6 +447,7 @@ export async function commitDocumentAnalysis(
               echeance: str(f.echeance),
               reference: str(f.reference),
             };
+
       const courrier = await prisma.courrier.create({
         data: {
           societe,
@@ -411,7 +462,7 @@ export async function commitDocumentAnalysis(
           visibleClient,
         },
       });
-      await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
+      await finalizeBundle({ status: "created", courrierId: courrier.id });
       return {
         status: "created",
         recordId: courrier.id,
@@ -423,21 +474,22 @@ export async function commitDocumentAnalysis(
     case "certificat_immatriculation": {
       const immatriculation = str(f.immatriculation);
       if (!immatriculation) throw new Error("Immatriculation manquante — merci de la renseigner avant de valider.");
+
       const courrier = await prisma.courrier.create({
         data: {
           societe,
           type: "certificat_immatriculation",
           source: "IMPORT",
           data: { immatriculation: normalizeImmatriculation(immatriculation) },
-          fileName: scan.fileName,
-          fileMime: scan.fileMime,
-          fileSize: scan.fileSize,
-          fileData: scan.fileData,
-          receivedAt: scan.receivedAt,
+          fileName: source.fileName,
+          fileMime: source.fileMime,
+          fileSize: source.fileSize,
+          fileData: source.fileData,
+          receivedAt: source.receivedAt,
           visibleClient,
         },
       });
-      await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
+      await finalizeBundle({ status: "created", courrierId: courrier.id });
       return { status: "created", recordId: courrier.id, redirectPath: `/courriers/certificats-immatriculation/${courrier.id}`, societe };
     }
 
@@ -450,21 +502,45 @@ export async function commitDocumentAnalysis(
           type: "pub",
           source: "IMPORT",
           data: { expediteur: str(f.expediteur), classifiedAt: classifiedAt.toISOString(), conserve: false },
+          fileName: source.fileName,
+          fileMime: source.fileMime,
+          fileSize: source.fileSize,
+          fileData: source.fileData,
+          receivedAt: source.receivedAt,
+          expiresAt,
+        },
+      });
+      await finalizeBundle({ status: "created", courrierId: courrier.id });
+      return { status: "created", recordId: courrier.id, redirectPath: "/courriers/pub", societe };
+    }
+
+    case "retard_paiement": {
+      const courrier = await prisma.courrier.create({
+        data: {
+          societe,
+          type: "retard_paiement",
+          source: "IMPORT",
+          data: {
+            beneficiaire: null,
+            debiteur: null,
+            montantDu: null,
+            montantPaye: 0,
+            reference: str(f.reference),
+            dateEcheance: str(f.echeance),
+            statutPaiement: "Non payé",
+          },
           fileName: scan.fileName,
           fileMime: scan.fileMime,
           fileSize: scan.fileSize,
           fileData: scan.fileData,
           receivedAt: scan.receivedAt,
-          expiresAt,
+          visibleClient,
         },
       });
-      await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
-      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/pub`, societe };
+      await finalizeBundle({ status: "created", courrierId: courrier.id });
+      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/retards-paiement/${courrier.id}`, societe };
     }
 
-    // Sinistre now has a real OCR extractor (see sinistre-parser.ts) — fields are pre-filled when
-    // found, but the dossier still lands in "À vérifier" so a human always confirms before it's
-    // treated as final (accident/insurance dossiers are too consequential to auto-finalize).
     case "sinistre": {
       const reference = await nextSinistreReference(societe);
       const sinistre = await prisma.sinistre.create({
@@ -476,15 +552,13 @@ export async function commitDocumentAnalysis(
           typeSinistre: str(f.typeSinistre),
           dateSinistre: str(f.dateSinistre),
           lieuSinistre: str(f.lieuSinistre),
-          assureur: str(f.assureur),
-          referenceAssureur: str(f.referenceAssureur),
-          montantDommage: num(f.montantDommage),
+          dateReception: source.receivedAt,
         },
       });
       await prisma.sinistreHistorique.create({
         data: { sinistreId: sinistre.id, action: "document_recu", details: `Document importé manuellement (${scan.fileName})`, acteur: societe },
       });
-      if (f.typeSinistre || f.dateSinistre || f.assureur) {
+      if (scan.ocrText) {
         await prisma.sinistreHistorique.create({
           data: { sinistreId: sinistre.id, action: "extraction", details: "Informations extraites automatiquement du document (OCR)", acteur: societe },
         });
@@ -504,16 +578,10 @@ export async function commitDocumentAnalysis(
           visibleClient,
         },
       });
-      await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
+      await finalizeBundle({ status: "created", courrierId: courrier.id });
       return { status: "created", recordId: sinistre.id, redirectPath: `/courriers/sinistres/${sinistre.id}`, societe };
     }
 
-    // Permis de conduire / carte d'identité (2026-09-02): these belong to a Conducteur record
-    // (numPermis/numCarteIdentite fields, see prisma schema), not a standalone Courrier type of
-    // their own — but picking WHICH conducteur a scanned ID document belongs to isn't part of
-    // this review step yet. Filed as a generic Courrier (visible in "Tous les documents" with the
-    // correct type badge) so nothing is lost; an admin manually reports the extracted fields onto
-    // the right conducteur's fiche from there.
     case "permis_conduire":
     case "carte_identite": {
       const courrier = await prisma.courrier.create({
@@ -522,53 +590,30 @@ export async function commitDocumentAnalysis(
           type: opts.finalType,
           source: "IMPORT",
           data: { ...f },
-          fileName: scan.fileName,
-          fileMime: scan.fileMime,
-          fileSize: scan.fileSize,
-          fileData: scan.fileData,
-          receivedAt: scan.receivedAt,
+          fileName: source.fileName,
+          fileMime: source.fileMime,
+          fileSize: source.fileSize,
+          fileData: source.fileData,
+          receivedAt: source.receivedAt,
           visibleClient,
         },
       });
-      await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
-      return { status: "created", recordId: courrier.id, redirectPath: `/courriers`, societe };
-    }
-
-    // "retard_paiement" is an internal payment-reminder Beneficiaire is always CSPL/NETECO/
-    // Optimove Consulting — it's created from the app's own billing, never detected from a
-    // third-party scanned document, so there is no OCR extractor for it (kept as a manual "à
-    // remplir" shell, same as before).
-    case "retard_paiement": {
-      const courrier = await prisma.courrier.create({
-        data: {
-          societe,
-          type: "retard_paiement",
-          source: "IMPORT",
-          data: { debiteur: null, montantDu: null, montantPaye: 0, reference: null, dateEcheance: null, statutPaiement: "Non payé" },
-          fileName: scan.fileName,
-          fileMime: scan.fileMime,
-          fileSize: scan.fileSize,
-          fileData: scan.fileData,
-          receivedAt: scan.receivedAt,
-          visibleClient,
-        },
-      });
-      await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
-      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/retards-paiement/${courrier.id}`, societe };
+      await finalizeBundle({ status: "created", courrierId: courrier.id });
+      return { status: "created", recordId: courrier.id, redirectPath: `/courriers/${courrier.id}`, societe };
     }
 
     case "inconnu":
     default: {
-      // Generic "à classer" bucket — still lands in "Tous les courriers", per spec §6/§7, never
-      // silently discarded and never force-classified into a wrong category. Keeps the guessed
-      // `typeDetecte`/`expediteur` (see guessGenericDocumentNature()) so it's never a totally
-      // blank/unlabeled row even when no dedicated section exists for it.
       const courrier = await prisma.courrier.create({
         data: {
           societe,
           type: "document",
           source: "IMPORT",
-          data: { statutClassification: "À classer", typeDetecte: str(f.typeDetecte), expediteur: str(f.expediteur) },
+          data: {
+            statutClassification: "À classer",
+            typeDetecte: str(f.typeDetecte),
+            expediteur: str(f.expediteur),
+          },
           fileName: scan.fileName,
           fileMime: scan.fileMime,
           fileSize: scan.fileSize,
@@ -577,8 +622,8 @@ export async function commitDocumentAnalysis(
           visibleClient,
         },
       });
-      await prisma.emailScan.update({ where: { id: scanId }, data: { status: "created", courrierId: courrier.id, processedAt: new Date() } });
-      return { status: "created", recordId: courrier.id, redirectPath: `/courriers`, societe };
+      await finalizeBundle({ status: "created", courrierId: courrier.id });
+      return { status: "created", recordId: courrier.id, redirectPath: "/courriers", societe };
     }
   }
 }

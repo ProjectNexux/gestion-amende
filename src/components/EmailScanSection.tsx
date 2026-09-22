@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Mail, Copy, CheckCircle2, Clock, AlertTriangle, FileText,
   Loader2, RefreshCw, ExternalLink, Trash2, X, Eye,
 } from "lucide-react";
 import { DocumentViewerModal } from "@/components/DocumentViewerModal";
+import { getEmailScanRecordHref } from "@/lib/scan-record-href";
 
 type EmailScanItem = {
   id: string;
@@ -18,6 +19,8 @@ type EmailScanItem = {
   status: string;
   errorMessage: string | null;
   contraventionId: string | null;
+  courrierId: string | null;
+  courrierType: string | null;
   parsedData: string | null;
   receivedAt: string;
   processedAt: string | null;
@@ -29,6 +32,7 @@ const STALE_PROCESSING_MINUTES = 10;
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   received: { label: "Reçu", color: "text-blue-700 bg-blue-50 border-blue-200", icon: <Mail size={12} /> },
+  waiting_parts: { label: "En attente des autres parties", color: "text-amber-700 bg-amber-50 border-amber-200", icon: <Clock size={12} /> },
   processing: { label: "Analyse en cours", color: "text-amber-700 bg-amber-50 border-amber-200", icon: <Loader2 size={12} className="animate-spin" /> },
   analyzed: { label: "Analysé", color: "text-brand-700 bg-brand-50 border-brand-200", icon: <CheckCircle2 size={12} /> },
   created: { label: "Dossier créé", color: "text-emerald-700 bg-emerald-50 border-emerald-200", icon: <CheckCircle2 size={12} /> },
@@ -79,6 +83,23 @@ function isStaleProcessing(scan: EmailScanItem): boolean {
   return Date.now() - startedAt > STALE_PROCESSING_MINUTES * 60 * 1000;
 }
 
+function shouldAutoProcessScans(scans: Array<{ status?: string; processedAt?: string | null; updatedAt?: string | null }>): boolean {
+  if (!Array.isArray(scans) || scans.length === 0) return false;
+
+  return scans.some((scan) => {
+    const status = (scan.status ?? "received").toLowerCase();
+    if (status === "received" || status === "error" || status === "processing" || status === "waiting_parts") return true;
+    if (status === "analyzed") {
+      const updated = scan.updatedAt ? new Date(scan.updatedAt).getTime() : 0;
+      const processed = scan.processedAt ? new Date(scan.processedAt).getTime() : 0;
+      const last = Number.isFinite(updated) && updated > 0 ? updated : processed;
+      if (!last) return true;
+      return Date.now() - last > 30_000;
+    }
+    return false;
+  });
+}
+
 export function ScanEmailInfo() {
   const email = process.env.NEXT_PUBLIC_SCAN_EMAIL ?? "";
   const [copied, setCopied] = useState(false);
@@ -126,23 +147,100 @@ export function EmailScanList() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [bulkRetrying, setBulkRetrying] = useState(false);
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [selection, setSelection] = useState<string[]>([]);
+  const [classifying, setClassifying] = useState(false);
+  const [manualType, setManualType] = useState("document");
+  const [manualNote, setManualNote] = useState("");
+  const [manualModalOpen, setManualModalOpen] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [viewingScan, setViewingScan] = useState<EmailScanItem | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const autoProcessingRef = useRef(false);
 
+  const selectedScans = scans.filter((scan) => selection.includes(scan.id));
   const staleScanIds = scans.filter(isStaleProcessing).map((s) => s.id);
+  const allSelected = scans.length > 0 && selection.length === scans.length;
+
+  function toggleSelection(id: string) {
+    setSelection((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  }
+
+  function toggleSelectAll() {
+    setSelection(allSelected ? [] : scans.map((scan) => scan.id));
+  }
+
+  function parseFields(scan: EmailScanItem) {
+    if (!scan.parsedData) return {};
+    try {
+      const parsed = JSON.parse(scan.parsedData);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  async function submitManualClassification() {
+    if (selectedScans.length === 0) return;
+    setClassifying(true);
+    try {
+      const source = selectedScans[0];
+      const res = await fetch("/api/scan-email/manual-classify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scanIds: selectedScans.map((scan) => scan.id),
+          orderedIds: selectedScans.map((scan) => scan.id),
+          finalType: manualType,
+          fields: parseFields(source),
+          manualClassificationNote: manualNote.trim() || null,
+          visibleClient: false,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      setManualModalOpen(false);
+      setManualNote("");
+      setSelection([]);
+      await fetchScans();
+    } finally {
+      setClassifying(false);
+    }
+  }
+
+  const triggerAutoProcessing = useCallback(async () => {
+    if (autoProcessingRef.current) return;
+    autoProcessingRef.current = true;
+    try {
+      await fetch("/api/scan-email/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ drain: true }),
+      });
+      await fetchScans();
+    } finally {
+      autoProcessingRef.current = false;
+    }
+  }, []);
 
   const fetchScans = useCallback(async () => {
     try {
       const res = await fetch("/api/scan-email/list");
-      if (res.ok) setScans(await res.json());
+      if (res.ok) {
+        const nextScans = await res.json();
+        setScans(nextScans);
+
+        if (shouldAutoProcessScans(nextScans)) {
+          await triggerAutoProcessing();
+        }
+      }
     } catch {
       // Transient network error (e.g. dev server restart) — silently retried on next poll.
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [triggerAutoProcessing]);
 
   useEffect(() => {
     fetchScans();
@@ -239,6 +337,14 @@ export function EmailScanList() {
           <p className="text-xs text-slate-500">{scans.length} document(s)</p>
         </div>
         <div className="flex items-center gap-2">
+          {selection.length > 0 && (
+            <button
+              onClick={() => setManualModalOpen(true)}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              Classer manuellement ({selection.length})
+            </button>
+          )}
           <button
             onClick={processAllPending}
             disabled={bulkProcessing}
@@ -267,8 +373,22 @@ export function EmailScanList() {
       </div>
 
       <div className="divide-y divide-slate-100">
+        <div className="flex items-center justify-between gap-3 px-5 py-3 text-xs text-slate-500">
+          <label className="inline-flex items-center gap-2">
+            <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
+            Sélectionner tout
+          </label>
+          <span>{selection.length} sélectionné(s)</span>
+        </div>
         {scans.map((scan) => (
           <div key={scan.id} className={`flex items-center gap-4 px-5 py-3 transition ${isStaleProcessing(scan) ? "bg-red-50/40 hover:bg-red-50" : "hover:bg-slate-50"}`}>
+            <input
+              type="checkbox"
+              checked={selection.includes(scan.id)}
+              onChange={() => toggleSelection(scan.id)}
+              className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              aria-label={`Sélectionner ${scan.fileName}`}
+            />
             <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-500">
               <FileText size={16} />
             </div>
@@ -294,14 +414,17 @@ export function EmailScanList() {
                 staleProcessing={isStaleProcessing(scan)}
               />
 
-              {scan.status === "created" && scan.contraventionId && (
-                <a
-                  href={`/contraventions/${scan.contraventionId}`}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-[var(--color-brand)] transition hover:bg-brand-50"
-                >
-                  <ExternalLink size={12} /> Voir
-                </a>
-              )}
+              {scan.status === "created" && (() => {
+                const href = getEmailScanRecordHref(scan);
+                return href ? (
+                  <a
+                    href={href}
+                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-[var(--color-brand)] transition hover:bg-brand-50"
+                  >
+                    <ExternalLink size={12} /> Voir
+                  </a>
+                ) : null;
+              })()}
 
               {(scan.status === "error" || scan.status === "processing") && (
                 <button
@@ -386,6 +509,78 @@ export function EmailScanList() {
           expanded={expanded}
           onToggleExpand={() => setExpanded((v) => !v)}
         />
+      )}
+
+      {manualModalOpen && selectedScans.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900">Classer la sélection</h4>
+                <p className="mt-1 text-xs text-slate-500">{selectedScans.length} scan(s) sélectionné(s). Le premier scan sert de référence pour les champs OCR déjà présents.</p>
+              </div>
+              <button onClick={() => setManualModalOpen(false)} className="text-slate-400 transition hover:text-slate-600" aria-label="Fermer">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-4">
+              <label className="grid gap-1 text-sm">
+                <span className="text-xs font-medium text-slate-500">Type cible</span>
+                <select value={manualType} onChange={(e) => setManualType(e.target.value)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500">
+                  <option value="document">Document à classer</option>
+                  <option value="contravention">Contravention</option>
+                  <option value="mise_en_demeure">Mise en demeure</option>
+                  <option value="facture">Facture</option>
+                  <option value="impot">Impôt</option>
+                  <option value="certificat_immatriculation">Certificat d'immatriculation</option>
+                  <option value="pub">Pub</option>
+                  <option value="retard_paiement">Retard de paiement</option>
+                  <option value="sinistre">Sinistre</option>
+                  <option value="permis_conduire">Permis de conduire</option>
+                  <option value="carte_identite">Carte d'identité</option>
+                </select>
+              </label>
+
+              <label className="grid gap-1 text-sm">
+                <span className="text-xs font-medium text-slate-500">Note manuelle</span>
+                <textarea
+                  value={manualNote}
+                  onChange={(e) => setManualNote(e.target.value)}
+                  rows={3}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-500"
+                  placeholder="Précisez pourquoi ces scans ont été regroupés ou corrigés manuellement"
+                />
+              </label>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+                {selectedScans.map((scan) => (
+                  <div key={scan.id} className="flex items-center justify-between gap-2 py-1">
+                    <span className="truncate">{scan.fileName}</span>
+                    <span>{scan.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setManualModalOpen(false)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={submitManualClassification}
+                disabled={classifying}
+                className="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-brand-700 disabled:opacity-50"
+              >
+                {classifying && <Loader2 size={12} className="animate-spin" />}
+                Valider
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

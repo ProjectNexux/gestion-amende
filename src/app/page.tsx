@@ -130,11 +130,22 @@ export default async function DashboardPage({
   // treated as "no real prénom set" so we never greet someone by a fabricated name.
   const prenom = currentUser?.prenom && !["Admin", "Compte"].includes(currentUser.prenom) ? currentUser.prenom : null;
 
-  const [contraventions, courriers, recentScans] = await Promise.all([
-    prisma.contravention.findMany({ where, include: { vehicule: true, conducteur: true }, orderBy: { createdAt: "desc" } }),
-    prisma.courrier.findMany({ where, orderBy: { receivedAt: "desc" } }),
-    prisma.emailScan.findMany({ where, orderBy: { receivedAt: "desc" }, take: 8 }),
-  ]);
+  // Prisma pooling on this project is extremely tight; keep these reads sequential to avoid
+  // starving the polling/OCR worker while long-running document processing is active.
+  const contraventions = await prisma.contravention.findMany({
+    where,
+    include: { vehicule: true, conducteur: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const courriers = await prisma.courrier.findMany({
+    where,
+    orderBy: { receivedAt: "desc" },
+  });
+  const recentScans = await prisma.emailScan.findMany({
+    where,
+    orderBy: { receivedAt: "desc" },
+    take: 8,
+  });
 
   const retardCourrierIds = courriers.filter((c) => c.type === "retard_paiement").map((c) => c.id);
   const paiementsReussis = retardCourrierIds.length

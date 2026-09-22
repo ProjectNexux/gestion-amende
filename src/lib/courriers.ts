@@ -11,6 +11,10 @@ export type CourrierTypeKey =
   | "sinistre"
   | "permis_conduire"
   | "carte_identite"
+  | "cession_creance"
+  | "satd"
+  | "avis_cotisation"
+  | "urssaf"
   | "document"
   | "client_envoi";
 
@@ -27,6 +31,10 @@ export const COURRIER_TYPES: { key: CourrierTypeKey; label: string }[] = [
   { key: "sinistre", label: "Sinistre (pièce jointe)" },
   { key: "permis_conduire", label: "Permis de conduire" },
   { key: "carte_identite", label: "Carte d'identité" },
+  { key: "cession_creance", label: "Cession de créance" },
+  { key: "satd", label: "Saisie administrative à tiers détenteur" },
+  { key: "avis_cotisation", label: "Avis de cotisation" },
+  { key: "urssaf", label: "URSSAF" },
   { key: "document", label: "Document à classer" },
   { key: "client_envoi", label: "Document envoyé par le client" },
 ];

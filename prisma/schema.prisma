@@ -406,6 +406,9 @@ model EmailScan {
   fileSize        Int
   fileData        Bytes
   status          String    @default("received") // received | processing | analyzed | created | error
+  retryCount      Int       @default(0)
+  lastErrorMessage String?
+  lastErrorAt     DateTime?
   ocrText         String?
   parsedData      String? // JSON string of ParsedFine (or, for origine="manuel", a DocumentAnalysis — see src/lib/document-import.ts)
   errorMessage    String?
@@ -416,6 +419,9 @@ model EmailScan {
   // via IMAP, "manuel" = uploaded manually through the app). See src/lib/document-import.ts.
   origine           String  @default("email") // "email" | "manuel"
   importedByUserId  String?
+  manualClassifiedAt DateTime?
+  manualClassifiedByUserId String?
+  manualClassificationNote String?
   receivedAt      DateTime  @default(now())
   processedAt     DateTime?
   createdAt       DateTime  @default(now())
