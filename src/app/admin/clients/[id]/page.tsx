@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { isAdminSession } from "@/lib/auth";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { ActionForm } from "@/components/ActionForm";
 import { CLIENT_STATUS_LABELS, clientStatusTone, deriveClientStatus } from "@/lib/clients";
 import { fmtDateTime, fmtMoney } from "@/lib/utils";
 import { buildSetupUrl, isSetupTokenExpired } from "@/lib/societe-setup";
@@ -102,25 +103,25 @@ export default async function ClientDetailPage({
           </div>
           <div className="flex flex-wrap gap-2">
             {status !== "actif" && (
-              <form action={activateClientAction.bind(null, s.id)}>
+              <ActionForm action={activateClientAction.bind(null, s.id)}>
                 <button className="btn-primary" type="submit"><CheckCircle2 size={14} /> Activer le compte</button>
-              </form>
+              </ActionForm>
             )}
             {s.email && (
-              <form action={sendInvitationAction.bind(null, s.id)}>
+              <ActionForm action={sendInvitationAction.bind(null, s.id)}>
                 <button className="btn-secondary" type="submit"><Send size={14} /> Envoyer l&apos;invitation</button>
-              </form>
+              </ActionForm>
             )}
             {status !== "desactive" ? (
-              <form action={deactivateClientAction.bind(null, s.id)}>
+              <ActionForm action={deactivateClientAction.bind(null, s.id)}>
                 <ConfirmSubmitButton confirmMessage={`Désactiver le compte de ${s.nom} ?\n\nLe client ne pourra plus se connecter. Ses données restent conservées.`} className="btn-secondary text-amber-700">
                   <PowerOff size={14} /> Désactiver
                 </ConfirmSubmitButton>
-              </form>
+              </ActionForm>
             ) : (
-              <form action={reactivateClientAction.bind(null, s.id)}>
+              <ActionForm action={reactivateClientAction.bind(null, s.id)}>
                 <button className="btn-secondary text-emerald-700" type="submit"><Power size={14} /> Réactiver</button>
-              </form>
+              </ActionForm>
             )}
             <form action={deleteClientAction.bind(null, s.id)}>
               <ConfirmSubmitButton
@@ -238,23 +239,23 @@ export default async function ClientDetailPage({
 
           <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
             {s.email && (
-              <form action={sendInvitationAction.bind(null, s.id)}>
+              <ActionForm action={sendInvitationAction.bind(null, s.id)}>
                 <button className="btn-primary" type="submit"><Send size={14} /> Envoyer l&apos;invitation par e-mail</button>
-              </form>
+              </ActionForm>
             )}
             {status !== "actif" && (
-              <form action={activateClientAction.bind(null, s.id)}>
+              <ActionForm action={activateClientAction.bind(null, s.id)}>
                 <button className="btn-secondary text-emerald-700" type="submit"><CheckCircle2 size={14} /> Activer manuellement</button>
-              </form>
+              </ActionForm>
             )}
-            <form action={regenerateSetupLinkAction.bind(null, s.id)}>
+            <ActionForm action={regenerateSetupLinkAction.bind(null, s.id)}>
               <button className="btn-secondary" type="submit"><RefreshCw size={14} /> Régénérer le lien</button>
-            </form>
+            </ActionForm>
             {setupUrl && <CopyLinkButton url={setupUrl} />}
             {s.email && (
-              <form action={markInvitationSentAction.bind(null, s.id)}>
+              <ActionForm action={markInvitationSentAction.bind(null, s.id)}>
                 <button className="text-xs text-slate-500 hover:underline" type="submit">Marquer envoyée manuellement</button>
-              </form>
+              </ActionForm>
             )}
           </div>
         </div>

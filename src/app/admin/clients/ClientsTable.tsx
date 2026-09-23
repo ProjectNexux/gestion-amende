@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { MoreHorizontal } from "lucide-react";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { ActionForm } from "@/components/ActionForm";
 import { CLIENT_STATUS_LABELS, type ClientStatus, formatSiretMasked } from "@/lib/clients";
 import { fmtDateTime } from "@/lib/utils";
 import { activateClientAction, deactivateClientAction, reactivateClientAction, sendInvitationAction, regenerateSetupLinkAction, deleteClientAction } from "./actions";
@@ -98,30 +99,30 @@ function RowActionsMenu({ row }: { row: ClientListRow }) {
         <a href={`/admin/clients/${row.id}?tab=infos`} className="block px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Modifier les informations</a>
         <div className="my-1 border-t border-slate-100" />
         {canActivate && (
-          <form action={activateClientAction.bind(null, row.id)}>
+          <ActionForm action={activateClientAction.bind(null, row.id)}>
             <button className="block w-full px-3 py-1.5 text-left text-xs text-emerald-700 hover:bg-emerald-50">Activer le compte</button>
-          </form>
+          </ActionForm>
         )}
         {canDeactivate && row.status !== "desactive" && (
-          <form action={deactivateClientAction.bind(null, row.id)}>
+          <ActionForm action={deactivateClientAction.bind(null, row.id)}>
             <ConfirmSubmitButton confirmMessage={`Désactiver le compte de ${row.nom} ?`} className="block w-full px-3 py-1.5 text-left text-xs text-amber-700 hover:bg-amber-50">
               Désactiver le compte
             </ConfirmSubmitButton>
-          </form>
+          </ActionForm>
         )}
         {row.status === "desactive" && (
-          <form action={reactivateClientAction.bind(null, row.id)}>
+          <ActionForm action={reactivateClientAction.bind(null, row.id)}>
             <button className="block w-full px-3 py-1.5 text-left text-xs text-emerald-700 hover:bg-emerald-50">Réactiver le compte</button>
-          </form>
+          </ActionForm>
         )}
         {row.email && (
-          <form action={sendInvitationAction.bind(null, row.id)}>
+          <ActionForm action={sendInvitationAction.bind(null, row.id)}>
             <button className="block w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50">Envoyer l&apos;invitation</button>
-          </form>
+          </ActionForm>
         )}
-        <form action={regenerateSetupLinkAction.bind(null, row.id)}>
+        <ActionForm action={regenerateSetupLinkAction.bind(null, row.id)}>
           <button className="block w-full px-3 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-50">Régénérer le lien d&apos;accès</button>
-        </form>
+        </ActionForm>
         <div className="my-1 border-t border-slate-100" />
         <form action={deleteClientAction.bind(null, row.id)}>
           <ConfirmSubmitButton confirmMessage={`Supprimer / archiver le client ${row.nom} ? Si des documents existent, il sera simplement archivé.`} className="block w-full px-3 py-1.5 text-left text-xs text-rose-700 hover:bg-rose-50">
