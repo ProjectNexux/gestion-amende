@@ -1,4 +1,3 @@
-import sharp from "sharp";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { mkdtemp, readFile, rm, writeFile } from "fs/promises";
@@ -96,7 +95,10 @@ async function ocrPdf(pdfData: Buffer): Promise<string> {
 }
 
 async function ocrImageBuffer(imgBuffer: Buffer, sharedWorker?: Awaited<ReturnType<typeof import("tesseract.js")["createWorker"]>>): Promise<string> {
-  // Preprocess with sharp for better OCR results
+  // Preprocess with sharp for better OCR results — loaded lazily: most documents are native-text
+  // PDFs that never reach this function, so this avoids paying sharp's native-addon memory cost
+  // on every cold start.
+  const { default: sharp } = await import("sharp");
   const processed = await sharp(imgBuffer)
     .greyscale()
     .normalise()

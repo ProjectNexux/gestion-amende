@@ -6,6 +6,9 @@
   "functions": {
     "src/app/api/scan-email/process/route.ts": { "memory": 3009, "maxDuration": 300 },
     "src/app/api/scan-email/poll/route.ts": { "memory": 3009, "maxDuration": 300 },
-    "src/app/api/documents/import/route.ts": { "memory": 3009, "maxDuration": 300 }
+    "src/app/api/documents/import/route.ts": { "memory": 3009, "maxDuration": 300 },
+    "app/api/scan-email/process/route.ts": { "memory": 3009, "maxDuration": 300 },
+    "app/api/scan-email/poll/route.ts": { "memory": 3009, "maxDuration": 300 },
+    "app/api/documents/import/route.ts": { "memory": 3009, "maxDuration": 300 }
   }
 }
