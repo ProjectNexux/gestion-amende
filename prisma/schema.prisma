@@ -230,6 +230,10 @@ model Contravention {
   // Espace client (2026-08-24): a contravention is only ever shown in the client-facing portal
   // when explicitly shared by an admin — never automatically, regardless of société match.
   visibleClient Boolean @default(false)
+  // "Transmettre au client" (2026-09-23): informational history only, see TransmissionClientInfo
+  // in src/app/courriers/actions.ts — access control always relies on societe+visibleClient above,
+  // never on this JSON blob.
+  transmissionClient Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

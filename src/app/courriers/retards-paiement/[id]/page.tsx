@@ -9,6 +9,8 @@ import { fmtMoneyCents, fmtDateTime } from "@/lib/utils";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import GenerateLinkForm from "../GenerateLinkForm";
+import { TransmettreClientButton } from "@/components/TransmettreClientModal";
+import type { TransmissionClientInfo } from "@/app/courriers/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +69,16 @@ export default async function RetardPaiementDetailPage({ params }: { params: Pro
         </div>
         <div className="flex items-center gap-2">
           <Badge tone={statutTone(d.statutPaiement)}>{d.statutPaiement ?? "Non payé"}</Badge>
+          {isAdmin && (
+            <TransmettreClientButton
+              id={item.id}
+              fileName={item.fileName}
+              fileMime={item.fileMime}
+              currentType={item.type}
+              detectedSociete={item.societe}
+              transmission={(item.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
+            />
+          )}
           <Link href="/courriers/retards-paiement" className="btn-secondary">
             Retour à la liste
           </Link>

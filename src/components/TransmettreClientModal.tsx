@@ -11,12 +11,20 @@ import {
   retirerDuPortailClientAction,
   type TransmissionClientInfo,
 } from "@/app/courriers/actions";
+import {
+  transmitContraventionToClientAction,
+  retirerContraventionDuPortailClientAction,
+} from "@/app/contraventions/actions";
 
 type Props = {
-  courrierId: string;
-  fileName: string;
-  fileMime: string;
-  currentType: string;
+  /** "courrier" (défaut) relie un `Courrier`, "contravention" relie une `Contravention`. */
+  kind?: "courrier" | "contravention";
+  id: string;
+  /** Fichier associé — optionnel (une Contravention n'a pas de prévisualisation ici). */
+  fileName?: string;
+  fileMime?: string;
+  /** Catégorie éditable — uniquement pertinente pour un Courrier. */
+  currentType?: string;
   detectedSociete?: string | null;
   transmission?: TransmissionClientInfo | null;
   /** Bouton compact (icône seule) pour les lignes de tableau, ou pleine largeur avec libellé. */
@@ -24,18 +32,24 @@ type Props = {
 };
 
 /**
- * "Transmettre au client" — bouton + modale réutilisables partout où un document existant peut
- * être relié à une société cliente (Scans reçus, Documents à classer, Tous les documents, fiche
- * d'un document dans son module définitif). Ne crée jamais de copie du fichier : relie le
- * `Courrier` existant à la société choisie (voir `transmitCourrierToClientAction`).
+ * "Transmettre au client" — bouton + modale réutilisables partout où un document/dossier existant
+ * peut être relié à une société cliente (Scans reçus, Documents à classer, Tous les documents,
+ * fiches Contraventions/Mises en demeure/URSSAF/Retards de paiement/Sinistres/Certificats
+ * d'immatriculation/Factures/Impôts/Autres courriers). Ne crée jamais de copie du fichier : relie
+ * l'enregistrement existant à la société choisie.
+ *
+ * Sécurité : l'accès réel côté client repose uniquement sur les colonnes serveur
+ * `societe`+`visibleClient` (voir /api/client/courriers/[id]/document et
+ * /api/client/contraventions/[id]/document) — `transmission` (data.transmissionClient) n'est
+ * qu'un historique/affichage, jamais l'unique protection d'accès.
  */
-export function TransmettreClientButton({ courrierId, fileName, fileMime, currentType, detectedSociete, transmission, compact }: Props) {
+export function TransmettreClientButton({ kind = "courrier", id, fileName, fileMime, currentType, detectedSociete, transmission, compact }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [changingDestinataire, setChangingDestinataire] = useState(false);
   const [societes, setSocietes] = useState<string[] | null>(null);
   const [societe, setSociete] = useState(detectedSociete ?? "");
-  const [type, setType] = useState(currentType);
+  const [type, setType] = useState(currentType ?? "");
   const [titre, setTitre] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
@@ -62,7 +76,11 @@ export function TransmettreClientButton({ courrierId, fileName, fileMime, curren
     setPending(true);
     setError(null);
     try {
-      await transmitCourrierToClientAction(courrierId, societe, { type, titre: titre || undefined, message: message || undefined });
+      if (kind === "contravention") {
+        await transmitContraventionToClientAction(id, societe, { titre: titre || undefined, message: message || undefined });
+      } else {
+        await transmitCourrierToClientAction(id, societe, { type, titre: titre || undefined, message: message || undefined });
+      }
       setOpen(false);
       setChangingDestinataire(false);
       router.refresh();
@@ -77,7 +95,8 @@ export function TransmettreClientButton({ courrierId, fileName, fileMime, curren
     if (!window.confirm("Retirer ce document du portail client ?")) return;
     setPending(true);
     try {
-      await retirerDuPortailClientAction(courrierId);
+      if (kind === "contravention") await retirerContraventionDuPortailClientAction(id);
+      else await retirerDuPortailClientAction(id);
       router.refresh();
     } finally {
       setPending(false);
@@ -87,6 +106,8 @@ export function TransmettreClientButton({ courrierId, fileName, fileMime, curren
   const triggerClass = compact
     ? "inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
     : "btn-secondary text-xs";
+
+  const canPreview = kind === "courrier" && !!fileName && !!fileMime;
 
   return (
     <>
@@ -109,15 +130,17 @@ export function TransmettreClientButton({ courrierId, fileName, fileMime, curren
                     <div className="flex justify-between"><dt>Statut de consultation</dt><dd>{transmission.statutConsultation}</dd></div>
                   </dl>
                 </div>
-                <DocumentViewerTrigger
-                  fileUrl={`/api/courriers/${courrierId}`}
-                  downloadUrl={`/api/courriers/${courrierId}?download=1`}
-                  fileName={fileName}
-                  fileMime={fileMime}
-                  className="btn-secondary w-full text-xs"
-                >
-                  <Eye size={13} /> Visualiser le document
-                </DocumentViewerTrigger>
+                {canPreview && (
+                  <DocumentViewerTrigger
+                    fileUrl={`/api/courriers/${id}`}
+                    downloadUrl={`/api/courriers/${id}?download=1`}
+                    fileName={fileName!}
+                    fileMime={fileMime!}
+                    className="btn-secondary w-full text-xs"
+                  >
+                    <Eye size={13} /> Visualiser le document
+                  </DocumentViewerTrigger>
+                )}
                 <div className="flex flex-wrap gap-2">
                   <button type="button" onClick={handleRetirer} disabled={pending} className="btn-secondary text-xs text-rose-700 disabled:opacity-50">
                     <XCircle size={13} /> Retirer du portail client
@@ -137,15 +160,17 @@ export function TransmettreClientButton({ courrierId, fileName, fileMime, curren
                     Changement de destinataire — société actuelle : <strong>{transmission?.societe}</strong>
                   </div>
                 )}
-                <DocumentViewerTrigger
-                  fileUrl={`/api/courriers/${courrierId}`}
-                  downloadUrl={`/api/courriers/${courrierId}?download=1`}
-                  fileName={fileName}
-                  fileMime={fileMime}
-                  className="btn-secondary w-full text-xs"
-                >
-                  <Eye size={13} /> Prévisualiser le document original
-                </DocumentViewerTrigger>
+                {canPreview && (
+                  <DocumentViewerTrigger
+                    fileUrl={`/api/courriers/${id}`}
+                    downloadUrl={`/api/courriers/${id}?download=1`}
+                    fileName={fileName!}
+                    fileMime={fileMime!}
+                    className="btn-secondary w-full text-xs"
+                  >
+                    <Eye size={13} /> Prévisualiser le document original
+                  </DocumentViewerTrigger>
+                )}
 
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium text-slate-600">Société destinataire *</span>
@@ -157,14 +182,16 @@ export function TransmettreClientButton({ courrierId, fileName, fileMime, curren
                   </select>
                 </label>
 
-                <label className="block">
-                  <span className="mb-1 block text-xs font-medium text-slate-600">Catégorie</span>
-                  <select value={type} onChange={(e) => setType(e.target.value)} className="field text-sm">
-                    {COURRIER_TYPES.filter((t) => t.key !== "client_envoi").map((t) => (
-                      <option key={t.key} value={t.key}>{t.label}</option>
-                    ))}
-                  </select>
-                </label>
+                {kind === "courrier" && (
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-slate-600">Catégorie</span>
+                    <select value={type} onChange={(e) => setType(e.target.value)} className="field text-sm">
+                      {COURRIER_TYPES.filter((t) => t.key !== "client_envoi").map((t) => (
+                        <option key={t.key} value={t.key}>{t.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium text-slate-600">Titre</span>

@@ -80,7 +80,7 @@ export default async function MiseEnDemeureDetailPage({
           <Badge tone={d.origine === "manuel" ? "neutral" : "info"}>{origineLabel(d.origine)}</Badge>
           {isAdmin && (
             <TransmettreClientButton
-              courrierId={item.id}
+              id={item.id}
               fileName={item.fileName}
               fileMime={item.fileMime}
               currentType={item.type}

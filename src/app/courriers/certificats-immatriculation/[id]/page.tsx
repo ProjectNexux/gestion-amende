@@ -7,6 +7,8 @@ import { updateCertificat, deleteCertificat } from "../actions";
 import { getImmatriculation } from "@/lib/courriers";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { TransmettreClientButton } from "@/components/TransmettreClientModal";
+import type { TransmissionClientInfo } from "@/app/courriers/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +35,21 @@ export default async function CertificatImmatriculationDetailPage({ params }: { 
           <h1 className="text-2xl font-semibold">Modifier le certificat</h1>
           <p className="text-sm text-slate-500">{item.fileName}</p>
         </div>
-        <Link href="/courriers/certificats-immatriculation" className="btn-secondary">
-          Retour à la liste
-        </Link>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <TransmettreClientButton
+              id={item.id}
+              fileName={item.fileName}
+              fileMime={item.fileMime}
+              currentType={item.type}
+              detectedSociete={item.societe}
+              transmission={(item.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
+            />
+          )}
+          <Link href="/courriers/certificats-immatriculation" className="btn-secondary">
+            Retour à la liste
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-4 card p-5">

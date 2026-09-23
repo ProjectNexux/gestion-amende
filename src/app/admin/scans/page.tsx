@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AlertTriangle, ChevronDown, Clock, Eye, Mail, Loader2, X, Check, FileText, MoreHorizontal } from "lucide-react";
+import { AlertTriangle, ChevronDown, Clock, Eye, Mail, Loader2, X, Check, FileText, MoreHorizontal, RefreshCw } from "lucide-react";
 import { DocumentViewerModal } from "@/components/DocumentViewerModal";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
@@ -49,6 +49,7 @@ export default function ScansPage() {
     note: "",
   });
   const [classifying, setClassifying] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchScans();
@@ -75,6 +76,27 @@ export default function ScansPage() {
     if (filter === "error") return scan.status === "error";
     return true;
   });
+
+  // "Relancer l'analyse" (2026-09-23) — un scan resté bloqué à "Reçu" (import IMAP/manuel réussi
+  // mais OCR jamais déclenché, ex: crash serveurless mi-traitement) n'a aucun moyen de ressortir de
+  // cet état sans ce bouton. Réutilise le MÊME endpoint que EmailScanSection.tsx (aucune divergence
+  // de comportement). Sans risque de doublon : processPendingEmailScans(id) ne retraite que les
+  // scans dont le statut est encore received/error/processing/analyzed, jamais "created".
+  const handleRetryAnalysis = async (scanId: string) => {
+    setRetryingId(scanId);
+    try {
+      await fetch("/api/scan-email/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: scanId }),
+      });
+      await fetchScans();
+    } catch (err) {
+      alert(`Erreur: ${err instanceof Error ? err.message : "Relance échouée"}`);
+    } finally {
+      setRetryingId(null);
+    }
+  };
 
   const handleClassify = async () => {
     if (!selectedScan) return;
@@ -224,9 +246,19 @@ export default function ScansPage() {
                               Classer
                             </button>
                           )}
+                          {(scan.status === "received" || scan.status === "error") && (
+                            <button
+                              onClick={() => handleRetryAnalysis(scan.id)}
+                              disabled={retryingId === scan.id}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded bg-amber-100 hover:bg-amber-200 text-amber-700 font-medium disabled:opacity-50"
+                            >
+                              {retryingId === scan.id ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                              Relancer l&apos;analyse
+                            </button>
+                          )}
                           {scan.courrierId && (
                             <TransmettreClientButton
-                              courrierId={scan.courrierId}
+                              id={scan.courrierId}
                               fileName={scan.fileName}
                               fileMime={scan.fileMime}
                               currentType={scan.courrierType ?? "document"}

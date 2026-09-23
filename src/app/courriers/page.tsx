@@ -130,7 +130,7 @@ export default async function CourriersPage() {
                       </DocumentViewerTrigger>
                       {isAdmin && (
                         <TransmettreClientButton
-                          courrierId={item.id}
+                          id={item.id}
                           fileName={item.fileName}
                           fileMime={item.fileMime}
                           currentType={item.type}

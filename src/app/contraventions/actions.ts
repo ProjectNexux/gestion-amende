@@ -1,9 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import type { TransmissionClientInfo } from "@/app/courriers/actions";
 
 function getStr(fd: FormData, k: string) {
   const v = fd.get(k);
@@ -171,6 +173,77 @@ export async function toggleVisibleClientAction(id: string, next: boolean) {
   await prisma.contravention.update({ where: { id }, data: { visibleClient: next } });
   revalidatePath("/contraventions");
   revalidatePath(`/contraventions/${id}`);
+  revalidatePath("/client");
+  revalidatePath("/client/contraventions");
+}
+
+// "Transmettre au client" (2026-09-23) — mirrors transmitCourrierToClientAction in
+// src/app/courriers/actions.ts (same TransmissionClientInfo shape, same access-control model:
+// authorization always relies on societe+visibleClient, this JSON is history/display only).
+export async function transmitContraventionToClientAction(
+  contraventionId: string,
+  targetSociete: string,
+  opts: { titre?: string; message?: string } = {}
+) {
+  const isAdmin = await isAdminSession();
+  if (!isAdmin) notFound();
+
+  const societeExists = await prisma.societe.findUnique({ where: { nom: targetSociete } });
+  if (!societeExists) throw new Error("Société introuvable.");
+
+  const existing = await prisma.contravention.findUnique({ where: { id: contraventionId }, select: { transmissionClient: true, visibleClient: true } });
+  if (!existing) notFound();
+
+  const existingTransmission = existing.transmissionClient as TransmissionClientInfo | null;
+  const alreadySameTarget = existingTransmission?.societe === targetSociete && existing.visibleClient;
+  const historique = existingTransmission?.historique ?? [];
+
+  const transmissionClient: TransmissionClientInfo = {
+    societe: targetSociete,
+    transmisAt: new Date().toISOString(),
+    transmisPar: "Admin",
+    titre: opts.titre ?? existingTransmission?.titre ?? null,
+    message: opts.message ?? existingTransmission?.message ?? null,
+    statutConsultation: alreadySameTarget ? existingTransmission!.statutConsultation : "Non consulté",
+    historique: alreadySameTarget
+      ? historique
+      : [...historique, { date: new Date().toISOString(), action: `Transmis à ${targetSociete}` }],
+  };
+
+  await prisma.contravention.update({
+    where: { id: contraventionId },
+    data: { societe: targetSociete, visibleClient: true, transmissionClient: transmissionClient as unknown as Prisma.InputJsonValue },
+  });
+
+  revalidatePath("/contraventions");
+  revalidatePath(`/contraventions/${contraventionId}`);
+  revalidatePath("/client");
+  revalidatePath("/client/contraventions");
+}
+
+export async function retirerContraventionDuPortailClientAction(contraventionId: string) {
+  const isAdmin = await isAdminSession();
+  if (!isAdmin) notFound();
+
+  const existing = await prisma.contravention.findUnique({ where: { id: contraventionId }, select: { transmissionClient: true } });
+  if (!existing) notFound();
+  const existingTransmission = existing.transmissionClient as TransmissionClientInfo | null;
+
+  await prisma.contravention.update({
+    where: { id: contraventionId },
+    data: {
+      visibleClient: false,
+      transmissionClient: existingTransmission
+        ? ({
+            ...existingTransmission,
+            historique: [...existingTransmission.historique, { date: new Date().toISOString(), action: "Retiré du portail client" }],
+          } as unknown as Prisma.InputJsonValue)
+        : (existingTransmission as unknown as Prisma.InputJsonValue),
+    },
+  });
+
+  revalidatePath("/contraventions");
+  revalidatePath(`/contraventions/${contraventionId}`);
   revalidatePath("/client");
   revalidatePath("/client/contraventions");
 }

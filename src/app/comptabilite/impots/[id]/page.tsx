@@ -11,6 +11,8 @@ import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { ComptabiliteSendModal } from "@/components/ComptabiliteSendModal";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { TransmettreClientButton } from "@/components/TransmettreClientModal";
+import type { TransmissionClientInfo } from "@/app/courriers/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +51,16 @@ export default async function ImpotDetailPage({ params }: { params: Promise<{ id
             <Link href={`/comptabilite/impots/${id}/edit`} className="inline-flex items-center gap-1.5 btn-secondary">
               <Pencil size={14} /> Modifier
             </Link>
+          )}
+          {isAdmin && (
+            <TransmettreClientButton
+              id={item.id}
+              fileName={item.fileName}
+              fileMime={item.fileMime}
+              currentType={item.type}
+              detectedSociete={item.societe}
+              transmission={(item.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
+            />
           )}
           <Link href="/comptabilite/impots" className="btn-secondary">
             Retour à la liste

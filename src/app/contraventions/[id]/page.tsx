@@ -8,6 +8,8 @@ import { requireSociete, isAdminSession } from "@/lib/auth";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { fmtMoney } from "@/lib/utils";
 import { DetailActions } from "./DetailActions";
+import { TransmettreClientButton } from "@/components/TransmettreClientModal";
+import type { TransmissionClientInfo } from "@/app/courriers/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +62,14 @@ export default async function EditContraventionPage({ params }: { params: Promis
           <Badge tone={statutTone(item.statutPaiement, "paiement")} className="text-xs">
             {item.statutPaiement}
           </Badge>
+          {isAdmin && (
+            <TransmettreClientButton
+              kind="contravention"
+              id={item.id}
+              detectedSociete={item.societe}
+              transmission={item.transmissionClient as TransmissionClientInfo | null}
+            />
+          )}
         </div>
       </header>
 

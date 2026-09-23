@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSociete, isAdminSession } from "@/lib/auth";
-import { courrierTypeLabel, courrierSourceLabel } from "@/lib/courriers";
+import { courrierTypeLabel, courrierSourceLabel, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { Badge } from "@/components/ui/Badge";
+import { TransmettreClientButton } from "@/components/TransmettreClientModal";
+import type { TransmissionClientInfo } from "@/app/courriers/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,7 @@ export default async function GenericCourrierPage({ params }: { params: Promise<
 
   const item = await prisma.courrier.findFirst({
     where: isAdmin ? { id } : { id, societe },
+    select: COURRIER_LIST_SELECT,
   });
   if (!item) notFound();
 
@@ -33,6 +36,16 @@ export default async function GenericCourrierPage({ params }: { params: Promise<
         <div className="flex items-center gap-2">
           <Badge tone="neutral">{courrierSourceLabel(item.source)}</Badge>
           <Badge tone="info">{item.societe}</Badge>
+          {isAdmin && (
+            <TransmettreClientButton
+              id={item.id}
+              fileName={item.fileName}
+              fileMime={item.fileMime}
+              currentType={item.type}
+              detectedSociete={item.societe}
+              transmission={(item.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
+            />
+          )}
         </div>
       </div>
 

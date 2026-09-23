@@ -9,6 +9,9 @@ import { fmtMoney, fmtDateTime } from "@/lib/utils";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { Badge } from "@/components/ui/Badge";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
+import { TransmettreClientButton } from "@/components/TransmettreClientModal";
+import { COURRIER_LIST_SELECT } from "@/lib/courriers";
+import type { TransmissionClientInfo } from "@/app/courriers/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +28,7 @@ export default async function SinistreDetailPage({ params }: { params: Promise<{
     include: {
       vehicule: true,
       conducteur: true,
-      documents: { orderBy: { receivedAt: "desc" } },
+      documents: { orderBy: { receivedAt: "desc" }, select: COURRIER_LIST_SELECT },
       historique: { orderBy: { createdAt: "desc" } },
     },
   });
@@ -150,6 +153,17 @@ export default async function SinistreDetailPage({ params }: { params: Promise<{
                 >
                   <Download size={15} />
                 </a>
+                {isAdmin && (
+                  <TransmettreClientButton
+                    id={doc.id}
+                    fileName={doc.fileName}
+                    fileMime={doc.fileMime}
+                    currentType={doc.type}
+                    detectedSociete={doc.societe}
+                    transmission={(doc.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
+                    compact
+                  />
+                )}
               </div>
             </div>
           ))}
