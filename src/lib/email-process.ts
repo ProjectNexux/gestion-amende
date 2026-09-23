@@ -11,8 +11,6 @@ import { forwardComptabiliteDocument } from "@/lib/comptabilite-forward";
 import { detectOrganisme, buildTransmission } from "@/lib/transmission";
 import { PUB_RETENTION_MINUTES, normalizeImmatriculation } from "@/lib/courriers";
 import { getEmailScanRecordHref } from "@/lib/scan-record-href";
-import { PDFDocument } from "pdf-lib";
-import { getScanPartInfo, groupScansByBundle, sortScansByPart } from "@/lib/scan-bundles";
 
 function log(msg: string) { console.log(`[EMAIL-SCAN] ${msg}`); }
 
@@ -47,144 +45,80 @@ async function resolveExistingSociete(preferred: string): Promise<string> {
   throw new Error("Aucune société disponible pour traiter ce scan.");
 }
 
-async function mergePdfBuffers(buffers: Buffer[]): Promise<Buffer> {
-  if (buffers.length === 1) return buffers[0];
-
-  const merged = await PDFDocument.create();
-  for (const buffer of buffers) {
-    const source = await PDFDocument.load(buffer, { ignoreEncryption: true });
-    const copiedPages = await merged.copyPages(source, source.getPageIndices());
-    for (const page of copiedPages) {
-      merged.addPage(page);
-    }
-  }
-
-  const mergedBytes = await merged.save({ useObjectStreams: false });
-  return Buffer.from(mergedBytes);
-}
-
 // Extracted from api/scan-email/process route so the auto-poll scheduler can reuse it.
 export async function processPendingEmailScans(id?: string): Promise<{ processed: number; results: ProcessScanResult[]; message?: string }> {
   const staleBefore = new Date(Date.now() - STALE_PROCESSING_MINUTES * 60 * 1000);
-  const pendingStatuses = ["received", "error", "processing", "analyzed", "waiting_parts"] as const;
-
-  let scans: Array<{
-    id: string;
-    societe: string;
-    messageId: string;
-    fileName: string;
-    fileMime: string;
-    fileSize: number;
-    fileData: Buffer;
-    status: string;
-    ocrText: string | null;
-    parsedData: string | null;
-    errorMessage: string | null;
-    contraventionId: string | null;
-    courrierId: string | null;
-    origine: string;
-    receivedAt: Date;
-    processedAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }> = [];
-
-  if (id) {
-    const target = await prisma.emailScan.findUnique({
-      where: { id },
-      select: { societe: true, messageId: true, fileName: true },
-    });
-    if (!target) {
-      return { processed: 0, results: [], message: "Aucun scan à traiter" };
-    }
-
-    const targetKey = getScanPartInfo(target).bundleKey;
-    const scopeScans = await prisma.emailScan.findMany({
-      where: {
-        societe: target.societe,
-        status: { in: [...pendingStatuses] },
-      },
-      orderBy: { createdAt: "asc" },
-    });
-    scans = groupScansByBundle(scopeScans).find((group) => group.key === targetKey)?.scans ?? [];
-  } else {
-    scans = await prisma.emailScan.findMany({
-      where: {
-        OR: [
-          { status: "received" },
-          { status: "error" },
-          { status: "waiting_parts" },
-          // If a previous run crashed mid-analysis, processing can stay stuck forever.
-          // Requeue old processing rows automatically so they are never orphaned.
-          { status: "processing", updatedAt: { lt: staleBefore } },
-          { status: "analyzed" },
-        ],
-      },
-      // Keep batches intentionally small: OCR on large PDFs can exceed serverless limits when
-      // multiple files are processed in one request, which leaves rows stuck in "processing".
-      take: PROCESS_BATCH_SIZE,
-      orderBy: { createdAt: "asc" },
-    });
-  }
+  const where = id
+    ? { id, status: { in: ["received", "error", "processing", "analyzed"] } }
+    : {
+      OR: [
+        { status: "received" },
+        { status: "error" },
+        // If a previous run crashed mid-analysis, processing can stay stuck forever.
+        // Requeue old processing rows automatically so they are never orphaned.
+        { status: "processing", updatedAt: { lt: staleBefore } },
+      ],
+    };
+  const scanRows = await prisma.emailScan.findMany({
+    where,
+    // Keep batches intentionally small: OCR on large PDFs can exceed serverless limits when
+    // multiple files are processed in one request, which leaves rows stuck in "processing".
+    take: id ? 1 : PROCESS_BATCH_SIZE,
+    orderBy: { createdAt: "asc" },
+    // `fileData` (Bytes) is deliberately EXCLUDED here and fetched separately below via raw SQL.
+    // Root cause (2026-09-23): Prisma's typed Bytes<->N-API marshalling crashes specifically on
+    // Vercel's serverless runtime ("Failed to convert rust `String` into napi `string`" / OOM),
+    // even though the exact same query works fine locally against the same DB — this is what
+    // silently broke the whole automatic scan pipeline (every scan stuck at "Reçu", OCR never
+    // ran). `$queryRaw` returns the bytea column as a plain Buffer via the pg driver directly,
+    // sidestepping that broken path entirely.
+    select: { id: true, societe: true, fileName: true, fileMime: true, fileSize: true, receivedAt: true },
+  });
+  const scans = await Promise.all(
+    scanRows.map(async (row) => {
+      const raw = await prisma.$queryRaw<{ fileData: Buffer }[]>`SELECT "fileData" FROM "EmailScan" WHERE id = ${row.id}`;
+      return { ...row, fileData: raw[0]?.fileData ?? Buffer.alloc(0) };
+    })
+  );
 
   if (scans.length === 0) {
     return { processed: 0, results: [], message: "Aucun scan à traiter" };
   }
 
-  const bundleGroups = groupScansByBundle(scans);
-  const selectedGroups = id ? bundleGroups.filter((group) => group.scans.some((scan) => scan.id === id)) : bundleGroups;
-
   let processed = 0;
   const results: ProcessScanResult[] = [];
 
-  for (const group of selectedGroups) {
-    const bundleScans = group.scans;
-    const bundleIds = bundleScans.map((scan) => scan.id);
-    const bundleRepresentative = bundleScans[0];
-    const bundlePartInfo = getScanPartInfo(bundleRepresentative);
-    const bundleScan = bundleScans.length > 1
-      ? { ...bundleRepresentative, fileName: group.baseFileName, fileData: await mergePdfBuffers(sortScansByPart(bundleScans).map((scan) => Buffer.from(scan.fileData))) }
-      : bundleRepresentative;
-    const scan = bundleScan as typeof bundleRepresentative & { fileName: string; fileData: Buffer };
-
-    const saveBundle = async (data: Record<string, unknown>) => {
-      if (bundleIds.length === 1) {
-        await prisma.emailScan.update({ where: { id: bundleIds[0] }, data });
-      } else {
-        await prisma.emailScan.updateMany({ where: { id: { in: bundleIds } }, data });
-      }
-    };
-
-    const societe = await resolveExistingSociete(bundleScan.societe);
-    if (societe !== bundleScan.societe) {
-      log(`Société du scan corrigée automatiquement: "${bundleScan.societe}" -> "${societe}" (${bundleScan.fileName})`);
-      await saveBundle({ societe });
+  for (const scan of scans) {
+    const societe = await resolveExistingSociete(scan.societe);
+    if (societe !== scan.societe) {
+      log(`Société du scan corrigée automatiquement: "${scan.societe}" -> "${societe}" (${scan.fileName})`);
+      await prisma.emailScan.update({
+        where: { id: scan.id },
+        data: { societe },
+      });
     }
 
-    if (bundlePartInfo.partTotal > 1 && bundleScans.length < bundlePartInfo.partTotal) {
-      const waitingMessage = `En attente des autres parties (${bundleScans.length}/${bundlePartInfo.partTotal}).`;
-      log(`Courrier partiel détecté: ${bundleScan.fileName} → ${waitingMessage}`);
-      await saveBundle({ status: "waiting_parts", errorMessage: waitingMessage, processedAt: new Date() });
-      processed += bundleScans.length;
-      results.push(...bundleIds.map((scanId) => ({ id: scanId, status: "waiting_parts" })));
-      continue;
-    }
-
-    log(`Analyse démarrée: ${bundleScan.fileName}`);
-    await saveBundle({ status: "processing" });
+    log(`Analyse démarrée: ${scan.fileName}`);
+    await prisma.emailScan.update({
+      where: { id: scan.id },
+      data: { status: "processing" },
+    });
 
     try {
-      const ocrText = await serverOcr(Buffer.from(bundleScan.fileData), bundleScan.fileMime);
+      const ocrText = await serverOcr(Buffer.from(scan.fileData), scan.fileMime);
 
       if (!ocrText || ocrText.replace(/\s/g, "").length < 10) {
-        log(`Extraction texte insuffisante après OCR: ${bundleScan.fileName}`);
-        await saveBundle({
-          status: "error",
-          errorMessage: "Texte extrait insuffisant malgré OCR. Document illisible ou vide.",
-          ocrText: ocrText || null,
-          processedAt: new Date(),
+        log(`Extraction texte insuffisante après OCR: ${scan.fileName}`);
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: {
+            status: "error",
+            errorMessage: "Texte extrait insuffisant malgré OCR. Document illisible ou vide.",
+            ocrText: ocrText || null,
+            processedAt: new Date(),
+          },
         });
-        results.push(...bundleIds.map((scanId) => ({ id: scanId, status: "error", error: "Document illisible" })));
+        results.push({ id: scan.id, status: "error", error: "Document illisible" });
         continue;
       }
 
@@ -234,11 +168,14 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
           },
         });
 
-        await saveBundle({
-          status: "created",
-          ocrText,
-          courrierId: courrier.id,
-          processedAt: new Date(),
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: {
+            status: "created",
+            ocrText,
+            courrierId: courrier.id,
+            processedAt: new Date(),
+          },
         });
 
         log(`Mise en demeure d\u00e9tect\u00e9e et class\u00e9e (${statut}): ${scan.fileName} \u2192 courrier ${courrier.id}`);
@@ -268,7 +205,10 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
             },
           });
 
-          await saveBundle({ status: "created", ocrText, courrierId: courrier.id, processedAt: new Date() });
+          await prisma.emailScan.update({
+            where: { id: scan.id },
+            data: { status: "created", ocrText, courrierId: courrier.id, processedAt: new Date() },
+          });
 
           log(`Certificat d'immatriculation détecté: ${scan.fileName} → courrier ${courrier.id}`);
           processed++;
@@ -276,11 +216,14 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
           continue;
         }
 
-        await saveBundle({
-          status: "analyzed",
-          ocrText,
-          errorMessage: "À vérifier : certificat d'immatriculation détecté mais immatriculation introuvable.",
-          processedAt: new Date(),
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: {
+            status: "analyzed",
+            ocrText,
+            errorMessage: "À vérifier : certificat d'immatriculation détecté mais immatriculation introuvable.",
+            processedAt: new Date(),
+          },
         });
 
         log(`Certificat d'immatriculation détecté sans plaque lisible: ${scan.fileName} → à vérifier`);
@@ -344,7 +287,10 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
           },
         });
 
-        await saveBundle({ status: "created", ocrText, courrierId: courrier.id, processedAt: new Date() });
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: { status: "created", ocrText, courrierId: courrier.id, processedAt: new Date() },
+        });
 
         log(`Sinistre détecté et classé (À vérifier): ${scan.fileName} → dossier ${reference}`);
         processed++;
@@ -373,12 +319,15 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
           },
         });
 
-        await saveBundle({
-          status: "created",
-          ocrText,
-          courrierId: courrier.id,
-          errorMessage: "À vérifier : associer ce permis au bon conducteur.",
-          processedAt: new Date(),
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: {
+            status: "created",
+            ocrText,
+            courrierId: courrier.id,
+            errorMessage: "À vérifier : associer ce permis au bon conducteur.",
+            processedAt: new Date(),
+          },
         });
 
         log(`Permis de conduire détecté: ${scan.fileName} → courrier ${courrier.id} (à vérifier)`);
@@ -408,12 +357,15 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
           },
         });
 
-        await saveBundle({
-          status: "created",
-          ocrText,
-          courrierId: courrier.id,
-          errorMessage: "À vérifier : associer cette pièce d'identité au bon conducteur.",
-          processedAt: new Date(),
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: {
+            status: "created",
+            ocrText,
+            courrierId: courrier.id,
+            errorMessage: "À vérifier : associer cette pièce d'identité au bon conducteur.",
+            processedAt: new Date(),
+          },
         });
 
         log(`Carte d'identité détectée: ${scan.fileName} → courrier ${courrier.id} (à vérifier)`);
@@ -452,7 +404,10 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
           },
         });
 
-        await saveBundle({ status: "created", ocrText, courrierId: courrier.id, processedAt: new Date() });
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: { status: "created", ocrText, courrierId: courrier.id, processedAt: new Date() },
+        });
 
         log(`${classification.type === "facture" ? "Facture" : "Document fiscal"} détecté(e) (${statutClassification}): ${scan.fileName} → courrier ${courrier.id}`);
 
@@ -493,47 +448,21 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
           },
         });
 
-        await saveBundle({ status: "created", ocrText, courrierId: courrier.id, processedAt: new Date() });
+        await prisma.emailScan.update({
+          where: { id: scan.id },
+          data: {
+            status: "created",
+            ocrText,
+            courrierId: courrier.id,
+            processedAt: new Date(),
+          },
+        });
 
         log(`Publicité détectée: ${scan.fileName} → courrier ${courrier.id} (suppression prévue à ${expiresAt.toLocaleTimeString("fr-FR")})`);
         processed++;
         results.push({ id: scan.id, status: "created" });
         continue;
       }
-
-      if (classification.type === "retard_paiement") {
-        const courrier = await prisma.courrier.create({
-          data: {
-            societe,
-            type: "retard_paiement",
-            source: "EMAIL_SCAN",
-            data: {
-              beneficiaire: null,
-              debiteur: null,
-              montantDu: null,
-              montantPaye: 0,
-              reference: null,
-              dateEcheance: null,
-              statutPaiement: "Non payé",
-              expediteur: detectSimpleExpediteur(ocrText),
-              origine: "auto",
-            },
-            fileName: scan.fileName,
-            fileMime: scan.fileMime,
-            fileSize: scan.fileSize,
-            fileData: scan.fileData,
-            receivedAt: scan.receivedAt,
-          },
-        });
-
-        await saveBundle({ status: "created", ocrText, courrierId: courrier.id, processedAt: new Date() });
-
-        log(`Retard de paiement détecté: ${scan.fileName} → courrier ${courrier.id}`);
-        processed++;
-        results.push({ id: scan.id, status: "created" });
-        continue;
-      }
-
       const parsed = parseFine(ocrText, knownPlates);
       const parsedJson = JSON.stringify(parsed);
 
@@ -547,12 +476,15 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
         });
         if (duplicate) {
           log(`Doublon détecté (numAvis ${parsed.numAvis} déjà existant): ${scan.fileName}`);
-          await saveBundle({
-            status: "error",
-            ocrText,
-            parsedData: parsedJson,
-            errorMessage: `Doublon : contravention existante avec le même n° d'avis (${parsed.numAvis}), dossier ${duplicate.numDossier}`,
-            processedAt: new Date(),
+          await prisma.emailScan.update({
+            where: { id: scan.id },
+            data: {
+              status: "error",
+              ocrText,
+              parsedData: parsedJson,
+              errorMessage: `Doublon : contravention existante avec le même n° d'avis (${parsed.numAvis}), dossier ${duplicate.numDossier}`,
+              processedAt: new Date(),
+            },
           });
           results.push({ id: scan.id, status: "error", error: "Doublon détecté" });
           continue;
@@ -618,22 +550,28 @@ export async function processPendingEmailScans(id?: string): Promise<{ processed
         log(`Analyse terminée mais pas assez d'informations pour créer un dossier: ${scan.fileName}`);
       }
 
-      await saveBundle({
-        status: contraventionId ? "created" : "analyzed",
-        ocrText,
-        parsedData: parsedJson,
-        contraventionId,
-        errorMessage: needsReview && contraventionId
-          ? "À vérifier : données partiellement extraites"
-          : (!contraventionId ? "À vérifier : type incertain ou données insuffisantes pour créer un dossier." : null),
-        processedAt: new Date(),
+      await prisma.emailScan.update({
+        where: { id: scan.id },
+        data: {
+          status: contraventionId ? "created" : "analyzed",
+          ocrText,
+          parsedData: parsedJson,
+          contraventionId,
+          errorMessage: needsReview && contraventionId
+            ? "À vérifier : données partiellement extraites"
+            : (!contraventionId ? "À vérifier : type incertain ou données insuffisantes pour créer un dossier." : null),
+          processedAt: new Date(),
+        },
       });
 
       processed++;
       results.push({ id: scan.id, status: contraventionId ? "created" : "analyzed" });
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      await saveBundle({ status: "error", errorMessage, processedAt: new Date() });
+      await prisma.emailScan.update({
+        where: { id: scan.id },
+        data: { status: "error", errorMessage, processedAt: new Date() },
+      });
       results.push({ id: scan.id, status: "error", error: errorMessage });
     }
   }
