@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { markDenonciationAction, markPaymentAction, addObservationAction, toggleVisibleClientAction } from "../actions";
+import { useRouter } from "next/navigation";
+import { markDenonciationAction, markPaymentAction, addObservationAction, toggleVisibleClientAction, deleteContraventionAction } from "../actions";
 import { ChevronDown, ExternalLink } from "lucide-react";
 
 type ActionButtonProps = {
@@ -12,10 +13,17 @@ type ActionButtonProps = {
 };
 
 export function DetailActions({ id, currentDenonciation, currentPaiement, visibleClient }: ActionButtonProps) {
+  const router = useRouter();
   const [expandDenonciation, setExpandDenonciation] = useState(false);
   const [expandPaiement, setExpandPaiement] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteText, setNoteText] = useState("");
+
+  async function handleDelete() {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce dossier ?")) return;
+    await deleteContraventionAction(id);
+    router.push("/contraventions");
+  }
 
   async function handleAddNote() {
     if (!noteText.trim()) return;
@@ -173,6 +181,10 @@ export function DetailActions({ id, currentDenonciation, currentPaiement, visibl
           <ExternalLink size={16} /> Site officiel ANTAI
         </a>
       </div>
+
+      <button onClick={handleDelete} className="btn-danger w-full text-sm">
+        Supprimer le dossier
+      </button>
     </div>
   );
 }

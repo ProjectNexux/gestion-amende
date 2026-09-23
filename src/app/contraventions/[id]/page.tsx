@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import ContraventionForm from "@/components/ContraventionForm";
-import { updateContraventionAction, deleteContraventionAction } from "../actions";
+import { updateContraventionAction } from "../actions";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { fmtMoney } from "@/lib/utils";
@@ -41,13 +41,6 @@ export default async function EditContraventionPage({ params }: { params: Promis
   if (!item || (!isAdmin && item.societe !== societe)) notFound();
 
   const updateWith = updateContraventionAction.bind(null, id);
-
-  async function handleDelete() {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce dossier ?")) {
-      return;
-    }
-    await deleteContraventionAction(id);
-  }
 
   return (
     <div className="space-y-6">
@@ -122,14 +115,6 @@ export default async function EditContraventionPage({ params }: { params: Promis
             currentPaiement={item.statutPaiement}
             visibleClient={item.visibleClient}
           />
-
-          {/* Delete button */}
-          <button 
-            onClick={handleDelete}
-            className="btn-danger w-full text-sm"
-          >
-            Supprimer le dossier
-          </button>
         </div>
       </div>
     </div>
