@@ -260,7 +260,7 @@ export function Sidebar({ societe, admin = false }: { societe: string | null; ad
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
-        className={`fixed inset-y-0 left-0 z-[70] flex flex-col border-r border-navy-800/70 bg-gradient-to-b from-navy-900 via-navy-900 to-navy-950 text-slate-100 transition-[width] duration-[220ms] ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-[70] flex flex-col border-r border-black/40 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black text-slate-100 transition-[width] duration-[220ms] ease-in-out ${
           expanded ? "w-64 shadow-[8px_0_28px_-6px_rgba(0,0,0,0.35)]" : "w-[72px]"
         }`}
       >

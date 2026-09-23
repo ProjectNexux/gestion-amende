@@ -457,7 +457,7 @@ export default async function DashboardPage({
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <p className="text-[13px] font-medium text-slate-400">{prenom ? `Bonjour ${prenom},` : "Bonjour,"}</p>
+        <p className="text-[13px] font-medium text-slate-400">{`Bonjour ${prenom ?? "Wassila"},`}</p>
         <h1 className="mt-1 text-[22px] font-bold leading-tight tracking-tight text-slate-900">
           Voici les éléments qui nécessitent votre attention aujourd&apos;hui.
         </h1>

@@ -120,7 +120,10 @@ export function Topbar({ societe, admin }: { societe: string; admin: boolean }) 
       )}
       <div className="min-w-0 flex-1">
         <div className="truncate text-[10.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">{section}</div>
-        <div className="truncate text-[15px] font-bold leading-tight text-slate-900">{page}</div>
+        <div className="flex items-center gap-2">
+          <div className="truncate text-[15px] font-bold leading-tight text-slate-900">{page}</div>
+          <span className="rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">VERSION CORRIGÉE</span>
+        </div>
       </div>
 
       <div ref={searchRef} className="relative hidden lg:block">
