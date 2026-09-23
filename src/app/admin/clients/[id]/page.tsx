@@ -78,7 +78,7 @@ export default async function ClientDetailPage({
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
       <div>
-        <BackButton fallbackHref="/admin/clients" label="Retour à la liste" className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 transition hover:text-brand-800" />
+        <BackButton fallbackHref="/admin/clients" label="Retour à la liste" className="-my-2 inline-flex items-center gap-1 rounded-md px-1 py-2 text-sm font-medium text-brand-700 transition hover:text-brand-800" />
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">

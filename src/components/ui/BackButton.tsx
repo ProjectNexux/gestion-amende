@@ -19,7 +19,7 @@ export function BackButton({ fallbackHref, label = "Retour", className }: { fall
         if (typeof window !== "undefined" && window.history.length > 1) router.back();
         else router.push(fallbackHref);
       }}
-      className={className ?? "inline-flex items-center gap-1.5 text-sm text-slate-500 transition hover:text-slate-700"}
+      className={className ?? "-my-2 inline-flex items-center gap-1.5 rounded-md px-1 py-2 text-sm text-slate-500 transition hover:text-slate-700"}
     >
       <ArrowLeft size={15} /> {label}
     </button>
