@@ -5,7 +5,7 @@ import { requireSociete, isAdminSession } from "@/lib/auth";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getMiseEnDemeureData, MISE_EN_DEMEURE_STATUTS } from "@/lib/courriers";
+import { getMiseEnDemeureData, MISE_EN_DEMEURE_STATUTS, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { deriveTransmissionStatut, type TransmissionStatut } from "@/lib/transmission";
 import { fmtMoney, fmtDateTime } from "@/lib/utils";
 
@@ -42,6 +42,7 @@ export default async function UrssafPage({
     prisma.courrier.findMany({
       where: isAdmin ? { type: "mise_en_demeure" } : { societe, type: "mise_en_demeure" },
       orderBy: { receivedAt: "desc" },
+      select: COURRIER_LIST_SELECT,
     }),
     prisma.societe.findMany({ orderBy: { nom: "asc" }, select: { nom: true, emailTransmission: true } }),
   ]);

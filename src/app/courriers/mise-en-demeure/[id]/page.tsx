@@ -4,7 +4,9 @@ import Link from "next/link";
 import { Eye, Mail, Send, TriangleAlert } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { updateMiseEnDemeure, deleteMiseEnDemeure, updateSocieteEmailTransmission, preparerEnvoi } from "../actions";
-import { getMiseEnDemeureData, MISE_EN_DEMEURE_STATUTS, origineLabel } from "@/lib/courriers";
+import { getMiseEnDemeureData, MISE_EN_DEMEURE_STATUTS, origineLabel, COURRIER_LIST_SELECT } from "@/lib/courriers";
+import { TransmettreClientButton } from "@/components/TransmettreClientModal";
+import type { TransmissionClientInfo } from "@/app/courriers/actions";
 import { deriveTransmissionStatut, AUTO_FORWARD_URSSAF } from "@/lib/transmission";
 import { fmtMoney, fmtDateTime } from "@/lib/utils";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
@@ -53,7 +55,7 @@ export default async function MiseEnDemeureDetailPage({
   const showApercu = sp.apercu === "1";
 
   const [item, allSocietes] = await Promise.all([
-    prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe } }),
+    prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe }, select: COURRIER_LIST_SELECT }),
     prisma.societe.findMany({ orderBy: { nom: "asc" }, select: { nom: true } }),
   ]);
   if (!item) notFound();
@@ -76,6 +78,16 @@ export default async function MiseEnDemeureDetailPage({
         <div className="flex items-center gap-2">
           <Badge tone={statutTone(d.statut)}>{d.statut ?? "Nouveau"}</Badge>
           <Badge tone={d.origine === "manuel" ? "neutral" : "info"}>{origineLabel(d.origine)}</Badge>
+          {isAdmin && (
+            <TransmettreClientButton
+              courrierId={item.id}
+              fileName={item.fileName}
+              fileMime={item.fileMime}
+              currentType={item.type}
+              detectedSociete={item.societe}
+              transmission={(item.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
+            />
+          )}
           <Link href="/courriers/mise-en-demeure" className="btn-secondary">
             Retour à la liste
           </Link>

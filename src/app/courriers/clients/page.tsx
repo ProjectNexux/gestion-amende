@@ -4,7 +4,7 @@ import { requireSociete, isAdminSession } from "@/lib/auth";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { getClientEnvoiData } from "@/lib/courriers";
+import { getClientEnvoiData, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
 import { updateClientEnvoiStatutAction } from "./actions";
 import { StatutSelect } from "./StatutSelect";
@@ -18,6 +18,7 @@ export default async function CourriersClientsPage() {
   const items = await prisma.courrier.findMany({
     where: isAdmin ? { source: "CLIENT" } : { societe, source: "CLIENT" },
     orderBy: { receivedAt: "desc" },
+    select: COURRIER_LIST_SELECT,
   });
 
   return (

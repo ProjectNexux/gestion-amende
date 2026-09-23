@@ -43,6 +43,29 @@ export function courrierTypeLabel(type: string): string {
   return COURRIER_TYPES.find((t) => t.key === type)?.label ?? type;
 }
 
+// Perf: list pages need every Courrier column EXCEPT the raw file bytes (`fileData`, often several
+// MB per row for scanned PDFs/images) — they only ever link to `/api/courriers/[id]` to view or
+// download, never render the bytes server-side. Omitting it from `findMany`/`findFirst` selects
+// cuts DB transfer + serialization time drastically on pages listing many documents. Plain object
+// (no Prisma import) so this stays safe to import from "use client" components too.
+export const COURRIER_LIST_SELECT = {
+  id: true,
+  societe: true,
+  type: true,
+  data: true,
+  fileName: true,
+  fileMime: true,
+  fileSize: true,
+  expiresAt: true,
+  sinistreId: true,
+  visibleClient: true,
+  source: true,
+  receivedAt: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+
 // Espace client (2026-08-24): where a Courrier row actually came from — never inferred, always
 // set explicitly by the creating code path. See prisma schema comment on Courrier.source.
 export const COURRIER_SOURCE_LABELS: Record<string, string> = {

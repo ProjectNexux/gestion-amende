@@ -8,6 +8,7 @@ import { ActionForm } from "@/components/ActionForm";
 import { CLIENT_STATUS_LABELS, clientStatusTone, deriveClientStatus } from "@/lib/clients";
 import { fmtDateTime } from "@/lib/utils";
 import { buildSetupUrl, isSetupTokenExpired } from "@/lib/societe-setup";
+import { COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { deactivateClientAction, reactivateClientAction, activateClientAction, sendInvitationAction } from "../actions";
 import { OverviewTab } from "./tabs/OverviewTab";
 import { DocumentsTab } from "./tabs/DocumentsTab";
@@ -51,7 +52,7 @@ export default async function ClientDetailPage({
   if (!s) notFound();
 
   const [courriers, contraventions, nVehicules, nConducteurs] = await Promise.all([
-    prisma.courrier.findMany({ where: { societe: s.nom }, orderBy: { receivedAt: "desc" } }),
+    prisma.courrier.findMany({ where: { societe: s.nom }, orderBy: { receivedAt: "desc" }, select: COURRIER_LIST_SELECT }),
     prisma.contravention.findMany({
       where: { societe: s.nom },
       orderBy: { createdAt: "desc" },

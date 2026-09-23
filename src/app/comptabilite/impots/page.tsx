@@ -6,6 +6,7 @@ import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getImpotData, forwardStatutTone, origineLabel } from "@/lib/comptabilite";
+import { COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtMoney, fmtDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export default async function ImpotsPage() {
   const items = await prisma.courrier.findMany({
     where: isAdmin ? { type: "impot" } : { societe, type: "impot" },
     orderBy: { receivedAt: "desc" },
+    select: COURRIER_LIST_SELECT,
   });
 
   return (

@@ -8,7 +8,7 @@ import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getMiseEnDemeureData, origineLabel } from "@/lib/courriers";
+import { getMiseEnDemeureData, origineLabel, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtMoney } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +56,7 @@ export default async function MiseEnDemeurePage({
     prisma.courrier.findMany({
       where: isAdmin ? { type: "mise_en_demeure" } : { societe, type: "mise_en_demeure" },
       orderBy: { receivedAt: "desc" },
+      select: COURRIER_LIST_SELECT,
     }),
     prisma.societe.findMany({ orderBy: { nom: "asc" }, select: { nom: true } }),
   ]);

@@ -71,13 +71,20 @@ export async function GET() {
   const courrierTypes = courrierIds.length > 0
     ? await prisma.courrier.findMany({
         where: { id: { in: courrierIds } },
-        select: { id: true, type: true },
+        select: { id: true, type: true, data: true },
       })
     : [];
   const courrierTypeById = new Map(courrierTypes.map((courrier) => [courrier.id, courrier.type]));
+  const transmissionById = new Map(
+    courrierTypes.map((courrier) => [
+      courrier.id,
+      (courrier.data as Record<string, unknown> | null)?.transmissionClient ?? null,
+    ])
+  );
 
   return NextResponse.json(rows.map((scan) => ({
     ...scan,
     courrierType: scan.courrierId ? courrierTypeById.get(scan.courrierId) ?? null : null,
+    transmissionClient: scan.courrierId ? transmissionById.get(scan.courrierId) ?? null : null,
   })));
 }

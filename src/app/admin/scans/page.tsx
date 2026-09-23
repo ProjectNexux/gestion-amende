@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { AlertTriangle, ChevronDown, Clock, Eye, Mail, Loader2, X, Check, FileText, MoreHorizontal } from "lucide-react";
 import { DocumentViewerModal } from "@/components/DocumentViewerModal";
+import { TransmettreClientButton } from "@/components/TransmettreClientModal";
+import type { TransmissionClientInfo } from "@/app/courriers/actions";
 
 type Scan = {
   id: string;
@@ -22,6 +24,7 @@ type Scan = {
   processedAt: string | null;
   bundleCount?: number;
   bundlePartTotal?: number;
+  transmissionClient?: TransmissionClientInfo | null;
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -220,6 +223,17 @@ export default function ScansPage() {
                             >
                               Classer
                             </button>
+                          )}
+                          {scan.courrierId && (
+                            <TransmettreClientButton
+                              courrierId={scan.courrierId}
+                              fileName={scan.fileName}
+                              fileMime={scan.fileMime}
+                              currentType={scan.courrierType ?? "document"}
+                              detectedSociete={scan.societe}
+                              transmission={scan.transmissionClient ?? null}
+                              compact
+                            />
                           )}
                         </td>
                       </tr>

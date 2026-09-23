@@ -4,7 +4,7 @@ import { requireSociete } from "@/lib/auth";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge, documentTypeTone } from "@/components/ui/Badge";
-import { courrierTypeLabel } from "@/lib/courriers";
+import { courrierTypeLabel, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
 import { Star, FileWarning, Mail } from "lucide-react";
 
@@ -21,7 +21,7 @@ export default async function ClientFavorisPage() {
   // document d'une autre société, même si son id a été mémorisé avant un retrait d'accès.
   const [courriers, contraventions] = await Promise.all([
     courrierIds.length
-      ? prisma.courrier.findMany({ where: { id: { in: courrierIds }, societe, visibleClient: true } })
+      ? prisma.courrier.findMany({ where: { id: { in: courrierIds }, societe, visibleClient: true }, select: COURRIER_LIST_SELECT })
       : Promise.resolve([]),
     contraventionIds.length
       ? prisma.contravention.findMany({ where: { id: { in: contraventionIds }, societe, visibleClient: true } })

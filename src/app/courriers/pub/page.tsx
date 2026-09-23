@@ -5,7 +5,7 @@ import { conserverPub, supprimerPubMaintenant } from "./actions";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getPubData, pubMinutesRemaining } from "@/lib/courriers";
+import { getPubData, pubMinutesRemaining, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +17,7 @@ export default async function PubPage() {
   const items = await prisma.courrier.findMany({
     where: isAdmin ? { type: "pub" } : { societe, type: "pub" },
     orderBy: { receivedAt: "desc" },
+    select: COURRIER_LIST_SELECT,
   });
 
   return (

@@ -6,6 +6,7 @@ import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getFactureData, forwardStatutTone, origineLabel } from "@/lib/comptabilite";
+import { COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtMoney, fmtDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export default async function FacturesPage() {
   const items = await prisma.courrier.findMany({
     where: isAdmin ? { type: "facture" } : { societe, type: "facture" },
     orderBy: { receivedAt: "desc" },
+    select: COURRIER_LIST_SELECT,
   });
 
   return (

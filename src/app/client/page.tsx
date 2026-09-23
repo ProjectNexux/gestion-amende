@@ -16,7 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { courrierTypeLabel } from "@/lib/courriers";
+import { courrierTypeLabel, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { EnvoyerDocumentButton } from "./documents-envoyes/EnvoyerDocumentModal";
 
 export const dynamic = "force-dynamic";
@@ -74,7 +74,7 @@ export default async function ClientDashboardPage() {
   // visibleClient — a dossier never appears here just because it belongs to this société.
   const [contraventions, courriers, envoyes] = await Promise.all([
     prisma.contravention.findMany({ where: { societe, visibleClient: true }, orderBy: { createdAt: "desc" } }),
-    prisma.courrier.findMany({ where: { societe, visibleClient: true, type: { not: "client_envoi" } }, orderBy: { receivedAt: "desc" } }),
+    prisma.courrier.findMany({ where: { societe, visibleClient: true, type: { not: "client_envoi" } }, orderBy: { receivedAt: "desc" }, select: COURRIER_LIST_SELECT }),
     prisma.courrier.count({ where: { societe, source: "CLIENT" } }),
   ]);
 

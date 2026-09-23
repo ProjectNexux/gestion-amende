@@ -5,9 +5,11 @@ import { requireSociete, isAdminSession } from "@/lib/auth";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { Badge, documentTypeTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { courrierTypeLabel, courrierSourceLabel, getMiseEnDemeureData, getPubData, pubMinutesRemaining } from "@/lib/courriers";
+import { courrierTypeLabel, courrierSourceLabel, getMiseEnDemeureData, getPubData, pubMinutesRemaining, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
 import { toggleCourrierVisibleClientAction } from "./actions";
+import { TransmettreClientButton } from "@/components/TransmettreClientModal";
+import type { TransmissionClientInfo } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,7 @@ export default async function CourriersPage() {
   const items = await prisma.courrier.findMany({
     where: isAdmin ? {} : { societe },
     orderBy: { receivedAt: "desc" },
+    select: COURRIER_LIST_SELECT,
   });
 
   return (
@@ -114,16 +117,29 @@ export default async function CourriersPage() {
                     </td>
                   )}
                   <td className="p-3 text-right">
-                    <DocumentViewerTrigger
-                      fileUrl={`/api/courriers/${item.id}`}
-                      downloadUrl={`/api/courriers/${item.id}?download=1`}
-                      fileName={item.fileName}
-                      fileMime={item.fileMime}
-                      title="Visualiser"
-                      className="rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
-                    >
-                      <Eye size={15} />
-                    </DocumentViewerTrigger>
+                    <div className="flex items-center justify-end gap-1">
+                      <DocumentViewerTrigger
+                        fileUrl={`/api/courriers/${item.id}`}
+                        downloadUrl={`/api/courriers/${item.id}?download=1`}
+                        fileName={item.fileName}
+                        fileMime={item.fileMime}
+                        title="Visualiser"
+                        className="rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                      >
+                        <Eye size={15} />
+                      </DocumentViewerTrigger>
+                      {isAdmin && (
+                        <TransmettreClientButton
+                          courrierId={item.id}
+                          fileName={item.fileName}
+                          fileMime={item.fileMime}
+                          currentType={item.type}
+                          detectedSociete={item.societe}
+                          transmission={(item.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
+                          compact
+                        />
+                      )}
+                    </div>
                   </td>
                 </tr>
               );

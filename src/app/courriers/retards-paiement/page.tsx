@@ -6,7 +6,7 @@ import AddRetardPaiementPanel from "./AddRetardPaiementPanel";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ClockAlert } from "lucide-react";
-import { getRetardPaiementData, resteAPayer } from "@/lib/courriers";
+import { getRetardPaiementData, resteAPayer, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtMoneyCents } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +26,7 @@ export default async function RetardsPaiementPage() {
   const items = await prisma.courrier.findMany({
     where: isAdmin ? { type: "retard_paiement" } : { societe, type: "retard_paiement" },
     orderBy: { receivedAt: "desc" },
+    select: COURRIER_LIST_SELECT,
   });
 
   return (

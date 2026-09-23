@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
-import { getClientEnvoiData } from "@/lib/courriers";
+import { getClientEnvoiData, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
 import { Download, Eye, Send } from "lucide-react";
 import { EnvoyerDocumentButton } from "./EnvoyerDocumentModal";
@@ -23,6 +23,7 @@ export default async function DocumentsEnvoyesPage() {
   const items = await prisma.courrier.findMany({
     where: { societe, source: "CLIENT" },
     orderBy: { receivedAt: "desc" },
+    select: COURRIER_LIST_SELECT,
   });
 
   return (

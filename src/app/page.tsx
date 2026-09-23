@@ -38,6 +38,7 @@ import {
   getRetardPaiementData,
   resteAPayer,
   getImmatriculation,
+  COURRIER_LIST_SELECT,
 } from "@/lib/courriers";
 
 export const dynamic = "force-dynamic";
@@ -140,11 +141,13 @@ export default async function DashboardPage({
   const courriers = await prisma.courrier.findMany({
     where,
     orderBy: { receivedAt: "desc" },
+    select: COURRIER_LIST_SELECT,
   });
   const recentScans = await prisma.emailScan.findMany({
     where,
     orderBy: { receivedAt: "desc" },
     take: 8,
+    select: { fileName: true, societe: true, receivedAt: true, processedAt: true, status: true },
   });
 
   const retardCourrierIds = courriers.filter((c) => c.type === "retard_paiement").map((c) => c.id);

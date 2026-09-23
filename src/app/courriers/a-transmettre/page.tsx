@@ -4,7 +4,7 @@ import { requireSociete, isAdminSession } from "@/lib/auth";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Send } from "lucide-react";
-import { courrierTypeLabel, getMiseEnDemeureData } from "@/lib/courriers";
+import { courrierTypeLabel, getMiseEnDemeureData, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { deriveTransmissionStatut } from "@/lib/transmission";
 import { fmtDateTime } from "@/lib/utils";
 
@@ -29,6 +29,7 @@ export default async function ATransmettrePage() {
     prisma.courrier.findMany({
       where: isAdmin ? {} : { societe },
       orderBy: { receivedAt: "desc" },
+      select: COURRIER_LIST_SELECT,
     }),
     prisma.societe.findMany({ select: { nom: true, emailTransmission: true } }),
   ]);

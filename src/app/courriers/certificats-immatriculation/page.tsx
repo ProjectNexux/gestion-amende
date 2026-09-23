@@ -7,7 +7,7 @@ import AddCertificatPanel from "./AddCertificatPanel";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getImmatriculation } from "@/lib/courriers";
+import { getImmatriculation, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +20,7 @@ export default async function CertificatsImmatriculationPage() {
     prisma.courrier.findMany({
       where: isAdmin ? { type: "certificat_immatriculation" } : { societe, type: "certificat_immatriculation" },
       orderBy: { receivedAt: "desc" },
+      select: COURRIER_LIST_SELECT,
     }),
     prisma.societe.findMany({ orderBy: { nom: "asc" }, select: { nom: true } }),
   ]);

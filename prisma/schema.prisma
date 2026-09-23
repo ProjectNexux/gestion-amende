@@ -236,6 +236,7 @@ model Contravention {
 
   @@unique([societe, numDossier])
   @@index([societe])
+  @@index([societe, visibleClient])
 }
 
 // Generic document model shared by all "Courriers" categories (certificats d'immatriculation today,
@@ -278,6 +279,11 @@ model Courrier {
   @@index([type])
   @@index([expiresAt])
   @@index([sinistreId])
+  // Perf: every list page filters by société + type together (e.g. "factures de X"), and the
+  // client portal always filters société + visibleClient together — compound indexes serve both
+  // patterns without needing the single-column indexes above once tables grow.
+  @@index([societe, type])
+  @@index([societe, visibleClient])
 }
 
 // A Sinistre is a *dossier* that can group several Courrier documents (unlike other Courrier
