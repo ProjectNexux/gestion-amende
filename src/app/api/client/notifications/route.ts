@@ -73,5 +73,5 @@ export async function GET() {
     })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
-  return NextResponse.json({ notifications });
+  return NextResponse.json({ notifications }, { headers: { "Cache-Control": "private, no-store" } });
 }

@@ -28,7 +28,7 @@ export async function GET() {
       orderBy: { receivedAt: "desc" },
     });
 
-    return NextResponse.json(items);
+    return NextResponse.json(items, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err) {
     console.error("[client-courriers]", err);
     return NextResponse.json(
