@@ -24,6 +24,9 @@
 
 html, body {
   height: 100%;
+  /* Prevent any wide table/card from silently forcing the whole page to scroll horizontally on
+     mobile — legitimate horizontal scrolling (e.g. wide tables) stays contained via .table-shell. */
+  overflow-x: hidden;
 }
 
 body {
@@ -141,7 +144,7 @@ textarea:focus-visible,
   }
 
   .table-shell {
-    @apply overflow-hidden rounded-[14px] border border-slate-200 bg-white shadow-card;
+    @apply overflow-x-auto overflow-y-hidden rounded-[14px] border border-slate-200 bg-white shadow-card;
   }
   .table-head {
     @apply bg-surface-panel text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500;
