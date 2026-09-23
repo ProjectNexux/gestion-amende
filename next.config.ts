@@ -11,9 +11,9 @@ const nextConfig: NextConfig = {
   // with "Setting up fake worker failed: Cannot find module '.../pdf.worker.mjs'" in production
   // (while working fine locally, where the full node_modules tree is always present).
   outputFileTracingIncludes: {
-    "/api/documents/import": ["./node_modules/pdfjs-dist/legacy/build/*.mjs"],
-    "/api/scan-email/process": ["./node_modules/pdfjs-dist/legacy/build/*.mjs"],
-    "/api/scan-email/poll": ["./node_modules/pdfjs-dist/legacy/build/*.mjs"],
+    "/api/documents/import": ["./node_modules/pdfjs-dist/legacy/build/*.mjs", "./node_modules/tesseract.js-core/*.wasm", "./node_modules/tesseract.js-core/*.wasm.js"],
+    "/api/scan-email/process": ["./node_modules/pdfjs-dist/legacy/build/*.mjs", "./node_modules/tesseract.js-core/*.wasm", "./node_modules/tesseract.js-core/*.wasm.js"],
+    "/api/scan-email/poll": ["./node_modules/pdfjs-dist/legacy/build/*.mjs", "./node_modules/tesseract.js-core/*.wasm", "./node_modules/tesseract.js-core/*.wasm.js"],
   },
   // Factures/Impôts moved out of "Courriers" into their own "Comptabilité" section.
   async redirects() {
