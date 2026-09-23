@@ -1,6 +1,7 @@
 import { loginAction } from "@/lib/auth";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
+import { PasswordField } from "@/components/ui/PasswordField";
 
 export const dynamic = "force-dynamic";
 
@@ -38,12 +39,12 @@ export default async function LoginPage({
 
         <form action={loginAction} className="space-y-4 rounded-[22px] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_48px_-24px_rgba(15,23,42,0.28)] backdrop-blur-sm">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Nom de la société</label>
-            <input name="nom" required placeholder="Ex: Transports Atlas" className="field" />
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Nom de la société ou e-mail</label>
+            <input name="nom" required placeholder="Ex: Transports Atlas ou vous@societe.fr" className="field" autoComplete="username" />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Code d&apos;accès</label>
-            <input name="code" type="password" required placeholder="••••••" className="field" />
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Code d&apos;accès ou mot de passe</label>
+            <PasswordField name="code" required placeholder="••••••" autoComplete="current-password" />
           </div>
           <button type="submit" className="btn-primary w-full py-2.5">
             Se connecter

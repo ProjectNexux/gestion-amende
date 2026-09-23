@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { isSetupTokenExpired } from "@/lib/societe-setup";
+import { PasswordField } from "@/components/ui/PasswordField";
 import { setOwnAccessCodeAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -50,11 +51,11 @@ export default async function ClientSetupPage({
         <form action={setOwnAccessCodeAction.bind(null, token)} className="space-y-4 card p-6">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Nouveau code d&apos;accès</label>
-            <input name="code" type="password" required minLength={6} placeholder="••••••" className="field" />
+            <PasswordField name="code" required minLength={6} placeholder="••••••" autoComplete="new-password" />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Confirmez le code d&apos;accès</label>
-            <input name="confirmation" type="password" required minLength={6} placeholder="••••••" className="field" />
+            <PasswordField name="confirmation" required minLength={6} placeholder="••••••" autoComplete="new-password" />
           </div>
           <button type="submit" className="btn-primary w-full py-2.5">
             Créer mon code d&apos;accès

@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { KeyRound, CheckCircle2 } from "lucide-react";
+import { PasswordField } from "@/components/ui/PasswordField";
 import { changerCodeAccesAction, type ChangerCodeState } from "./actions";
 
 const initialState: ChangerCodeState = { ok: false };
@@ -37,15 +38,15 @@ export function ChangerCodeAccesForm() {
       )}
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-slate-600">Code actuel</span>
-        <input type="password" name="codeActuel" required className="field" autoComplete="current-password" />
+        <PasswordField name="codeActuel" required autoComplete="current-password" />
       </label>
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-slate-600">Nouveau code (6 caractères minimum)</span>
-        <input type="password" name="nouveauCode" required minLength={6} className="field" autoComplete="new-password" />
+        <PasswordField name="nouveauCode" required minLength={6} autoComplete="new-password" />
       </label>
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-slate-600">Confirmer le nouveau code</span>
-        <input type="password" name="confirmation" required minLength={6} className="field" autoComplete="new-password" />
+        <PasswordField name="confirmation" required minLength={6} autoComplete="new-password" />
       </label>
       <div className="flex justify-end gap-2 pt-1">
         <button type="button" onClick={() => setOpen(false)} className="btn-secondary">Annuler</button>

@@ -2,19 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Send, X, Eye, CheckCircle2, RefreshCcw, XCircle, ArrowRightLeft } from "lucide-react";
+import { Send, X, Eye, CheckCircle2, RefreshCcw, XCircle, ArrowRightLeft, Users, Star, AlertTriangle } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { COURRIER_TYPES } from "@/lib/courriers";
 import {
   transmitCourrierToClientAction,
   retirerDuPortailClientAction,
+  resendFailedCourrierNotificationsAction,
   type TransmissionClientInfo,
 } from "@/app/courriers/actions";
 import {
   transmitContraventionToClientAction,
   retirerContraventionDuPortailClientAction,
+  resendFailedContraventionNotificationsAction,
 } from "@/app/contraventions/actions";
+
+type RecipientUser = { id: string; prenom: string; nom: string; email: string; isPrincipal: boolean };
 
 type Props = {
   /** "courrier" (défaut) relie un `Courrier`, "contravention" relie une `Contravention`. */
@@ -40,8 +44,9 @@ type Props = {
  *
  * Sécurité : l'accès réel côté client repose uniquement sur les colonnes serveur
  * `societe`+`visibleClient` (voir /api/client/courriers/[id]/document et
- * /api/client/contraventions/[id]/document) — `transmission` (data.transmissionClient) n'est
- * qu'un historique/affichage, jamais l'unique protection d'accès.
+ * /api/client/contraventions/[id]/document) — `transmission` (data.transmissionClient) ainsi que
+ * les destinataires de notification e-mail ci-dessous ne sont qu'un historique/affichage, jamais
+ * l'unique protection d'accès (PART 6).
  */
 export function TransmettreClientButton({ kind = "courrier", id, fileName, fileMime, currentType, detectedSociete, transmission, compact }: Props) {
   const router = useRouter();
@@ -54,6 +59,10 @@ export function TransmettreClientButton({ kind = "courrier", id, fileName, fileM
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [recipients, setRecipients] = useState<RecipientUser[] | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [notifyByEmail, setNotifyByEmail] = useState(true);
 
   useEffect(() => {
     if (!open || societes) return;
@@ -68,18 +77,50 @@ export function TransmettreClientButton({ kind = "courrier", id, fileName, fileM
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Recipient picker (PART 5): reloads the active-users list every time the target société
+  // changes, preselecting the contact principal.
+  useEffect(() => {
+    if (!open || !societe) return;
+    setRecipients(null);
+    fetch(`/api/admin/societes/${encodeURIComponent(societe)}/users`)
+      .then((r) => r.json())
+      .then((list: RecipientUser[]) => {
+        setRecipients(list);
+        setSelectedIds(new Set(list.filter((u) => u.isPrincipal).map((u) => u.id)));
+      })
+      .catch(() => setRecipients([]));
+  }, [open, societe]);
+
+  function toggleRecipient(userId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  }
+
+  function selectAllActive() {
+    setSelectedIds(new Set((recipients ?? []).map((u) => u.id)));
+  }
+
   async function confirmTransmission() {
     if (!societe) {
       setError("Choisissez une société destinataire.");
       return;
     }
+    if (notifyByEmail && selectedIds.size === 0) {
+      setError("Sélectionnez au moins un destinataire, ou décochez la notification par e-mail.");
+      return;
+    }
     setPending(true);
     setError(null);
     try {
+      const recipientUserIds = Array.from(selectedIds);
       if (kind === "contravention") {
-        await transmitContraventionToClientAction(id, societe, { titre: titre || undefined, message: message || undefined });
+        await transmitContraventionToClientAction(id, societe, { titre: titre || undefined, message: message || undefined, recipientUserIds, notifyByEmail });
       } else {
-        await transmitCourrierToClientAction(id, societe, { type, titre: titre || undefined, message: message || undefined });
+        await transmitCourrierToClientAction(id, societe, { type, titre: titre || undefined, message: message || undefined, recipientUserIds, notifyByEmail });
       }
       setOpen(false);
       setChangingDestinataire(false);
@@ -103,11 +144,23 @@ export function TransmettreClientButton({ kind = "courrier", id, fileName, fileM
     }
   }
 
+  async function handleResendFailed() {
+    setPending(true);
+    try {
+      if (kind === "contravention") await resendFailedContraventionNotificationsAction(id);
+      else await resendFailedCourrierNotificationsAction(id);
+      router.refresh();
+    } finally {
+      setPending(false);
+    }
+  }
+
   const triggerClass = compact
     ? "inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
     : "btn-secondary text-xs";
 
   const canPreview = kind === "courrier" && !!fileName && !!fileMime;
+  const failedNotifications = transmission?.notifications?.filter((n) => n.status === "echec") ?? [];
 
   return (
     <>
@@ -130,6 +183,30 @@ export function TransmettreClientButton({ kind = "courrier", id, fileName, fileM
                     <div className="flex justify-between"><dt>Statut de consultation</dt><dd>{transmission.statutConsultation}</dd></div>
                   </dl>
                 </div>
+
+                {transmission.notifications && transmission.notifications.length > 0 && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">
+                    <p className="mb-1.5 flex items-center gap-1.5 font-medium text-slate-700"><Users size={13} /> Notifications e-mail</p>
+                    <ul className="space-y-1">
+                      {transmission.notifications.map((n) => (
+                        <li key={n.userId} className="flex items-center justify-between">
+                          <span>{n.prenom} {n.nom} <span className="text-slate-400">({n.email})</span></span>
+                          {n.status === "envoye" ? (
+                            <span className="text-emerald-600">Envoyé</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-rose-600"><AlertTriangle size={11} /> Échec</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {failedNotifications.length > 0 && (
+                      <button type="button" onClick={handleResendFailed} disabled={pending} className="btn-secondary mt-2 text-xs disabled:opacity-50">
+                        <RefreshCcw size={12} /> Renvoyer aux destinataires en échec
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {canPreview && (
                   <DocumentViewerTrigger
                     fileUrl={`/api/courriers/${id}`}
@@ -203,6 +280,44 @@ export function TransmettreClientButton({ kind = "courrier", id, fileName, fileM
                   <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} className="field text-sm" />
                 </label>
 
+                {societe && (
+                  <div className="rounded-lg border border-slate-200 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-slate-600"><Users size={13} /> Destinataires (utilisateurs actifs)</span>
+                      {(recipients?.length ?? 0) > 0 && (
+                        <button type="button" onClick={selectAllActive} className="text-xs font-medium text-brand-600 hover:underline">
+                          Sélectionner tous les utilisateurs actifs
+                        </button>
+                      )}
+                    </div>
+                    {recipients === null ? (
+                      <p className="text-xs text-slate-400">Chargement…</p>
+                    ) : recipients.length === 0 ? (
+                      <p className="text-xs text-slate-500">Aucun utilisateur actif pour cette société — la transmission au portail reste possible sans notification e-mail.</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {recipients.map((u) => (
+                          <li key={u.id} className="flex items-center gap-2 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(u.id)}
+                              onChange={() => toggleRecipient(u.id)}
+                              disabled={!notifyByEmail}
+                              className="h-3.5 w-3.5 rounded border-slate-300"
+                            />
+                            <span className="min-w-0 flex-1 truncate">{u.prenom} {u.nom} <span className="text-slate-400">({u.email})</span></span>
+                            {u.isPrincipal && <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold uppercase text-amber-600"><Star size={10} fill="currentColor" /> Principal</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <label className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-2 text-xs text-slate-700">
+                      <input type="checkbox" checked={notifyByEmail} onChange={(e) => setNotifyByEmail(e.target.checked)} className="h-3.5 w-3.5 rounded border-slate-300" />
+                      Notifier par e-mail les destinataires sélectionnés
+                    </label>
+                  </div>
+                )}
+
                 <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
                   <button type="button" onClick={() => { setOpen(false); setChangingDestinataire(false); }} className="btn-secondary text-xs">
                     <X size={13} /> Annuler
@@ -219,3 +334,4 @@ export function TransmettreClientButton({ kind = "courrier", id, fileName, fileM
     </>
   );
 }
+

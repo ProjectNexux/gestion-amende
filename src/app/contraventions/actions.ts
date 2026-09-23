@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
+import { sendTransmissionNotifications } from "@/app/courriers/actions";
 
 function getStr(fd: FormData, k: string) {
   const v = fd.get(k);
@@ -183,7 +184,7 @@ export async function toggleVisibleClientAction(id: string, next: boolean) {
 export async function transmitContraventionToClientAction(
   contraventionId: string,
   targetSociete: string,
-  opts: { titre?: string; message?: string } = {}
+  opts: { titre?: string; message?: string; recipientUserIds?: string[]; notifyByEmail?: boolean } = {}
 ) {
   const isAdmin = await isAdminSession();
   if (!isAdmin) notFound();
@@ -191,23 +192,30 @@ export async function transmitContraventionToClientAction(
   const societeExists = await prisma.societe.findUnique({ where: { nom: targetSociete } });
   if (!societeExists) throw new Error("Société introuvable.");
 
-  const existing = await prisma.contravention.findUnique({ where: { id: contraventionId }, select: { transmissionClient: true, visibleClient: true } });
+  const existing = await prisma.contravention.findUnique({ where: { id: contraventionId }, select: { transmissionClient: true, visibleClient: true, numDossier: true } });
   if (!existing) notFound();
 
   const existingTransmission = existing.transmissionClient as TransmissionClientInfo | null;
   const alreadySameTarget = existingTransmission?.societe === targetSociete && existing.visibleClient;
   const historique = existingTransmission?.historique ?? [];
+  const titre = opts.titre ?? existingTransmission?.titre ?? existing.numDossier;
+
+  const notifications =
+    opts.notifyByEmail && opts.recipientUserIds?.length
+      ? await sendTransmissionNotifications(opts.recipientUserIds, targetSociete, titre, opts.message ?? undefined)
+      : [];
 
   const transmissionClient: TransmissionClientInfo = {
     societe: targetSociete,
     transmisAt: new Date().toISOString(),
     transmisPar: "Admin",
-    titre: opts.titre ?? existingTransmission?.titre ?? null,
+    titre,
     message: opts.message ?? existingTransmission?.message ?? null,
     statutConsultation: alreadySameTarget ? existingTransmission!.statutConsultation : "Non consulté",
     historique: alreadySameTarget
       ? historique
       : [...historique, { date: new Date().toISOString(), action: `Transmis à ${targetSociete}` }],
+    notifications: notifications.length > 0 ? notifications : existingTransmission?.notifications,
   };
 
   await prisma.contravention.update({
@@ -219,6 +227,30 @@ export async function transmitContraventionToClientAction(
   revalidatePath(`/contraventions/${contraventionId}`);
   revalidatePath("/client");
   revalidatePath("/client/contraventions");
+}
+
+export async function resendFailedContraventionNotificationsAction(contraventionId: string) {
+  const isAdmin = await isAdminSession();
+  if (!isAdmin) notFound();
+
+  const existing = await prisma.contravention.findUnique({ where: { id: contraventionId }, select: { transmissionClient: true, societe: true } });
+  if (!existing) notFound();
+  const existingTransmission = existing.transmissionClient as TransmissionClientInfo | null;
+  if (!existingTransmission?.notifications) return;
+
+  const failedIds = existingTransmission.notifications.filter((n) => n.status === "echec").map((n) => n.userId);
+  if (failedIds.length === 0) return;
+
+  const retried = await sendTransmissionNotifications(failedIds, existing.societe, existingTransmission.titre ?? "Contravention", existingTransmission.message ?? undefined);
+  const retriedIds = new Set(retried.map((r) => r.userId));
+  const notifications = [...existingTransmission.notifications.filter((n) => !retriedIds.has(n.userId)), ...retried];
+
+  await prisma.contravention.update({
+    where: { id: contraventionId },
+    data: { transmissionClient: { ...existingTransmission, notifications } as unknown as Prisma.InputJsonValue },
+  });
+  revalidatePath("/contraventions");
+  revalidatePath(`/contraventions/${contraventionId}`);
 }
 
 export async function retirerContraventionDuPortailClientAction(contraventionId: string) {

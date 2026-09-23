@@ -4,6 +4,7 @@ import Link from "next/link";
 import { isAdminSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { buildSetupUrl, isSetupTokenExpired } from "@/lib/societe-setup";
+import { PasswordField } from "@/components/ui/PasswordField";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export default async function AdminSocietesPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <input name="nom" required placeholder="Nom de la société" className="field" />
-          <input name="codeAcces" placeholder="Code d'accès (facultatif)" className="field" />
+          <PasswordField name="codeAcces" placeholder="Code d'accès (facultatif)" autoComplete="new-password" />
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="max-w-xl text-xs leading-5 text-slate-500">

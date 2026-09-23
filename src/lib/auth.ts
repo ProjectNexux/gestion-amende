@@ -3,6 +3,7 @@
 import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { verifyPassword } from "@/lib/password";
 
 const ADMIN_SOCIETE = process.env.ADMIN_SOCIETE ?? "Mon espace";
 const ADMIN_CODE = process.env.ADMIN_CODE ?? "admin123";
@@ -114,6 +115,32 @@ export async function loginAction(fd: FormData) {
 
   const jar = await cookies();
   const ip = await getClientIp();
+
+  // Individual user login (2026-09-23): "société ou e-mail" field containing "@" is treated as an
+  // individual user's own e-mail + password — additive, coexists with the legacy société+codeAcces
+  // path below (never removed, never auto-migrated). See PART 7 compatibility notes.
+  if (nom.includes("@")) {
+    const user = await prisma.user.findUnique({ where: { email: nom }, include: { societe: true } });
+    const valid = !!user && !!user.passwordHash && user.isActive && !user.societe.archivedAt && !user.societe.disabledAt && verifyPassword(code, user.passwordHash);
+    if (!valid) {
+      await registerFailedLogin(nom);
+      redirect("/login?error=1");
+    }
+    clearFailedLogins(nom, ip);
+    const now = new Date();
+    await prisma.user.update({ where: { id: user!.id }, data: { lastLoginAt: now } });
+    if (!user!.societe.activatedAt) {
+      await prisma.societe.update({ where: { id: user!.societeId }, data: { activatedAt: now } });
+      await prisma.societeAudit.create({ data: { societeId: user!.societeId, action: "compte_active", details: "Première connexion (compte individuel)", acteur: `${user!.prenom} ${user!.nom}` } }).catch(() => {});
+    }
+    await prisma.societeAudit.create({ data: { societeId: user!.societeId, action: "connexion", acteur: `${user!.prenom} ${user!.nom}` } }).catch(() => {});
+
+    const cookieOpts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 60 * 60 * 24 * 30 };
+    jar.set("societe", user!.societe.nom, cookieOpts);
+    jar.set("role", user!.role === "admin" ? "admin" : "client", cookieOpts);
+    jar.set("userId", user!.id, cookieOpts);
+    redirect(user!.role === "admin" ? "/" : "/client");
+  }
 
   const isAdminLogin = nom === ADMIN_SOCIETE && code === ADMIN_CODE;
   if (isAdminLogin) {

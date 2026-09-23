@@ -7,6 +7,7 @@ import { isAdminSession } from "@/lib/auth";
 import { generateSetupToken, setupTokenExpiryDate, generatePlaceholderCodeAcces, buildSetupUrl, isSetupTokenExpired } from "@/lib/societe-setup";
 import { normalizeSiret, isValidSiret } from "@/lib/siret";
 import { sendClientInvitationEmail } from "@/lib/client-invitation-email";
+import { sendUserInvitationEmail } from "@/lib/user-invitation-email";
 
 const LIST_PATH = "/admin/clients";
 
@@ -340,3 +341,139 @@ export async function deleteClientAction(id: string) {
   revalidatePath(LIST_PATH);
   redirect(LIST_PATH);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Multi-user client accounts (2026-09-23) — several named people per société, each with their
+// own hashed password, additive alongside the legacy société-wide `codeAcces` (see PART 7).
+// ---------------------------------------------------------------------------------------------
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export type AddUserState = { error?: string; ok?: boolean };
+
+/** Adds a new named user to a société and immediately sends their invitation e-mail. */
+export async function addClientUserAction(societeId: string, _prev: AddUserState, fd: FormData): Promise<AddUserState> {
+  await requireAdmin();
+  const prenom = str(fd, "prenom");
+  const nom = str(fd, "nom");
+  const email = str(fd, "email")?.toLowerCase() ?? null;
+  const isPrincipal = fd.get("isPrincipal") === "on";
+
+  if (!prenom || !nom) return { error: "Prénom et nom requis." };
+  if (!email || !EMAIL_RE.test(email)) return { error: "Adresse e-mail invalide." };
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) return { error: "Cette adresse e-mail est déjà utilisée par un autre compte." };
+
+  const societe = await prisma.societe.findUnique({ where: { id: societeId } });
+  if (!societe) return { error: "Société introuvable." };
+
+  if (isPrincipal) {
+    await prisma.user.updateMany({ where: { societeId, isPrincipal: true }, data: { isPrincipal: false } });
+  }
+
+  const token = generateSetupToken();
+  const user = await prisma.user.create({
+    data: {
+      societeId,
+      prenom,
+      nom,
+      email,
+      role: "client",
+      isActive: true,
+      isPrincipal,
+      invitationToken: token,
+      invitationExpiresAt: setupTokenExpiryDate(),
+      invitedAt: new Date(),
+    },
+  });
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://gestion-amende.vercel.app";
+  const setupUrl = buildSetupUrl(appUrl, token).replace("/client-setup/", "/user-setup/");
+
+  try {
+    await sendUserInvitationEmail({ to: email, societeName: societe.nom, setupUrl, prenom });
+    await audit(societeId, "utilisateur_invite", `Invitation envoyée à ${prenom} ${nom} (${email})`);
+  } catch (e) {
+    // Invitation row is kept (never a fake success) — the admin can retry via "Renvoyer l'invitation".
+    const msg = e instanceof Error ? e.message : String(e);
+    await audit(societeId, "utilisateur_invite", `Compte créé mais échec d'envoi pour ${email} : ${msg}`);
+    revalidatePath(`${LIST_PATH}/${societeId}`);
+    return { error: `Compte créé, mais l'envoi de l'invitation a échoué : ${msg}. Vous pouvez la renvoyer depuis la liste.`, ok: true };
+  }
+
+  revalidatePath(`${LIST_PATH}/${societeId}`);
+  return { ok: true };
+}
+
+export async function updateClientUserAction(userId: string, fd: FormData) {
+  await requireAdmin();
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) notFound();
+
+  const prenom = str(fd, "prenom") ?? user.prenom;
+  const nom = str(fd, "nom") ?? user.nom;
+  const email = str(fd, "email")?.toLowerCase() ?? user.email;
+
+  if (email && email !== user.email) {
+    if (!EMAIL_RE.test(email)) throw new Error("Adresse e-mail invalide.");
+    const dup = await prisma.user.findUnique({ where: { email } });
+    if (dup && dup.id !== userId) throw new Error("Cette adresse e-mail est déjà utilisée par un autre compte.");
+  }
+
+  await prisma.user.update({ where: { id: userId }, data: { prenom, nom, email } });
+  await audit(user.societeId, "utilisateur_modifie", `Informations mises à jour pour ${prenom} ${nom}`);
+  revalidatePath(`${LIST_PATH}/${user.societeId}`);
+}
+
+/** Exactly one contact principal per société. */
+export async function setPrincipalUserAction(userId: string) {
+  await requireAdmin();
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) notFound();
+  await prisma.user.updateMany({ where: { societeId: user.societeId, isPrincipal: true }, data: { isPrincipal: false } });
+  await prisma.user.update({ where: { id: userId }, data: { isPrincipal: true } });
+  await audit(user.societeId, "contact_principal_defini", `${user.prenom} ${user.nom} défini comme contact principal`);
+  revalidatePath(`${LIST_PATH}/${user.societeId}`);
+}
+
+async function sendUserInvitationOrReset(userId: string, isReset: boolean) {
+  await requireAdmin();
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { societe: true } });
+  if (!user) notFound();
+  if (!user.email) throw new Error("Aucune adresse e-mail pour ce compte.");
+
+  const token = generateSetupToken();
+  await prisma.user.update({
+    where: { id: userId },
+    data: { invitationToken: token, invitationExpiresAt: setupTokenExpiryDate() },
+  });
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://gestion-amende.vercel.app";
+  const setupUrl = buildSetupUrl(appUrl, token).replace("/client-setup/", "/user-setup/");
+
+  try {
+    await sendUserInvitationEmail({ to: user.email, societeName: user.societe.nom, setupUrl, prenom: user.prenom, isReset });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await audit(user.societeId, "utilisateur_invite", `Échec d'envoi (${isReset ? "réinitialisation" : "invitation"}) pour ${user.email} : ${msg}`);
+    throw new Error(`Échec de l'envoi : ${msg}`);
+  }
+
+  if (!isReset) await prisma.user.update({ where: { id: userId }, data: { invitedAt: new Date() } });
+  await audit(user.societeId, "utilisateur_invite", `${isReset ? "Réinitialisation" : "Invitation"} envoyée à ${user.email}`);
+  revalidatePath(`${LIST_PATH}/${user.societeId}`);
+}
+
+/** Used both for the very first invitation and for "Renvoyer l'invitation" (same action, always
+ * regenerates a fresh token so an expired link never gets silently resent unusable). */
+export async function sendUserInvitationAction(userId: string) {
+  await sendUserInvitationOrReset(userId, false);
+}
+
+/** A password reset is only meaningful once the user already has one set — otherwise it's just
+ * the initial invitation (see sendUserInvitationAction). */
+export async function sendUserPasswordResetAction(userId: string) {
+  await sendUserInvitationOrReset(userId, true);
+}
+

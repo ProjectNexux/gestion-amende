@@ -206,6 +206,10 @@ export default async function ClientDetailPage({
             email: u.email,
             telephone: u.telephone,
             isActive: u.isActive,
+            isPrincipal: u.isPrincipal,
+            hasPassword: !!u.passwordHash,
+            invitationPending: !!u.invitationToken && !isSetupTokenExpired(u.invitationExpiresAt),
+            invitedAt: u.invitedAt?.toISOString() ?? null,
             lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
             createdAt: u.createdAt.toISOString(),
           }))}
