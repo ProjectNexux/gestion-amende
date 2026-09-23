@@ -44,6 +44,8 @@ export async function envoyerDocumentAction(_prev: EnvoyerDocumentState, formDat
         typeDocument: str(formData, "typeDocument"),
         message: str(formData, "message"),
         reference: str(formData, "reference"),
+        relatedContraventionId: str(formData, "relatedContraventionId"),
+        relatedCourrierId: str(formData, "relatedCourrierId"),
         statut: "Nouveau",
         envoyeAt: new Date().toISOString(),
       },
@@ -57,6 +59,8 @@ export async function envoyerDocumentAction(_prev: EnvoyerDocumentState, formDat
   revalidatePath("/client/documents-envoyes");
   revalidatePath("/courriers/clients");
   revalidatePath("/");
+  const relatedContraventionId = str(formData, "relatedContraventionId");
+  if (relatedContraventionId) revalidatePath(`/client/contraventions/${relatedContraventionId}`);
 
   return { ok: true };
 }

@@ -46,7 +46,7 @@ export default async function DocumentsEnvoyesPage() {
               <tr>
                 <th className="p-3 text-left">Titre / objet</th>
                 <th className="p-3 text-left">Type</th>
-                <th className="p-3 text-left">Référence</th>
+                <th className="p-3 text-left">Dossier associé</th>
                 <th className="p-3 text-left">Envoyé le</th>
                 <th className="p-3 text-left">Statut</th>
                 <th className="p-3 text-right">Actions</th>

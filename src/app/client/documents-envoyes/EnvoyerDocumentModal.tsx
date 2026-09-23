@@ -7,7 +7,9 @@ import { envoyerDocumentAction, type EnvoyerDocumentState } from "./actions";
 
 const initialState: EnvoyerDocumentState = { ok: false };
 
-export function EnvoyerDocumentButton() {
+export type EnvoiContext = { contraventionId?: string; courrierId?: string; dossierLabel: string };
+
+export function EnvoyerDocumentButton({ context, label, className }: { context?: EnvoiContext; label?: string; className?: string }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -15,16 +17,16 @@ export function EnvoyerDocumentButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700"
+        className={className ?? "inline-flex items-center gap-2 rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700"}
       >
-        <Send size={15} /> Envoyer un document
+        <Send size={15} /> {label ?? "Envoyer un document"}
       </button>
-      {open && <EnvoyerDocumentModal onClose={() => setOpen(false)} />}
+      {open && <EnvoyerDocumentModal onClose={() => setOpen(false)} context={context} />}
     </>
   );
 }
 
-function EnvoyerDocumentModal({ onClose }: { onClose: () => void }) {
+function EnvoyerDocumentModal({ onClose, context }: { onClose: () => void; context?: EnvoiContext }) {
   const [state, formAction, pending] = useActionState(envoyerDocumentAction, initialState);
   const [fileName, setFileName] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -51,15 +53,17 @@ function EnvoyerDocumentModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal open onClose={onClose} title="Envoyer un document">
+    <Modal open onClose={onClose} title={context ? "Ajouter un justificatif" : "Envoyer un document"}>
       <form ref={formRef} action={formAction} className="space-y-4 p-5">
         {state.error && (
           <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{state.error}</div>
         )}
+        {context?.contraventionId && <input type="hidden" name="relatedContraventionId" value={context.contraventionId} />}
+        {context?.courrierId && <input type="hidden" name="relatedCourrierId" value={context.courrierId} />}
 
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-slate-600">Titre / objet *</span>
-          <input id="titre" name="titre" required className="field" placeholder="Ex : Justificatif de paiement" />
+          <input id="titre" name="titre" required defaultValue={context ? `Justificatif — ${context.dossierLabel}` : undefined} className="field" placeholder="Ex : Justificatif de paiement" />
         </label>
 
         <div className="grid grid-cols-2 gap-3">
@@ -68,8 +72,8 @@ function EnvoyerDocumentModal({ onClose }: { onClose: () => void }) {
             <input id="typeDocument" name="typeDocument" className="field" placeholder="Ex : Facture, courrier..." />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-600">Référence</span>
-            <input id="reference" name="reference" className="field" placeholder="Optionnel" />
+            <span className="mb-1 block text-xs font-medium text-slate-600">Dossier associé</span>
+            <input id="reference" name="reference" defaultValue={context?.dossierLabel} className="field" placeholder="Optionnel" />
           </label>
         </div>
 

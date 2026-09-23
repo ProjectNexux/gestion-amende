@@ -24,7 +24,7 @@ export default async function ClientLayout({ children }: { children: React.React
   const impersonating = (await cookies()).get("impersonatingFrom")?.value ?? null;
 
   return (
-    <div className="flex min-h-screen bg-[#F7F8FC]">
+    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top,_rgba(20,184,166,0.07),_transparent_38%),_#F6FAF9]">
       <ClientSidebar societe={societe} sections={CLIENT_NAV_SECTIONS} />
 
       <div className="min-w-0 flex-1">
@@ -38,10 +38,10 @@ export default async function ClientLayout({ children }: { children: React.React
             </form>
           </div>
         )}
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white px-8 py-4">
+        <header className="flex items-center justify-between border-b border-teal-100 bg-white/90 px-8 py-4 backdrop-blur-sm">
           <div>
-            <h1 className="text-lg font-semibold text-slate-900">Espace client</h1>
-            <p className="text-xs text-slate-500">{societe}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-teal-600">Portail société</p>
+            <h1 className="text-lg font-semibold text-slate-900">{societe}</h1>
           </div>
           <div className="flex items-center gap-3">
             <NotificationBell />

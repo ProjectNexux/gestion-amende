@@ -5,24 +5,27 @@ export type ClientNavSection = { label?: string; items: ClientNavItem[] };
 
 // Icon components are resolved client-side (see ClientSidebar.tsx) from this string key so this
 // config can stay a plain, server-renderable data structure.
+// Refonte espace client (2026-09-23): nouvelle arborescence demandée — Tableau de bord / Mes
+// documents / Mes contraventions / Documents envoyés / Favoris / Assistance et guide / Mon profil.
+// Aucun outil réservé à l'administrateur n'apparaît jamais ici (routes /admin/* volontairement
+// absentes, en plus du blocage serveur déjà appliqué par middleware.ts).
 export const CLIENT_NAV_SECTIONS: ClientNavSection[] = [
   { items: [{ href: "/client", label: "Tableau de bord", icon: "LayoutDashboard" }] },
   {
     label: "Documents",
     items: [
-      { href: "/client/courriers", label: "Documents reçus", icon: "Mail" },
-      { href: "/client/contraventions", label: "Contraventions", icon: "FileWarning" },
+      { href: "/client/courriers", label: "Mes documents", icon: "FolderOpen" },
+      { href: "/client/contraventions", label: "Mes contraventions", icon: "FileWarning" },
       { href: "/client/documents-envoyes", label: "Documents envoyés", icon: "Send" },
+      { href: "/client/favoris", label: "Favoris", icon: "Star" },
     ],
   },
   {
-    label: "Assistance",
-    // Contact déjà configuré dans l'app (mailto) — pas de fausse messagerie tant qu'aucune
-    // vraie interface de messagerie n'existe.
-    items: [{ href: "mailto:contact@gestion-amendes.local", label: "Assistance", icon: "LifeBuoy" }],
+    label: "Aide",
+    items: [{ href: "/client/aide", label: "Assistance et guide", icon: "LifeBuoy" }],
   },
   {
     label: "Mon espace",
-    items: [{ href: "/client/profil", label: "Mon compte", icon: "UserCircle" }],
+    items: [{ href: "/client/profil", label: "Mon profil", icon: "UserCircle" }],
   },
 ];

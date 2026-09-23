@@ -82,7 +82,20 @@ model SocieteAudit {
 
   @@index([societeId, createdAt])
 }
+// Espace client (2026-09-23): favoris — un client peut marquer un Courrier ou une Contravention
+// comme favori depuis son portail. Polymorphe (itemType/itemId) plutôt que deux tables séparées
+// pour rester générique si d'autres types de documents deviennent favorisables plus tard.
+// Toujours scopé par société (jamais par utilisateur) : "société" = le compte connecté.
+model Favori {
+  id        String   @id @default(cuid())
+  societe   String
+  itemType  String // "courrier" | "contravention"
+  itemId    String
+  createdAt DateTime @default(now())
 
+  @@unique([societe, itemType, itemId])
+  @@index([societe])
+}
 model User {
   id        String   @id @default(cuid())
   societeId String
@@ -154,6 +167,14 @@ model Conducteur {
   cniVersoNom       String?
   cniVersoMime      String?
   cniVersoData      Bytes?
+  // Permis de conduire (distinct de la CNI ci-dessus) — ajouté pour l'espace client (2026-09-23),
+  // uploadable par le client lui-même depuis la fiche contravention.
+  permisRectoNom    String?
+  permisRectoMime   String?
+  permisRectoData   Bytes?
+  permisVersoNom    String?
+  permisVersoMime   String?
+  permisVersoData   Bytes?
   dateObtention     String?
   categoriesPermis  String?
   dateEmbauche      String?

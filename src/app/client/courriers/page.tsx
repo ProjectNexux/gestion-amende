@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, Fragment } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Badge } from "@/components/ui/Badge";
+import { Badge, documentTypeTone } from "@/components/ui/Badge";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { courrierTypeLabel } from "@/lib/courriers";
-import { Download, Eye, Mail, CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { toggleFavoriAction } from "../actions";
+import { EnvoyerDocumentButton } from "../documents-envoyes/EnvoyerDocumentModal";
+import { Download, Eye, Search, CheckCircle2, Circle, Loader2, Star, Paperclip, History, ChevronDown, FolderOpen } from "lucide-react";
 import { fmtDateTime } from "@/lib/utils";
 
 type Courrier = {
@@ -17,20 +19,33 @@ type Courrier = {
   fileSize: number;
   receivedAt: string;
   data?: Record<string, unknown>;
+  isFavori: boolean;
+  pieceJointesAjoutees: { date: string }[];
 };
 
-export default function ClientCourriersPage() {
+const DATE_RANGES = [
+  { key: "all", label: "Toutes les dates" },
+  { key: "7", label: "7 derniers jours" },
+  { key: "30", label: "30 derniers jours" },
+  { key: "older", label: "Plus de 30 jours" },
+] as const;
+
+export default function ClientDocumentsPage() {
   const [items, setItems] = useState<Courrier[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [filterRead, setFilterRead] = useState<"all" | "unread" | "read">("all");
   const [filterType, setFilterType] = useState("all");
-  const [markingRead, setMarkingRead] = useState<Record<string, boolean>>({});
+  const [filterDate, setFilterDate] = useState<(typeof DATE_RANGES)[number]["key"]>("all");
+  const [onlyFavoris, setOnlyFavoris] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    fetchCourriers();
+    fetchDocuments();
   }, []);
 
-  const fetchCourriers = async () => {
+  const fetchDocuments = async () => {
     try {
       const res = await fetch("/api/client/courriers");
       if (!res.ok) throw new Error("Failed to fetch");
@@ -44,122 +59,132 @@ export default function ClientCourriersPage() {
     }
   };
 
-  const handleMarkRead = async (id: string, isRead: boolean) => {
-    setMarkingRead((p) => ({ ...p, [id]: true }));
+  const withBusy = async (id: string, fn: () => Promise<void>) => {
+    setBusy((p) => ({ ...p, [id]: true }));
     try {
+      await fn();
+    } finally {
+      setBusy((p) => ({ ...p, [id]: false }));
+    }
+  };
+
+  const handleMarkRead = (id: string, isRead: boolean) =>
+    withBusy(id, async () => {
       const res = await fetch(`/api/client/courriers/${id}/read`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isRead }),
       });
-      if (!res.ok) throw new Error("Failed to update");
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                data: { ...(item.data || {}), isRead, lastReadAt: new Date().toISOString() },
-              }
-            : item
-        )
-      );
-    } catch (err) {
-      console.error("Error:", err);
-    } finally {
-      setMarkingRead((p) => ({ ...p, [id]: false }));
-    }
-  };
+      if (!res.ok) return;
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, data: { ...(item.data || {}), isRead, lastReadAt: new Date().toISOString() } } : item)));
+    });
 
-  const uniqueTypes = Array.from(new Set(items.map((i) => i.type)));
+  const handleToggleFavori = (id: string, next: boolean) =>
+    withBusy(id, async () => {
+      await toggleFavoriAction("courrier", id, next);
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, isFavori: next } : item)));
+    });
+
+  const uniqueTypes = useMemo(() => Array.from(new Set(items.map((i) => i.type))), [items]);
+
   const filteredItems = items.filter((item) => {
-    const isRead = (item.data as any)?.isRead === true;
+    const isRead = (item.data as { isRead?: boolean } | undefined)?.isRead === true;
     if (filterRead === "unread" && isRead) return false;
     if (filterRead === "read" && !isRead) return false;
     if (filterType !== "all" && item.type !== filterType) return false;
+    if (onlyFavoris && !item.isFavori) return false;
+    if (search && !item.fileName.toLowerCase().includes(search.toLowerCase()) && !courrierTypeLabel(item.type).toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterDate !== "all") {
+      const ageDays = (Date.now() - new Date(item.receivedAt).getTime()) / 86400000;
+      if (filterDate === "7" && ageDays > 7) return false;
+      if (filterDate === "30" && ageDays > 30) return false;
+      if (filterDate === "older" && ageDays <= 30) return false;
+    }
     return true;
   });
 
   return (
     <div className="space-y-6">
-      <PageHeader 
-        title="Mes courriers" 
-        description={`${filteredItems.length} document(s) partagé(s) par notre équipe`} 
+      <PageHeader
+        title="Mes documents"
+        description={`${items.length} document(s) partagé(s) par notre équipe — contraventions, mises en demeure, URSSAF, retards de paiement, sinistres, certificats, factures, impôts et autres courriers.`}
       />
 
-      {/* Filters */}
       {!loading && items.length > 0 && (
-        <div className="flex flex-wrap gap-3 bg-white rounded-lg p-4 shadow-sm">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFilterRead("all")}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                filterRead === "all"
-                  ? "bg-brand-600 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              Tous ({items.length})
-            </button>
-            <button
-              onClick={() => setFilterRead("unread")}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                filterRead === "unread"
-                  ? "bg-brand-600 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              Non lus ({items.filter((i) => !(i.data as any)?.isRead).length})
-            </button>
-            <button
-              onClick={() => setFilterRead("read")}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                filterRead === "read"
-                  ? "bg-brand-600 text-white"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-              }`}
-            >
-              Lus ({items.filter((i) => (i.data as any)?.isRead).length})
-            </button>
-          </div>
-
-          {uniqueTypes.length > 1 && (
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white"
-            >
-              <option value="all">Tous les types</option>
-              {uniqueTypes.map((type) => (
-                <option key={type} value={type}>
-                  {courrierTypeLabel(type)}
-                </option>
+        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher un document…"
+                className="field w-full pl-8 text-sm"
+              />
+            </div>
+            {uniqueTypes.length > 1 && (
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="field w-auto text-sm">
+                <option value="all">Toutes les catégories</option>
+                {uniqueTypes.map((type) => (
+                  <option key={type} value={type}>{courrierTypeLabel(type)}</option>
+                ))}
+              </select>
+            )}
+            <select value={filterDate} onChange={(e) => setFilterDate(e.target.value as typeof filterDate)} className="field w-auto text-sm">
+              {DATE_RANGES.map((r) => (
+                <option key={r.key} value={r.key}>{r.label}</option>
               ))}
             </select>
-          )}
+            <button
+              type="button"
+              onClick={() => setOnlyFavoris((v) => !v)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                onlyFavoris ? "border-amber-300 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              <Star size={13} className={onlyFavoris ? "fill-amber-400 text-amber-500" : ""} /> Favoris
+            </button>
+          </div>
+          <div className="flex gap-2">
+            {(
+              [
+                { key: "all", label: `Tous (${items.length})` },
+                { key: "unread", label: `Non lus (${items.filter((i) => !(i.data as { isRead?: boolean } | undefined)?.isRead).length})` },
+                { key: "read", label: `Lus (${items.filter((i) => (i.data as { isRead?: boolean } | undefined)?.isRead).length})` },
+              ] as const
+            ).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilterRead(f.key)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                  filterRead === f.key ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
       {loading ? (
         <div className="flex items-center justify-center p-12">
-          <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
+          <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
         </div>
       ) : filteredItems.length === 0 ? (
         <EmptyState
-          icon={Mail}
-          title="Aucun courrier à afficher"
-          description={
-            items.length > 0
-              ? "Aucun document ne correspond à vos critères de filtre."
-              : "Les documents que notre équipe partage avec vous apparaîtront ici."
-          }
+          icon={FolderOpen}
+          title="Aucun document à afficher"
+          description={items.length > 0 ? "Aucun document ne correspond à vos critères de filtre." : "Les documents que notre équipe partage avec vous apparaîtront ici."}
         />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
-                <th className="p-3 text-left w-8"></th>
-                <th className="p-3 text-left">Type</th>
+                <th className="w-8 p-3 text-left"></th>
+                <th className="w-8 p-3 text-left"></th>
+                <th className="p-3 text-left">Catégorie</th>
                 <th className="p-3 text-left">Nom du fichier</th>
                 <th className="p-3 text-left">Reçu le</th>
                 <th className="p-3 text-right">Actions</th>
@@ -167,61 +192,85 @@ export default function ClientCourriersPage() {
             </thead>
             <tbody>
               {filteredItems.map((item) => {
-                const isRead = (item.data as any)?.isRead === true;
+                const isRead = (item.data as { isRead?: boolean; lastReadAt?: string } | undefined)?.isRead === true;
+                const lastReadAt = (item.data as { lastReadAt?: string } | undefined)?.lastReadAt;
+                const expanded = expandedId === item.id;
                 return (
-                  <tr
-                    key={item.id}
-                    className={`border-t border-slate-100 transition ${
-                      isRead ? "hover:bg-slate-50" : "bg-blue-50 hover:bg-blue-100"
-                    }`}
-                  >
-                    <td className="p-3 text-center">
-                      <button
-                        onClick={() => handleMarkRead(item.id, !isRead)}
-                        disabled={markingRead[item.id]}
-                        className="p-1 hover:opacity-70 transition disabled:opacity-50"
-                        title={isRead ? "Marquer comme non lu" : "Marquer comme lu"}
-                      >
-                        {markingRead[item.id] ? (
-                          <Loader2 size={16} className="animate-spin text-brand-600" />
-                        ) : isRead ? (
-                          <CheckCircle2 size={16} className="text-emerald-600" />
-                        ) : (
-                          <Circle size={16} className="text-slate-400" />
-                        )}
-                      </button>
-                    </td>
-                    <td className="p-3">
-                      <Badge tone="neutral">{courrierTypeLabel(item.type)}</Badge>
-                    </td>
-                    <td className="p-3 max-w-xs truncate font-medium" title={item.fileName}>
-                      {item.fileName}
-                    </td>
-                    <td className="p-3 text-slate-600">{fmtDateTime(item.receivedAt)}</td>
-                    <td className="p-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <DocumentViewerTrigger
-                          fileUrl={`/api/client/courriers/${item.id}/document`}
-                          downloadUrl={`/api/client/courriers/${item.id}/document?download=1`}
-                          fileName={item.fileName}
-                          fileMime={item.fileMime}
-                          title="Visualiser"
-                          className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                  <Fragment key={item.id}>
+                    <tr className={`border-t border-slate-100 transition ${isRead ? "hover:bg-slate-50" : "bg-teal-50/50 hover:bg-teal-50"}`}>
+                      <td className="p-3 text-center">
+                        <button
+                          onClick={() => handleMarkRead(item.id, !isRead)}
+                          disabled={busy[item.id]}
+                          className="p-1 transition hover:opacity-70 disabled:opacity-50"
+                          title={isRead ? "Marquer comme non lu" : "Marquer comme lu"}
                         >
-                          <Eye size={15} />
-                        </DocumentViewerTrigger>
-
-                        <a
-                          href={`/api/client/courriers/${item.id}/document?download=1`}
-                          download={item.fileName}
-                          title="Télécharger"
-                          className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                          {busy[item.id] ? <Loader2 size={16} className="animate-spin text-teal-600" /> : isRead ? <CheckCircle2 size={16} className="text-emerald-600" /> : <Circle size={16} className="text-slate-400" />}
+                        </button>
+                      </td>
+                      <td className="p-3 text-center">
+                        <button
+                          onClick={() => handleToggleFavori(item.id, !item.isFavori)}
+                          className="p-1 transition hover:opacity-70"
+                          title={item.isFavori ? "Retirer des favoris" : "Ajouter aux favoris"}
                         >
-                          <Download size={15} />
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
+                          <Star size={16} className={item.isFavori ? "fill-amber-400 text-amber-500" : "text-slate-300"} />
+                        </button>
+                      </td>
+                      <td className="p-3"><Badge tone={documentTypeTone(courrierTypeLabel(item.type))}>{courrierTypeLabel(item.type)}</Badge></td>
+                      <td className="max-w-xs truncate p-3 font-medium" title={item.fileName}>{item.fileName}</td>
+                      <td className="p-3 text-slate-600">{fmtDateTime(new Date(item.receivedAt))}</td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <DocumentViewerTrigger
+                            fileUrl={`/api/client/courriers/${item.id}/document`}
+                            downloadUrl={`/api/client/courriers/${item.id}/document?download=1`}
+                            fileName={item.fileName}
+                            fileMime={item.fileMime}
+                            title="Visualiser"
+                            className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                          >
+                            <Eye size={15} />
+                          </DocumentViewerTrigger>
+                          <a
+                            href={`/api/client/courriers/${item.id}/document?download=1`}
+                            download={item.fileName}
+                            title="Télécharger"
+                            className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                          >
+                            <Download size={15} />
+                          </a>
+                          <EnvoyerDocumentButton
+                            context={{ courrierId: item.id, dossierLabel: item.fileName }}
+                            label=""
+                            className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                          />
+                          <button
+                            onClick={() => setExpandedId(expanded ? null : item.id)}
+                            title="Historique du dossier"
+                            className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                          >
+                            <History size={15} />
+                            <ChevronDown size={12} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expanded && (
+                      <tr className="border-t border-slate-100 bg-slate-50/70">
+                        <td colSpan={6} className="p-4">
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Historique du dossier</p>
+                          <ul className="space-y-1.5 text-sm text-slate-600">
+                            <li>Reçu le {fmtDateTime(new Date(item.receivedAt))}</li>
+                            {lastReadAt && <li>Marqué comme lu le {fmtDateTime(new Date(lastReadAt))}</li>}
+                            {item.pieceJointesAjoutees.map((p, i) => (
+                              <li key={i} className="flex items-center gap-1.5"><Paperclip size={12} className="text-slate-400" /> Pièce jointe ajoutée le {fmtDateTime(new Date(p.date))}</li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

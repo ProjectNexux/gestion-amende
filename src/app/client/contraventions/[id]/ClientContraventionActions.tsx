@@ -10,6 +10,10 @@ type ClientContraventionActionsProps = {
   conducteurs: Conducteur[];
   statutDenonciation?: string | null;
   statutPaiement?: string | null;
+  /** Quand true, n'affiche que les boutons paiement/dénonciation (utilisé dans les cartes
+   * "Paiement"/"Dénonciation" de la barre latérale) — évite de dupliquer le formulaire conducteur
+   * qui vit uniquement dans la carte "Conducteur impliqué". */
+  onlyPaymentAndDenonciation?: boolean;
 };
 
 export function ClientContraventionActions({
@@ -19,6 +23,7 @@ export function ClientContraventionActions({
   conducteurs,
   statutDenonciation,
   statutPaiement,
+  onlyPaymentAndDenonciation,
 }: ClientContraventionActionsProps) {
   async function handleSelectConducteur(fd: FormData) {
     await updateConductorClientAction(id, fd);
@@ -34,10 +39,12 @@ export function ClientContraventionActions({
 
   return (
     <>
-      {/* Conducteur */}
-      {!conducteur && (
+      {/* Conducteur — jamais affiché dans les cartes latérales, uniquement dans la carte dédiée */}
+      {!onlyPaymentAndDenonciation && !conducteur && (
         <form action={handleSelectConducteur} className="space-y-3">
-          <select name="conducteurId" defaultValue="" className="field">
+          {/* Préremplissage: présélectionne le seul conducteur connu de la société, l'utilisateur
+             n'a plus qu'à confirmer. */}
+          <select name="conducteurId" defaultValue={conducteurs.length === 1 ? conducteurs[0].id : ""} className="field">
             <option value="">— Sélectionner le conducteur —</option>
             {conducteurs.map((c) => (
               <option key={c.id} value={c.id}>
@@ -52,14 +59,14 @@ export function ClientContraventionActions({
       )}
 
       {/* Paiement */}
-      {statutPaiement !== "Payé" && (
+      {onlyPaymentAndDenonciation && statutPaiement !== "Payé" && (
         <button onClick={handleMarkPayment} className="btn-secondary w-full text-sm">
           Marquer comme payé
         </button>
       )}
 
       {/* Dénonciation */}
-      {statutDenonciation !== "Effectuée" && statutDenonciation !== "Non applicable" && (
+      {onlyPaymentAndDenonciation && statutDenonciation !== "Effectuée" && statutDenonciation !== "Non applicable" && (
         <button onClick={handleMarkDenonciation} className="btn-secondary w-full text-sm">
           Dénonciation effectuée
         </button>

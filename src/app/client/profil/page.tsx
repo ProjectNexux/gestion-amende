@@ -14,7 +14,7 @@ export default async function ClientProfilPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <PageHeader title="Mon compte" description="Les informations de votre société et vos accès." />
+      <PageHeader title="Mon profil" description="Les informations de votre société et vos accès." />
 
       <Card>
         <CardContent className="flex items-center gap-3 !pt-5">
