@@ -7,6 +7,7 @@ import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { Badge } from "@/components/ui/Badge";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
+import { BackButton } from "@/components/ui/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ export default async function GenericCourrierPage({ params }: { params: Promise<
               transmission={(item.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
             />
           )}
+          <BackButton fallbackHref="/courriers" label="Retour à la liste" className="btn-secondary" />
         </div>
       </div>
 

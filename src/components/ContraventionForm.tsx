@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Contravention } from "@prisma/client";
 
 type Option = { id: string; label: string };
@@ -24,8 +24,19 @@ export default function ContraventionForm({
   showStatutBlocks = false,
 }: ContraventionFormProps) {
   const [showOcr, setShowOcr] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  // Warn before an accidental tab close/reload/URL change while the form has unsaved edits —
+  // cleared on submit so a successful save never triggers the warning during the redirect away.
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
   return (
-    <form action={action} className="space-y-6">
+    <form action={action} onChange={() => setDirty(true)} onSubmit={() => setDirty(false)} className="space-y-6">
       <input type="hidden" name="rawOcrText" defaultValue={initial.rawOcrText ?? ""} />
 
       <Card title="Identification">

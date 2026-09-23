@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { isAdminSession, requireSociete } from "@/lib/auth";
 import { updateConducteur } from "../actions";
+import { BackButton } from "@/components/ui/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +32,7 @@ export default async function ConducteurDetailPage({ params }: PageProps) {
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Fiche conducteur</h1>
           <p className="mt-1 text-sm text-slate-500">{conducteur.civilite ?? ""} {conducteur.prenom} {conducteur.nom}</p>
         </div>
-        <Link href="/conducteurs" className="btn-secondary">
-          Retour à la liste
-        </Link>
+        <BackButton fallbackHref="/conducteurs" label="Retour à la liste" className="btn-secondary" />
       </div>
 
       <form action={updateConducteur.bind(null, conducteur.id)} className="space-y-6 rounded-[18px] border border-slate-200 bg-white p-5 shadow-card">

@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { Eye, Download } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { updateSinistre, deleteSinistre, addSinistreDocument } from "../actions";
@@ -12,6 +11,7 @@ import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import { COURRIER_LIST_SELECT } from "@/lib/courriers";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
+import { BackButton } from "@/components/ui/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -48,9 +48,7 @@ export default async function SinistreDetailPage({ params }: { params: Promise<{
         </div>
         <div className="flex items-center gap-2">
           <Badge tone={sinistreStatutTone(sinistre.statut)}>{sinistre.statut}</Badge>
-          <Link href="/courriers/sinistres" className="btn-secondary">
-            Retour à la liste
-          </Link>
+          <BackButton fallbackHref="/courriers/sinistres" label="Retour à la liste" className="btn-secondary" />
         </div>
       </div>
 

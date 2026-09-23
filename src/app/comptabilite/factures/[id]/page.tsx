@@ -13,6 +13,7 @@ import { ComptabiliteSendModal } from "@/components/ComptabiliteSendModal";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
+import { BackButton } from "@/components/ui/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -63,9 +64,7 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
               transmission={(item.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
             />
           )}
-          <Link href="/comptabilite/factures" className="btn-secondary">
-            Retour à la liste
-          </Link>
+          <BackButton fallbackHref="/comptabilite/factures" label="Retour à la liste" className="btn-secondary" />
         </div>
       </div>
 

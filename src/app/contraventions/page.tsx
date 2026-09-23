@@ -108,7 +108,7 @@ export default async function ContraventionsListPage({
             {filteredItems.map((c) => (
               <tr key={c.id} className="table-row hover:bg-slate-50">
                 <td className="p-3 font-mono text-xs">
-                  <Link href={`/contraventions/${c.id}`} className="font-medium text-brand-700 hover:underline">{c.numDossier}</Link>
+                  <Link href={`/contraventions/${c.id}?from=${view}`} className="font-medium text-brand-700 hover:underline">{c.numDossier}</Link>
                 </td>
                 <td className="p-3 text-slate-700 text-xs">{c.societe}</td>
                 <td className="p-3 font-mono text-xs text-slate-600">{c.numAvis ?? "—"}</td>

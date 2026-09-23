@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { updateRetardPaiement, deleteRetardPaiement, demarrerPaiementCarte, marquerRembourseManuel } from "../actions";
 import { getRetardPaiementData, resteAPayer, RETARD_PAIEMENT_STATUTS } from "@/lib/courriers";
@@ -11,6 +10,7 @@ import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import GenerateLinkForm from "../GenerateLinkForm";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
+import { BackButton } from "@/components/ui/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -79,9 +79,7 @@ export default async function RetardPaiementDetailPage({ params }: { params: Pro
               transmission={(item.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
             />
           )}
-          <Link href="/courriers/retards-paiement" className="btn-secondary">
-            Retour à la liste
-          </Link>
+          <BackButton fallbackHref="/courriers/retards-paiement" label="Retour à la liste" className="btn-secondary" />
         </div>
       </div>
 

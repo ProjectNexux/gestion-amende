@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ChevronDown, Clock, Eye, Mail, Loader2, X, Check, FileText, MoreHorizontal, RefreshCw } from "lucide-react";
 import { DocumentViewerModal } from "@/components/DocumentViewerModal";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
@@ -37,9 +38,24 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 };
 
 export default function ScansPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const VALID_FILTERS = ["all", "to_review", "created", "error"] as const;
+  type FilterId = (typeof VALID_FILTERS)[number];
+  const rawFilter = searchParams.get("filter");
+  // URL is the single source of truth (survives reload/back-navigation/shared links) — never a
+  // plain useState that silently resets to "to_review" whenever the page remounts.
+  const filter: FilterId = VALID_FILTERS.includes(rawFilter as FilterId) ? (rawFilter as FilterId) : "to_review";
+  const setFilter = useCallback(
+    (next: FilterId) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("filter", next);
+      router.replace(`/admin/scans?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams]
+  );
   const [scans, setScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "to_review" | "created" | "error">("to_review");
   const [selectedScan, setSelectedScan] = useState<Scan | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [classifyOpen, setClassifyOpen] = useState(false);
@@ -142,7 +158,7 @@ export default function ScansPage() {
           ].map((f) => (
             <button
               key={f.id}
-              onClick={() => setFilter(f.id as any)}
+              onClick={() => setFilter(f.id as FilterId)}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 filter === f.id
                   ? "bg-brand-600 text-white shadow-lg"

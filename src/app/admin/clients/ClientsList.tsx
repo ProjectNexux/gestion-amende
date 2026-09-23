@@ -130,7 +130,16 @@ export function ClientsList({
                   <tr
                     key={r.id}
                     onClick={() => router.push(`/admin/clients/${r.id}`)}
-                    className="cursor-pointer border-t border-slate-100 transition hover:bg-brand-50/40"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        router.push(`/admin/clients/${r.id}`);
+                      }
+                    }}
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`Ouvrir la fiche de ${r.nom}`}
+                    className="cursor-pointer border-t border-slate-100 transition hover:bg-brand-50/40 focus-visible:bg-brand-50/60 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-500"
                   >
                     <td className="p-3">
                       <div className="font-medium text-slate-900">{r.nom}</div>

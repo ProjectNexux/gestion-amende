@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import ContraventionForm from "@/components/ContraventionForm";
 import { updateContraventionAction } from "../actions";
 import { requireSociete, isAdminSession } from "@/lib/auth";
@@ -10,8 +9,17 @@ import { fmtMoney } from "@/lib/utils";
 import { DetailActions } from "./DetailActions";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
+import { BackButton } from "@/components/ui/BackButton";
 
 export const dynamic = "force-dynamic";
+
+const VIEW_LABELS: Record<string, string> = {
+  toutes: "Toutes",
+  a_denoncer: "À dénoncer",
+  paiement_attente: "Paiement en attente",
+  en_retard: "En retard",
+  terminees: "Terminées",
+};
 
 function statutTone(s?: string | null, type?: string): BadgeTone {
   if (type === "denonciation") {
@@ -31,10 +39,13 @@ function statutTone(s?: string | null, type?: string): BadgeTone {
   return "neutral";
 }
 
-export default async function EditContraventionPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditContraventionPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
   const { id } = await params;
+  const sp = searchParams ? await searchParams : {};
+  const from = Array.isArray(sp.from) ? sp.from[0] : sp.from;
+  const listHref = from && VIEW_LABELS[from] ? `/contraventions?view=${from}` : "/contraventions";
   const [item, vehicules, conducteurs] = await Promise.all([
     prisma.contravention.findUnique({ where: { id } }),
     prisma.vehicule.findMany({ where: isAdmin ? {} : { societe }, orderBy: { immatriculation: "asc" } }),
@@ -46,9 +57,20 @@ export default async function EditContraventionPage({ params }: { params: Promis
 
   return (
     <div className="space-y-6">
-      <Link href="/contraventions" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
-        <ArrowLeft size={15} /> Retour au suivi
-      </Link>
+      <div className="space-y-2">
+        <BackButton fallbackHref={listHref} label="Retour au suivi" />
+        <nav aria-label="Fil d'Ariane" className="flex items-center gap-1.5 text-xs text-slate-400">
+          <Link href="/contraventions" className="hover:text-slate-600 hover:underline">Contraventions</Link>
+          {from && VIEW_LABELS[from] && (
+            <>
+              <span aria-hidden="true">/</span>
+              <Link href={listHref} className="hover:text-slate-600 hover:underline">{VIEW_LABELS[from]}</Link>
+            </>
+          )}
+          <span aria-hidden="true">/</span>
+          <span className="text-slate-600">{item.numDossier}</span>
+        </nav>
+      </div>
 
       <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>

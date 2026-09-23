@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Building2, Send, Power, LayoutGrid, Mail, FileWarning, Users, Clock, LogIn } from "lucide-react";
+import { Building2, Send, Power, LayoutGrid, Mail, FileWarning, Users, Clock, LogIn } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { isAdminSession, impersonateClientAction } from "@/lib/auth";
 import { Badge } from "@/components/ui/Badge";
 import { ActionForm } from "@/components/ActionForm";
+import { BackButton } from "@/components/ui/BackButton";
 import { CLIENT_STATUS_LABELS, clientStatusTone, deriveClientStatus } from "@/lib/clients";
 import { fmtDateTime } from "@/lib/utils";
 import { buildSetupUrl, isSetupTokenExpired } from "@/lib/societe-setup";
@@ -77,9 +78,7 @@ export default async function ClientDetailPage({
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
       <div>
-        <Link href="/admin/clients" className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 transition hover:text-brand-800">
-          <ArrowLeft size={14} /> Retour à la liste
-        </Link>
+        <BackButton fallbackHref="/admin/clients" label="Retour à la liste" className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 transition hover:text-brand-800" />
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">

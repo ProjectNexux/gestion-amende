@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { Eye } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { updateCertificat, deleteCertificat } from "../actions";
@@ -9,6 +8,7 @@ import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
+import { BackButton } from "@/components/ui/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -46,9 +46,7 @@ export default async function CertificatImmatriculationDetailPage({ params }: { 
               transmission={(item.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
             />
           )}
-          <Link href="/courriers/certificats-immatriculation" className="btn-secondary">
-            Retour à la liste
-          </Link>
+          <BackButton fallbackHref="/courriers/certificats-immatriculation" label="Retour à la liste" className="btn-secondary" />
         </div>
       </div>
 

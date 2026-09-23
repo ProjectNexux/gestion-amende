@@ -12,6 +12,7 @@ import { fmtMoney, fmtDateTime } from "@/lib/utils";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { BackButton } from "@/components/ui/BackButton";
 
 export const dynamic = "force-dynamic";
 
@@ -88,9 +89,7 @@ export default async function MiseEnDemeureDetailPage({
               transmission={(item.data as Record<string, unknown> | null)?.transmissionClient as TransmissionClientInfo | undefined ?? null}
             />
           )}
-          <Link href="/courriers/mise-en-demeure" className="btn-secondary">
-            Retour à la liste
-          </Link>
+          <BackButton fallbackHref="/courriers/mise-en-demeure" label="Retour à la liste" className="btn-secondary" />
         </div>
       </div>
 

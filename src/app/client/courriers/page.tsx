@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, Fragment } from "react";
+import { useState, useEffect, useMemo, useRef, Fragment } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge, documentTypeTone } from "@/components/ui/Badge";
@@ -31,15 +32,40 @@ const DATE_RANGES = [
 ] as const;
 
 export default function ClientDocumentsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // URL is the source of truth for filters (survives reload/back-navigation) — initial state reads
+  // straight from the current query string instead of always resetting to defaults.
+  const updateParam = (key: string, value: string | null, defaultValue: string | null = null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === null || value === defaultValue) params.delete(key);
+    else params.set(key, value);
+    router.replace(`/client/courriers${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+  };
+
   const [items, setItems] = useState<Courrier[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filterRead, setFilterRead] = useState<"all" | "unread" | "read">("all");
-  const [filterType, setFilterType] = useState("all");
-  const [filterDate, setFilterDate] = useState<(typeof DATE_RANGES)[number]["key"]>("all");
-  const [onlyFavoris, setOnlyFavoris] = useState(false);
+  const [search, setSearch] = useState(searchParams.get("q") ?? "");
+  const [filterRead, setFilterReadState] = useState<"all" | "unread" | "read">((searchParams.get("read") as "unread" | "read" | null) ?? "all");
+  const [filterType, setFilterTypeState] = useState(searchParams.get("type") ?? "all");
+  const [filterDate, setFilterDateState] = useState<(typeof DATE_RANGES)[number]["key"]>((searchParams.get("date") as (typeof DATE_RANGES)[number]["key"] | null) ?? "all");
+  const [onlyFavoris, setOnlyFavorisState] = useState(searchParams.get("favoris") === "1");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+
+  const setFilterRead = (v: "all" | "unread" | "read") => { setFilterReadState(v); updateParam("read", v, "all"); };
+  const setFilterType = (v: string) => { setFilterTypeState(v); updateParam("type", v, "all"); };
+  const setFilterDate = (v: (typeof DATE_RANGES)[number]["key"]) => { setFilterDateState(v); updateParam("date", v, "all"); };
+  const setOnlyFavoris = (v: boolean) => { setOnlyFavorisState(v); updateParam("favoris", v ? "1" : null); };
+
+  // Search is debounced before touching the URL so typing stays responsive.
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    searchDebounce.current = setTimeout(() => updateParam("q", search || null), 400);
+    return () => { if (searchDebounce.current) clearTimeout(searchDebounce.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   useEffect(() => {
     fetchDocuments();
@@ -137,7 +163,7 @@ export default function ClientDocumentsPage() {
             </select>
             <button
               type="button"
-              onClick={() => setOnlyFavoris((v) => !v)}
+              onClick={() => setOnlyFavoris(!onlyFavoris)}
               className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                 onlyFavoris ? "border-amber-300 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
