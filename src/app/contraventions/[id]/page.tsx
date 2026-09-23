@@ -1,10 +1,33 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import ContraventionForm from "@/components/ContraventionForm";
-import { updateContraventionAction, deleteContraventionAction, toggleVisibleClientAction } from "../actions";
+import { updateContraventionAction, deleteContraventionAction } from "../actions";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { fmtMoney } from "@/lib/utils";
+import { DetailActions } from "./DetailActions";
 
 export const dynamic = "force-dynamic";
+
+function statutTone(s?: string | null, type?: string): BadgeTone {
+  if (type === "denonciation") {
+    if (s === "Effectuée") return "success";
+    if (s === "Non applicable") return "neutral";
+    if (s === "À effectuer") return "warning";
+    return "info";
+  }
+  
+  if (type === "paiement") {
+    if (s === "Payé") return "success";
+    if (s === "En retard") return "danger";
+    if (s === "En attente") return "warning";
+    return "neutral";
+  }
+  
+  return "neutral";
+}
 
 export default async function EditContraventionPage({ params }: { params: Promise<{ id: string }> }) {
   const societe = await requireSociete();
@@ -18,46 +41,97 @@ export default async function EditContraventionPage({ params }: { params: Promis
   if (!item || (!isAdmin && item.societe !== societe)) notFound();
 
   const updateWith = updateContraventionAction.bind(null, id);
-  const deleteWith = deleteContraventionAction.bind(null, id);
+
+  async function handleDelete() {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce dossier ?")) {
+      return;
+    }
+    await deleteContraventionAction(id);
+  }
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between">
+      <Link href="/contraventions" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
+        <ArrowLeft size={15} /> Retour au suivi
+      </Link>
+
+      <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{item.numDossier}</h1>
-          <p className="text-sm text-slate-500">Modifier le dossier — {item.societe}</p>
+          <h1 className="text-3xl font-semibold">{item.numDossier}</h1>
+          <p className="mt-1 text-sm text-slate-500">{item.societe} • N° Avis: {item.numAvis ?? "—"}</p>
         </div>
-        <div className="flex items-center gap-3">
-          {isAdmin && (
-            <form action={toggleVisibleClientAction.bind(null, id, !item.visibleClient)}>
-              <button
-                type="submit"
-                className={
-                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition " +
-                  (item.visibleClient
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                    : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100")
-                }
-                title="Basculer la visibilité dans l'espace client"
-              >
-                <span className={"h-1.5 w-1.5 rounded-full " + (item.visibleClient ? "bg-emerald-500" : "bg-slate-400")} />
-                Visible par le client : {item.visibleClient ? "ON" : "OFF"}
-              </button>
-            </form>
-          )}
-          <form action={deleteWith}>
-            <button className="text-sm text-red-600 hover:underline">Supprimer</button>
-          </form>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge tone={statutTone(item.statutDenonciation, "denonciation")} className="text-xs">
+            {item.statutDenonciation}
+          </Badge>
+          <Badge tone={statutTone(item.statutPaiement, "paiement")} className="text-xs">
+            {item.statutPaiement}
+          </Badge>
         </div>
       </header>
-      <ContraventionForm
-        action={updateWith}
-        initial={item}
-        vehicules={vehicules.map((v) => ({ id: v.id, label: `${v.immatriculation} — ${v.marque ?? ""} ${v.modele ?? ""}` }))}
-        conducteurs={conducteurs.map((c) => ({ id: c.id, label: `${c.prenom} ${c.nom}` }))}
-        showStatutBlocks
-        submitLabel="Mettre à jour"
-      />
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Résumé rapide */}
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="card p-4">
+              <div className="text-xs text-slate-500">Date infraction</div>
+              <div className="text-lg font-semibold text-slate-900 mt-1">{item.dateInfraction ?? "—"}</div>
+            </div>
+            <div className="card p-4">
+              <div className="text-xs text-slate-500">Montant</div>
+              <div className="text-lg font-semibold text-slate-900 mt-1">{fmtMoney(item.montantAmende)}</div>
+            </div>
+            <div className="card p-4">
+              <div className="text-xs text-slate-500">Échéance</div>
+              <div className="text-lg font-semibold text-slate-900 mt-1">{item.dateLimitePaiement ?? "—"}</div>
+            </div>
+            <div className="card p-4">
+              <div className="text-xs text-slate-500">Points retirés</div>
+              <div className="text-lg font-semibold text-slate-900 mt-1">{item.pointsRetires ?? "—"}</div>
+            </div>
+          </div>
+
+          {/* Formulaire modification */}
+          <div className="card p-6">
+            <h2 className="text-lg font-semibold mb-4">Modifier le dossier</h2>
+            <ContraventionForm
+              action={updateWith}
+              initial={item}
+              vehicules={vehicules.map((v) => ({ id: v.id, label: `${v.immatriculation} — ${v.marque ?? ""} ${v.modele ?? ""}` }))}
+              conducteurs={conducteurs.map((c) => ({ id: c.id, label: `${c.prenom} ${c.nom}` }))}
+              showStatutBlocks={false}
+              submitLabel="Mettre à jour le dossier"
+            />
+          </div>
+
+          {/* Observations */}
+          {item.observations && (
+            <div className="card p-4">
+              <h3 className="font-semibold text-sm mb-2">Notes & historique</h3>
+              <div className="text-sm whitespace-pre-wrap text-slate-700">{item.observations}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Actions sidebar */}
+        <div className="space-y-4">
+          <DetailActions
+            id={id}
+            currentDenonciation={item.statutDenonciation}
+            currentPaiement={item.statutPaiement}
+            visibleClient={item.visibleClient}
+          />
+
+          {/* Delete button */}
+          <button 
+            onClick={handleDelete}
+            className="btn-danger w-full text-sm"
+          >
+            Supprimer le dossier
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

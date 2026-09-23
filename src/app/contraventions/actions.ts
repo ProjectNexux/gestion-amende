@@ -174,3 +174,124 @@ export async function toggleVisibleClientAction(id: string, next: boolean) {
   revalidatePath("/client");
   revalidatePath("/client/contraventions");
 }
+
+// Actions pour statuts de dénonciation et paiement
+export async function markDenonciationAction(id: string, statut: string, date?: string, numAntai?: string) {
+  const isAdmin = await isAdminSession();
+  if (!isAdmin) notFound();
+
+  const existing = await prisma.contravention.findUnique({ where: { id } });
+  if (!existing) notFound();
+
+  await prisma.contravention.update({
+    where: { id },
+    data: {
+      statutDenonciation: statut,
+      dateDenonciation: date || new Date().toISOString().split("T")[0],
+      numDenonciationAntai: numAntai || undefined,
+    },
+  });
+
+  revalidatePath("/contraventions");
+  revalidatePath(`/contraventions/${id}`);
+}
+
+export async function markPaymentAction(id: string, statut: string, date?: string) {
+  const isAdmin = await isAdminSession();
+  if (!isAdmin) notFound();
+
+  const existing = await prisma.contravention.findUnique({ where: { id } });
+  if (!existing) notFound();
+
+  await prisma.contravention.update({
+    where: { id },
+    data: {
+      statutPaiement: statut,
+      datePaiement: date || new Date().toISOString().split("T")[0],
+    },
+  });
+
+  revalidatePath("/contraventions");
+  revalidatePath(`/contraventions/${id}`);
+}
+
+export async function addObservationAction(id: string, text: string) {
+  const isAdmin = await isAdminSession();
+  if (!isAdmin) notFound();
+
+  const existing = await prisma.contravention.findUnique({ where: { id } });
+  if (!existing) notFound();
+
+  const newObs = (existing.observations ? existing.observations + "\n" : "") + `[${new Date().toLocaleString("fr-FR")}] ${text}`;
+  await prisma.contravention.update({
+    where: { id },
+    data: { observations: newObs },
+  });
+
+  revalidatePath("/contraventions");
+  revalidatePath(`/contraventions/${id}`);
+}
+
+// Client actions
+export async function updateConductorClientAction(id: string, fd: FormData) {
+  const societe = await requireSociete();
+
+  const c = await prisma.contravention.findFirst({
+    where: { id, societe, visibleClient: true },
+  });
+  if (!c) notFound();
+
+  const selectedConducteurId = getStr(fd, "conducteurId");
+  let conducteurId: string | null = null;
+  if (selectedConducteurId) {
+    const selectedConducteur = await prisma.conducteur.findUnique({ where: { id: selectedConducteurId } });
+    if (selectedConducteur?.societe === societe) {
+      conducteurId = selectedConducteur.id;
+    }
+  }
+
+  await prisma.contravention.update({
+    where: { id },
+    data: { conducteurId },
+  });
+
+  revalidatePath(`/client/contraventions/${id}`);
+}
+
+export async function clientMarkDenonciationAction(id: string) {
+  const societe = await requireSociete();
+
+  const c = await prisma.contravention.findFirst({
+    where: { id, societe, visibleClient: true },
+  });
+  if (!c) notFound();
+
+  await prisma.contravention.update({
+    where: { id },
+    data: {
+      statutDenonciation: "Effectuée",
+      dateDenonciation: new Date().toISOString().split("T")[0],
+    },
+  });
+
+  revalidatePath(`/client/contraventions/${id}`);
+}
+
+export async function clientMarkPaymentAction(id: string) {
+  const societe = await requireSociete();
+
+  const c = await prisma.contravention.findFirst({
+    where: { id, societe, visibleClient: true },
+  });
+  if (!c) notFound();
+
+  await prisma.contravention.update({
+    where: { id },
+    data: {
+      statutPaiement: "Payé",
+      datePaiement: new Date().toISOString().split("T")[0],
+    },
+  });
+
+  revalidatePath(`/client/contraventions/${id}`);
+}

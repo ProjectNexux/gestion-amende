@@ -9,7 +9,14 @@ import { FileWarning } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-function statutTone(statut: string | null | undefined): BadgeTone {
+function statutTone(statut: string | null | undefined, type?: string): BadgeTone {
+  if (type === "denonciation") {
+    if (statut === "Effectuée") return "success";
+    if (statut === "Non applicable") return "neutral";
+    if (statut === "À effectuer") return "warning";
+    return "info";
+  }
+  
   if (statut === "Payé") return "success";
   if (statut === "En retard") return "danger";
   if (statut === "En attente") return "warning";
@@ -26,7 +33,7 @@ export default async function ClientContraventionsPage({
   const rawFiltre = Array.isArray(resolved.filtre) ? resolved.filtre[0] : resolved.filtre;
   const filtre = rawFiltre === "a_traiter" ? "a_traiter" : "tous";
 
-  // Same strict double filter as the dashboard: société AND visibleClient, in the query itself.
+  // Strict double filter: société AND visibleClient
   const allItems = await prisma.contravention.findMany({
     where: { societe, visibleClient: true },
     include: { vehicule: true },
@@ -40,7 +47,7 @@ export default async function ClientContraventionsPage({
         title="Mes contraventions"
         description={
           filtre === "a_traiter"
-            ? `${items.length} dossier(s) non réglé(s)`
+            ? `${items.length} dossier(s) à traiter`
             : `${items.length} dossier(s) partagé(s) par notre équipe`
         }
         actions={
@@ -51,6 +58,32 @@ export default async function ClientContraventionsPage({
           ) : undefined
         }
       />
+
+      <div className="flex gap-2 mb-4">
+        <Link
+          href="/client/contraventions"
+          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+            filtre === "tous"
+              ? "border-brand-600 bg-brand-600 text-white shadow-sm"
+              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+          }`}
+        >
+          Tous <span className={filtre === "tous" ? "text-white/80" : "text-slate-500"}>({allItems.length})</span>
+        </Link>
+        <Link
+          href="/client/contraventions?filtre=a_traiter"
+          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+            filtre === "a_traiter"
+              ? "border-brand-600 bg-brand-600 text-white shadow-sm"
+              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+          }`}
+        >
+          À traiter{" "}
+          <span className={filtre === "a_traiter" ? "text-white/80" : "text-slate-500"}>
+            ({allItems.filter((c) => c.statutPaiement !== "Payé").length})
+          </span>
+        </Link>
+      </div>
 
       <div className="table-shell overflow-hidden">
         <table className="w-full text-sm">
@@ -63,30 +96,46 @@ export default async function ClientContraventionsPage({
               <th className="p-3 text-left">Véhicule</th>
               <th className="p-3 text-right">Montant</th>
               <th className="p-3 text-left">Échéance</th>
-              <th className="p-3 text-left">Statut</th>
+              <th className="p-3 text-left">Dénonciation</th>
+              <th className="p-3 text-left">Paiement</th>
             </tr>
           </thead>
           <tbody>
             {items.map((c) => (
-              <tr key={c.id} className="table-row">
+              <tr key={c.id} className="table-row hover:bg-slate-50">
                 <td className="p-3">
                   <Link href={`/client/contraventions/${c.id}`} className="font-mono text-xs font-medium text-brand-700 hover:underline">
                     {c.numDossier}
                   </Link>
                 </td>
                 <td className="p-3 font-mono text-xs text-slate-600">{c.numAvis ?? "—"}</td>
-                <td className="p-3 text-slate-600">{c.dateInfraction ?? "—"}</td>
-                <td className="p-3 max-w-xs truncate text-slate-600" title={c.natureInfraction ?? ""}>{c.natureInfraction ?? "—"}</td>
-                <td className="p-3 text-slate-600">{c.vehicule?.immatriculation ?? c.immatriculationOcr ?? "—"}</td>
+                <td className="p-3 text-slate-600 text-xs">{c.dateInfraction ?? "—"}</td>
+                <td className="p-3 max-w-xs truncate text-slate-600 text-xs" title={c.natureInfraction ?? ""}>
+                  {c.natureInfraction ?? "—"}
+                </td>
+                <td className="p-3 text-slate-600 text-xs">{c.vehicule?.immatriculation ?? c.immatriculationOcr ?? "—"}</td>
                 <td className="p-3 text-right font-medium text-slate-900">{fmtMoney(c.montantAmende)}</td>
-                <td className="p-3 text-slate-600">{c.dateLimitePaiement ?? "—"}</td>
-                <td className="p-3"><Badge tone={statutTone(c.statutPaiement)}>{c.statutPaiement ?? "—"}</Badge></td>
+                <td className="p-3 text-slate-600 text-xs">{c.dateLimitePaiement ?? "—"}</td>
+                <td className="p-3">
+                  <Badge tone={statutTone(c.statutDenonciation, "denonciation")} className="text-xs">
+                    {c.statutDenonciation ?? "—"}
+                  </Badge>
+                </td>
+                <td className="p-3">
+                  <Badge tone={statutTone(c.statutPaiement)} className="text-xs">
+                    {c.statutPaiement ?? "—"}
+                  </Badge>
+                </td>
               </tr>
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={8}>
-                  <EmptyState icon={FileWarning} title="Aucune contravention partagée pour le moment" description="Les dossiers que notre équipe partage avec vous apparaîtront ici." />
+                <td colSpan={9}>
+                  <EmptyState
+                    icon={FileWarning}
+                    title={filtre === "a_traiter" ? "Aucune contravention à traiter" : "Aucune contravention partagée"}
+                    description={filtre === "a_traiter" ? "Tous vos dossiers sont à jour !" : "Les dossiers que notre équipe partage avec vous apparaîtront ici."}
+                  />
                 </td>
               </tr>
             )}

@@ -5,6 +5,7 @@ import { Plus, ScanLine, ExternalLink, FileWarning } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { toggleVisibleClientAction } from "./actions";
+import { Badge } from "@/components/ui/Badge";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,10 @@ export default async function ContraventionsListPage({
   const rawView = Array.isArray(resolvedSearchParams.view)
     ? resolvedSearchParams.view[0]
     : resolvedSearchParams.view;
-  const view = rawView === "denonciations" || rawView === "paiements" || rawView === "retards"
+  
+  const view = rawView === "a_denoncer" || rawView === "paiement_attente" || rawView === "en_retard" || rawView === "terminees"
     ? rawView
-    : "all";
+    : "toutes";
 
   const items = await prisma.contravention.findMany({
     where: isAdmin ? {} : { societe },
@@ -30,23 +32,29 @@ export default async function ContraventionsListPage({
   });
 
   const filteredItems = items.filter((item) => {
-    if (view === "denonciations") {
-      return item.statutDenonciation !== "Effectuée";
+    if (view === "a_denoncer") {
+      return item.statutDenonciation !== "Effectuée" && item.statutDenonciation !== "Non applicable";
     }
-    if (view === "paiements") {
+    if (view === "paiement_attente") {
       return item.statutPaiement === "En attente";
     }
-    if (view === "retards") {
-      return item.statutPaiement !== "Payé" && item.dateLimitePaiement && item.dateLimitePaiement !== "";
+    if (view === "en_retard") {
+      return item.statutPaiement !== "Payé" && item.dateLimitePaiement && 
+             new Date(item.dateLimitePaiement.split("/").reverse().join("-")) < new Date();
+    }
+    if (view === "terminees") {
+      return item.statutPaiement === "Payé" && item.statutDenonciation === "Effectuée";
     }
     return true;
   });
 
   const counts = {
-    all: items.length,
-    denonciations: items.filter((item) => item.statutDenonciation !== "Effectuée").length,
-    paiements: items.filter((item) => item.statutPaiement === "En attente").length,
-    retards: items.filter((item) => item.statutPaiement !== "Payé" && item.dateLimitePaiement && item.dateLimitePaiement !== "").length,
+    toutes: items.length,
+    a_denoncer: items.filter((item) => item.statutDenonciation !== "Effectuée" && item.statutDenonciation !== "Non applicable").length,
+    paiement_attente: items.filter((item) => item.statutPaiement === "En attente").length,
+    en_retard: items.filter((item) => item.statutPaiement !== "Payé" && item.dateLimitePaiement && 
+             new Date(item.dateLimitePaiement.split("/").reverse().join("-")) < new Date()).length,
+    terminees: items.filter((item) => item.statutPaiement === "Payé" && item.statutDenonciation === "Effectuée").length,
   };
 
   return (
@@ -71,24 +79,26 @@ export default async function ContraventionsListPage({
       </header>
 
       <div className="flex flex-wrap gap-2">
-        <FilterLink href="/contraventions?view=all" label="Tous" count={counts.all} active={view === "all"} />
-        <FilterLink href="/contraventions?view=denonciations" label="À dénoncer" count={counts.denonciations} active={view === "denonciations"} />
-        <FilterLink href="/contraventions?view=paiements" label="Paiements en attente" count={counts.paiements} active={view === "paiements"} />
-        <FilterLink href="/contraventions?view=retards" label="Retards" count={counts.retards} active={view === "retards"} />
+        <FilterLink href="/contraventions?view=toutes" label="Toutes" count={counts.toutes} active={view === "toutes"} />
+        <FilterLink href="/contraventions?view=a_denoncer" label="À dénoncer" count={counts.a_denoncer} active={view === "a_denoncer"} />
+        <FilterLink href="/contraventions?view=paiement_attente" label="Paiement en attente" count={counts.paiement_attente} active={view === "paiement_attente"} />
+        <FilterLink href="/contraventions?view=en_retard" label="En retard" count={counts.en_retard} active={view === "en_retard"} />
+        <FilterLink href="/contraventions?view=terminees" label="Terminées" count={counts.terminees} active={view === "terminees"} />
       </div>
 
       <div className="table-shell overflow-hidden">
         <table className="w-full text-sm">
           <thead className="table-head">
             <tr>
-              <th className="p-3 text-left">Société</th>
               <th className="p-3 text-left">N° Dossier</th>
+              <th className="p-3 text-left">Société</th>
+              <th className="p-3 text-left">N° Avis</th>
               <th className="p-3 text-left">Date infraction</th>
               <th className="p-3 text-left">Nature</th>
-              <th className="p-3 text-left">Lieu</th>
               <th className="p-3 text-left">Véhicule</th>
               <th className="p-3 text-left">Conducteur</th>
               <th className="p-3 text-right">Montant</th>
+              <th className="p-3 text-left">Échéance</th>
               <th className="p-3 text-left">Dénonciation</th>
               <th className="p-3 text-left">Paiement</th>
               {isAdmin && <th className="p-3 text-left">Client</th>}
@@ -96,22 +106,23 @@ export default async function ContraventionsListPage({
           </thead>
           <tbody>
             {filteredItems.map((c) => (
-              <tr key={c.id} className="table-row">
-                <td className="p-3 text-slate-700">{c.societe}</td>
+              <tr key={c.id} className="table-row hover:bg-slate-50">
                 <td className="p-3 font-mono text-xs">
                   <Link href={`/contraventions/${c.id}`} className="font-medium text-brand-700 hover:underline">{c.numDossier}</Link>
                 </td>
-                <td className="p-3 text-slate-600">{c.dateInfraction ?? "—"} {c.heureInfraction ?? ""}</td>
-                <td className="p-3 max-w-xs truncate text-slate-600" title={c.natureInfraction ?? ""}>{c.natureInfraction ?? "—"}</td>
-                <td className="p-3 max-w-xs truncate text-slate-600" title={c.lieuInfraction ?? ""}>{c.lieuInfraction ?? "—"}</td>
-                <td className="p-3 text-slate-600">{c.vehicule?.immatriculation ?? c.immatriculationOcr ?? "—"}</td>
-                <td className="p-3 text-slate-600">{c.conducteur ? `${c.conducteur.prenom} ${c.conducteur.nom}` : "—"}</td>
+                <td className="p-3 text-slate-700 text-xs">{c.societe}</td>
+                <td className="p-3 font-mono text-xs text-slate-600">{c.numAvis ?? "—"}</td>
+                <td className="p-3 text-slate-600 text-xs">{c.dateInfraction ?? "—"}</td>
+                <td className="p-3 max-w-xs truncate text-slate-600 text-xs" title={c.natureInfraction ?? ""}>{c.natureInfraction ?? "—"}</td>
+                <td className="p-3 text-slate-600 text-xs">{c.vehicule?.immatriculation ?? c.immatriculationOcr ?? "—"}</td>
+                <td className="p-3 text-slate-600 text-xs">{c.conducteur ? `${c.conducteur.prenom} ${c.conducteur.nom}` : "—"}</td>
                 <td className="p-3 text-right font-medium text-slate-900">{fmtMoney(c.montantAmende)}</td>
+                <td className="p-3 text-slate-600 text-xs">{c.dateLimitePaiement ?? "—"}</td>
                 <td className="p-3">
-                  <span className={badge(c.statutDenonciation)}>{c.statutDenonciation}</span>
+                  <Badge tone={statutTone(c.statutDenonciation, "denonciation")}>{c.statutDenonciation}</Badge>
                 </td>
                 <td className="p-3">
-                  <span className={badge(c.statutPaiement)}>{c.statutPaiement}</span>
+                  <Badge tone={statutTone(c.statutPaiement, "paiement")}>{c.statutPaiement}</Badge>
                 </td>
                 {isAdmin && (
                   <td className="p-3">
@@ -136,7 +147,7 @@ export default async function ContraventionsListPage({
             ))}
             {filteredItems.length === 0 && (
               <tr>
-                <td colSpan={isAdmin ? 11 : 10}>
+                <td colSpan={isAdmin ? 12 : 11}>
                   <EmptyState
                     icon={FileWarning}
                     title="Aucune contravention pour cette vue"
@@ -161,10 +172,20 @@ function FilterLink({ href, label, count, active }: { href: string; label: strin
   );
 }
 
-function badge(s?: string | null) {
-  const base = "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium ";
-  if (s === "Effectuée" || s === "Payé") return base + "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (s === "En retard") return base + "border-rose-200 bg-rose-50 text-rose-700";
-  if (s === "À effectuer" || s === "En attente") return base + "border-amber-200 bg-amber-50 text-amber-700";
-  return base + "border-slate-200 bg-slate-50 text-slate-600";
+function statutTone(s?: string | null, type?: string) {
+  if (type === "denonciation") {
+    if (s === "Effectuée") return "success";
+    if (s === "Non applicable") return "neutral";
+    if (s === "À effectuer") return "warning";
+    return "info";
+  }
+  
+  if (type === "paiement") {
+    if (s === "Payé") return "success";
+    if (s === "En retard") return "danger";
+    if (s === "En attente") return "warning";
+    return "neutral";
+  }
+  
+  return "neutral";
 }
