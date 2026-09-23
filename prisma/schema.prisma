@@ -47,9 +47,14 @@ model Societe {
   emailSecondary   String?
 
   // Lifecycle timestamps — used to derive the statut affiché in the admin UI (Actif / Invitation
-  // envoyée / Compte non activé / Désactivé) instead of storing a redundant enum column.
+  // envoyée / Compte non activé / Désactivé / Archivé) instead of storing a redundant enum column.
   invitationSentAt DateTime?
   activatedAt      DateTime?
+  // Désactivé (2026-09-23): temporary access block — the société stays in the main list, login is
+  // refused, data untouched. Distinct from `archivedAt` (soft-delete: hidden from the default list,
+  // kept only for history/data retention). A société can be disabled without being archived and
+  // vice versa (archiving also implies disabled access, see archiveClientAction).
+  disabledAt       DateTime?
   archivedAt       DateTime?
 
   createdAt         DateTime @default(now())

@@ -1,31 +1,36 @@
 import type { Societe } from "@prisma/client";
 
-export type ClientStatus = "actif" | "invitation_envoyee" | "compte_non_active" | "desactive";
+export type ClientStatus = "actif" | "invitation_attente" | "desactive" | "archive";
 
 export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = {
   actif: "Actif",
-  invitation_envoyee: "Invitation envoyée",
-  compte_non_active: "Compte non activé",
+  invitation_attente: "Invitation en attente",
   desactive: "Désactivé",
+  archive: "Archivé",
 };
 
-// Purely derived from lifecycle timestamps + code state, so we never need to keep a redundant
-// enum column in sync with reality — the DB rows are the single source of truth.
-export function deriveClientStatus(s: Pick<Societe, "codeAccesSetupToken" | "invitationSentAt" | "activatedAt" | "archivedAt">): ClientStatus {
-  if (s.archivedAt) return "desactive";
+// Purely derived from lifecycle timestamps, so we never need to keep a redundant enum column in
+// sync with reality — the DB rows are the single source of truth.
+// - archive: soft-deleted (hidden from the default list, kept for history) — takes priority over
+//   every other state.
+// - desactive: temporary access block (`disabledAt`) — société stays in the main list.
+// - actif: has logged in at least once (or an admin activated it manually), and isn't
+//   disabled/archived.
+// - invitation_attente: anything else (just created, invitation not yet accepted).
+export function deriveClientStatus(s: Pick<Societe, "invitationSentAt" | "activatedAt" | "archivedAt" | "disabledAt">): ClientStatus {
+  if (s.archivedAt) return "archive";
+  if (s.disabledAt) return "desactive";
   if (s.activatedAt) return "actif";
-  if (s.invitationSentAt) return "invitation_envoyee";
-  if (s.codeAccesSetupToken) return "compte_non_active";
-  return "actif"; // legacy row with a code that was set directly by an admin
+  return "invitation_attente";
 }
 
-export type ClientStatusTone = "success" | "info" | "warning" | "neutral";
+export type ClientStatusTone = "success" | "info" | "warning" | "neutral" | "danger";
 
 export function clientStatusTone(status: ClientStatus): ClientStatusTone {
   if (status === "actif") return "success";
-  if (status === "invitation_envoyee") return "info";
-  if (status === "compte_non_active") return "warning";
-  return "neutral";
+  if (status === "invitation_attente") return "info";
+  if (status === "desactive") return "warning";
+  return "neutral"; // archive
 }
 
 export function formatClientName(s: Pick<Societe, "nom" | "tradeName">): string {
@@ -43,3 +48,4 @@ export function formatSiretMasked(siret: string | null | undefined): string {
   if (n.length !== 14) return siret;
   return `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6, 9)} ${n.slice(9)}`;
 }
+

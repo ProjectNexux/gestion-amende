@@ -3,8 +3,10 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Search, AlertTriangle, Check, ArrowLeft, Building2, User as UserIcon, CheckCircle2 } from "lucide-react";
+import { Loader2, Search, AlertTriangle, Check, ArrowLeft, Building2, User as UserIcon, CheckCircle2, Send } from "lucide-react";
 import type { CreateClientState } from "../actions";
+import { sendInvitationAction } from "../actions";
+import { CopyLinkButton } from "../[id]/CopyLinkButton";
 
 type LookupResult = {
   siret: string;
@@ -129,6 +131,25 @@ export default function NewClientWizard({ action }: { action: (prev: CreateClien
           <li>• Portail client : <span className="font-medium">Actif</span></li>
           <li>• Invitation : <span className="font-medium">À envoyer</span></li>
         </ul>
+        {state.setupUrl && (
+          <div className="space-y-2 rounded-xl border border-emerald-300 bg-white p-3">
+            <p className="text-xs font-medium text-slate-600">
+              Lien sécurisé à usage unique permettant au client de définir lui-même son mot de passe — aucun mot de
+              passe n&apos;est jamais stocké ou affiché en clair.
+            </p>
+            <div className="break-all rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-brand-700">
+              {state.setupUrl}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <CopyLinkButton url={state.setupUrl} />
+              {email && (
+                <form action={sendInvitationAction.bind(null, state.id!)}>
+                  <button type="submit" className="btn-primary text-xs"><Send size={13} /> Envoyer l&apos;invitation par e-mail</button>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2 pt-2">
           <Link href={`/admin/clients/${state.id}`} className="btn-primary">Voir la fiche client</Link>
           <Link href="/admin/clients" className="btn-secondary">Retour à la liste</Link>

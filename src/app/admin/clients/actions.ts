@@ -23,7 +23,7 @@ async function audit(societeId: string, action: string, details?: string) {
   await prisma.societeAudit.create({ data: { societeId, action, details: details ?? null, acteur: "Admin" } });
 }
 
-export type CreateClientState = { error?: string; ok?: boolean; id?: string };
+export type CreateClientState = { error?: string; ok?: boolean; id?: string; setupUrl?: string };
 
 /** Full create flow: fiche client + compte + accès + espace client, all in one atomic-ish call. */
 export async function createClientAction(_prev: CreateClientState, fd: FormData): Promise<CreateClientState> {
@@ -97,7 +97,9 @@ export async function createClientAction(_prev: CreateClientState, fd: FormData)
   revalidatePath(LIST_PATH);
   revalidatePath(`${LIST_PATH}/${societe.id}`);
 
-  return { ok: true, id: societe.id };
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://gestion-amende.vercel.app";
+  const setupUrl = societe.codeAccesSetupToken ? buildSetupUrl(appUrl, societe.codeAccesSetupToken) : undefined;
+  return { ok: true, id: societe.id, setupUrl };
 }
 
 export async function updateClientAction(id: string, fd: FormData) {
@@ -208,9 +210,11 @@ export async function sendInvitationAction(id: string) {
   revalidatePath(LIST_PATH);
 }
 
+// Désactiver = temporary access block (`disabledAt`). Distinct from archiving: the société stays
+// in the main list, all data untouched, reversible with a single click.
 export async function deactivateClientAction(id: string) {
   await requireAdmin();
-  await prisma.societe.update({ where: { id }, data: { archivedAt: new Date() } });
+  await prisma.societe.update({ where: { id }, data: { disabledAt: new Date() } });
   await prisma.user.updateMany({ where: { societeId: id }, data: { isActive: false } });
   await audit(id, "desactivation", "Compte désactivé");
   revalidatePath(`${LIST_PATH}/${id}`);
@@ -219,9 +223,31 @@ export async function deactivateClientAction(id: string) {
 
 export async function reactivateClientAction(id: string) {
   await requireAdmin();
-  await prisma.societe.update({ where: { id }, data: { archivedAt: null } });
+  await prisma.societe.update({ where: { id }, data: { disabledAt: null } });
   await prisma.user.updateMany({ where: { societeId: id }, data: { isActive: true } });
   await audit(id, "reactivation", "Compte réactivé");
+  revalidatePath(`${LIST_PATH}/${id}`);
+  revalidatePath(LIST_PATH);
+}
+
+/**
+ * Archiver = soft-delete: hidden from the default "Tous/Actifs/…" list views, access blocked,
+ * but every linked document/contravention/véhicule/conducteur row is kept exactly as-is —
+ * never a destructive delete. Reversible via `unarchiveClientAction`.
+ */
+export async function archiveClientAction(id: string) {
+  await requireAdmin();
+  await prisma.societe.update({ where: { id }, data: { archivedAt: new Date() } });
+  await prisma.user.updateMany({ where: { societeId: id }, data: { isActive: false } });
+  await audit(id, "archivage", "Société archivée par l'administrateur");
+  revalidatePath(`${LIST_PATH}/${id}`);
+  revalidatePath(LIST_PATH);
+}
+
+export async function unarchiveClientAction(id: string) {
+  await requireAdmin();
+  await prisma.societe.update({ where: { id }, data: { archivedAt: null } });
+  await audit(id, "desarchivage", "Société désarchivée par l'administrateur");
   revalidatePath(`${LIST_PATH}/${id}`);
   revalidatePath(LIST_PATH);
 }
@@ -237,12 +263,45 @@ export async function activateClientAction(id: string) {
   if (!s) notFound();
   await prisma.societe.update({
     where: { id },
-    data: { activatedAt: s.activatedAt ?? new Date(), archivedAt: null },
+    data: { activatedAt: s.activatedAt ?? new Date(), archivedAt: null, disabledAt: null },
   });
   await prisma.user.updateMany({ where: { societeId: id }, data: { isActive: true } });
   await audit(id, "compte_active", "Compte activé manuellement par l'admin");
   revalidatePath(`${LIST_PATH}/${id}`);
   revalidatePath(LIST_PATH);
+}
+
+/** Toggles a single linked User's access without touching the whole société (used by the
+ * "Utilisateurs" tab — a société can have more than one user account in the schema, even
+ * though the créer-un-client wizard only ever provisions one today). */
+export async function toggleUserActiveAction(userId: string, next: boolean) {
+  await requireAdmin();
+  const user = await prisma.user.update({ where: { id: userId }, data: { isActive: next } });
+  await audit(user.societeId, next ? "utilisateur_active" : "utilisateur_desactive", `Compte utilisateur ${user.email ?? user.id} ${next ? "activé" : "désactivé"}`);
+  revalidatePath(`${LIST_PATH}/${user.societeId}`);
+}
+
+/** Removes a user row. Safe/reversible in practice: the next successful login re-provisions a
+ * user for that société automatically (see `ensureUserForSociete`). */
+export async function deleteUserAction(userId: string) {
+  await requireAdmin();
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) notFound();
+  await prisma.user.delete({ where: { id: userId } });
+  await audit(user.societeId, "utilisateur_supprime", `Compte utilisateur ${user.email ?? user.id} supprimé`);
+  revalidatePath(`${LIST_PATH}/${user.societeId}`);
+}
+
+/** Transmet/retire un Courrier du portail client — même principe que
+ * `toggleVisibleClientAction` sur les contraventions, mais pour les courriers, exposé depuis
+ * l'onglet "Documents" de la fiche société. */
+export async function toggleCourrierVisibleAction(courrierId: string, next: boolean, societeId: string) {
+  await requireAdmin();
+  await prisma.courrier.update({ where: { id: courrierId }, data: { visibleClient: next } });
+  await audit(societeId, next ? "document_transmis" : "document_retire", `Document ${next ? "transmis au" : "retiré du"} portail client`);
+  revalidatePath(`${LIST_PATH}/${societeId}`);
+  revalidatePath("/client");
+  revalidatePath("/client/courriers");
 }
 
 /**

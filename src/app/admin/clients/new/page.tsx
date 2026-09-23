@@ -16,8 +16,8 @@ export default async function NewClientPage() {
         <Link href="/admin/clients" className="inline-flex items-center gap-1 text-sm text-brand-600 hover:underline">
           <ArrowLeft size={14} /> Retour à la liste
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Ajouter un client</h1>
-        <p className="text-sm text-slate-500">Créez une société cliente à partir de son SIRET. Les informations officielles sont récupérées automatiquement.</p>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Créer un client</h1>
+        <p className="text-sm text-slate-500">Créez une société cliente à partir de son SIRET. Les informations officielles sont récupérées automatiquement ; vous pouvez toujours les corriger ou les saisir manuellement.</p>
       </div>
 
       <NewClientWizard action={createClientAction} />

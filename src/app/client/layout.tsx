@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getSociete } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { getSociete, stopImpersonationAction } from "@/lib/auth";
 import { NotificationBell } from "@/components/client/NotificationBell";
 import { ClientHeaderMenu } from "./ClientHeaderMenu";
 import { ClientSidebar } from "./ClientSidebar";
@@ -20,12 +21,23 @@ export const dynamic = "force-dynamic";
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
   const societe = await getSociete();
   if (!societe) redirect("/login");
+  const impersonating = (await cookies()).get("impersonatingFrom")?.value ?? null;
 
   return (
     <div className="flex min-h-screen bg-[#F7F8FC]">
       <ClientSidebar societe={societe} sections={CLIENT_NAV_SECTIONS} />
 
       <div className="min-w-0 flex-1">
+        {impersonating && (
+          <div className="flex items-center justify-between bg-amber-500 px-6 py-2 text-sm text-white">
+            <span>Vous consultez l&apos;espace de <strong>{societe}</strong> en tant qu&apos;administrateur.</span>
+            <form action={stopImpersonationAction}>
+              <button type="submit" className="rounded-md bg-white/20 px-3 py-1 font-medium hover:bg-white/30">
+                Revenir à l&apos;administration
+              </button>
+            </form>
+          </div>
+        )}
         <header className="flex items-center justify-between border-b border-slate-200 bg-white px-8 py-4">
           <div>
             <h1 className="text-lg font-semibold text-slate-900">Espace client</h1>

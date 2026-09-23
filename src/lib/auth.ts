@@ -145,8 +145,9 @@ export async function loginAction(fd: FormData) {
     await registerFailedLogin(nom);
     redirect("/login?error=1");
   }
-  if (societe.archivedAt) {
-    // Archived (désactivé) — treat like a failed login rather than leaking a distinct error.
+  if (societe.archivedAt || societe.disabledAt) {
+    // Archived or temporarily disabled — treat like a failed login rather than leaking a
+    // distinct error message to an unauthenticated caller.
     await registerFailedLogin(nom);
     redirect("/login?error=1");
   }
@@ -189,5 +190,44 @@ export async function logoutAction() {
   jar.delete("societe");
   jar.delete("role");
   jar.delete("userId");
+  jar.delete("impersonatingFrom");
   redirect("/login");
+}
+
+/**
+ * "Accéder à l'espace de la société" (Clients module, fiche société) — lets an admin view a
+ * client's portal exactly as they see it, without knowing/resetting their code d'accès. The
+ * admin's own société is stashed in `impersonatingFrom` so `stopImpersonationAction` can restore
+ * it; never touches the target société's own `codeAcces`/setup token.
+ */
+export async function impersonateClientAction(societeId: string) {
+  if (!(await isAdminSession())) redirect("/login");
+  const societe = await prisma.societe.findUnique({ where: { id: societeId } });
+  if (!societe) redirect("/admin/clients");
+
+  const jar = await cookies();
+  const adminSociete = jar.get("societe")?.value;
+  const user = await ensureUserForSociete(societe.nom, "client");
+
+  if (adminSociete) {
+    jar.set("impersonatingFrom", adminSociete, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 2 });
+  }
+  jar.set("societe", societe.nom, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+  jar.set("role", "client", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+  jar.set("userId", user.id, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+  redirect("/client");
+}
+
+export async function stopImpersonationAction() {
+  const jar = await cookies();
+  const adminSociete = jar.get("impersonatingFrom")?.value;
+  jar.delete("impersonatingFrom");
+  if (!adminSociete) {
+    redirect("/login");
+  }
+  const user = await ensureUserForSociete(adminSociete, "admin");
+  jar.set("societe", adminSociete, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+  jar.set("role", "admin", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+  jar.set("userId", user.id, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+  redirect("/admin/clients");
 }
