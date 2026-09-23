@@ -84,6 +84,37 @@ textarea:focus-visible,
   background-color: rgba(88, 93, 105, 0.6);
 }
 
+/* Login page decorative backdrop (2026-09-24) — pure CSS, no images/libraries. Disabled entirely
+   under prefers-reduced-motion so the decorative layer never distracts or slows down sign-in. */
+@keyframes login-float-slow {
+  0%, 100% { transform: translateY(0) rotate(var(--tilt, 0deg)); }
+  50% { transform: translateY(-14px) rotate(var(--tilt, 0deg)); }
+}
+@keyframes login-fade-in-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes login-glow-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.55; }
+}
+.animate-login-float {
+  animation: login-float-slow 9s ease-in-out infinite;
+}
+.animate-login-fade-in {
+  animation: login-fade-in-up 0.8s ease-out both;
+}
+.animate-login-glow {
+  animation: login-glow-pulse 7s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-login-float,
+  .animate-login-fade-in,
+  .animate-login-glow {
+    animation: none !important;
+  }
+}
+
 @layer components {
   .card {
     @apply rounded-[14px] border border-slate-200/80 bg-white shadow-card;
