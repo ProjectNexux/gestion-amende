@@ -32,7 +32,7 @@ export function ClientSidebar({ societe, sections }: { societe: string; sections
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
-        className={`fixed inset-y-0 left-0 z-[70] flex flex-col bg-gradient-to-b from-slate-900 via-slate-900 to-teal-950 text-slate-300 transition-[width] duration-[220ms] ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-[70] flex flex-col bg-gradient-to-b from-navy-950 via-navy-900 to-teal-950 text-slate-300 transition-[width] duration-[220ms] ease-in-out ${
           expanded ? "w-64 shadow-[8px_0_28px_-6px_rgba(0,0,0,0.35)]" : "w-[72px]"
         }`}
       >
