@@ -24,21 +24,28 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Assistance intégrée (2026-09-24): visite guidée facultative, uniquement pour un compte admin
   // qui ne l'a ni terminée ni passée — jamais proposée à un compte client ou société standard.
   let onboarding: { status: string; step: number } | null = null;
+  let organizationName: string | null = null;
   if (isAdmin) {
     const userId = await getUserId();
-    const user = userId ? await prisma.user.findUnique({ where: { id: userId }, select: { onboardingStatus: true, onboardingStep: true } }) : null;
+    const user = userId
+      ? await prisma.user.findUnique({
+          where: { id: userId },
+          select: { onboardingStatus: true, onboardingStep: true, organizationMember: { select: { organization: { select: { name: true } } } } },
+        })
+      : null;
     if (user) onboarding = { status: user.onboardingStatus, step: user.onboardingStep };
+    organizationName = user?.organizationMember?.organization?.name ?? null;
   }
 
   return (
     <html lang="fr" className={manrope.variable}>
       <body>
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(45,91,222,0.06),_transparent_35%),_#f4f5f7]" >
+        <div className="min-h-screen bg-surface-base">
           {onboarding?.status === "pending" && <OnboardingTour initialStep={onboarding.step} />}
           <div className="flex min-h-screen">
             {societe && !isClient && <Sidebar societe={societe} admin={isAdmin} />}
             <div className="flex min-w-0 flex-1 flex-col">
-              {societe && !isClient && <Topbar societe={societe} admin={isAdmin} />}
+              {societe && !isClient && <Topbar societe={societe} admin={isAdmin} organizationName={organizationName} />}
               <main className="flex-1 overflow-auto">
                 {isClient ? children : <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">{children}</div>}
               </main>

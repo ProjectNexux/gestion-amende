@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, Bell, ChevronDown, LogOut, Loader2, ScanLine, ArrowLeft } from "lucide-react";
+import { Search, Bell, ChevronDown, LogOut, Loader2, ScanLine, ArrowLeft, Building2 } from "lucide-react";
 import { NewDocumentMenu } from "@/components/NewDocumentMenu";
 import type { SearchResultGroup } from "@/app/api/search/route";
 
@@ -36,7 +36,7 @@ function resolveBreadcrumb(pathname: string): { section: string; page: string } 
   return match ?? { section: "Gestion", page: "" };
 }
 
-export function Topbar({ societe, admin }: { societe: string; admin: boolean }) {
+export function Topbar({ societe, admin, organizationName }: { societe: string; admin: boolean; organizationName?: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const { section, page } = resolveBreadcrumb(pathname);
@@ -120,10 +120,7 @@ export function Topbar({ societe, admin }: { societe: string; admin: boolean }) 
       )}
       <div className="min-w-0 flex-1">
         <div className="truncate text-[10.5px] font-semibold uppercase tracking-[0.1em] text-slate-400">{section}</div>
-        <div className="flex items-center gap-2">
-          <div className="truncate text-[15px] font-bold leading-tight text-slate-900">{page}</div>
-          <span className="rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">VERSION CORRIGÉE</span>
-        </div>
+        <div className="truncate text-[15px] font-bold leading-tight text-slate-900">{page}</div>
       </div>
 
       <div ref={searchRef} className="relative hidden lg:block">
@@ -206,11 +203,20 @@ export function Topbar({ societe, admin }: { societe: string; admin: boolean }) 
           <ChevronDown size={14} className={`hidden text-slate-400 transition-transform duration-150 md:block ${menuOpen ? "rotate-180" : ""}`} />
         </button>
         {menuOpen && (
-          <div className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200/80 bg-white py-1.5 shadow-popover animate-[modalIn_150ms_ease-out]">
+          <div className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200/80 bg-white py-1.5 shadow-popover animate-[modalIn_150ms_ease-out]">
             <div className="border-b border-slate-100 px-3.5 py-2">
               <div className="truncate text-[13px] font-medium text-slate-800">{societe}</div>
               <div className="text-[11px] text-slate-400">{admin ? "Administrateur" : "Membre"}</div>
             </div>
+            {admin && organizationName && (
+              <Link href="/organisation" className="flex items-center gap-2.5 border-b border-slate-100 px-3.5 py-2 text-[13px] text-slate-700 transition-colors hover:bg-slate-50">
+                <Building2 size={15} className="text-slate-400" />
+                <span className="min-w-0">
+                  <span className="block text-[10px] uppercase tracking-wide text-slate-400">Organisation</span>
+                  <span className="block truncate font-medium">{organizationName}</span>
+                </span>
+              </Link>
+            )}
             <form action="/api/logout" method="POST">
               <button className="flex w-full items-center gap-2.5 px-3.5 py-2 text-[13px] text-slate-700 transition-colors hover:bg-slate-50">
                 <LogOut size={15} className="text-slate-400" />
