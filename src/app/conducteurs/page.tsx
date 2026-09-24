@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { createConducteur, deleteConducteur } from "./actions";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import AddConducteurPanel from "./AddConducteurPanel";
 import Link from "next/link";
 import { Users } from "lucide-react";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function ConducteursPage() {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
-  const items = await prisma.conducteur.findMany({ where: isAdmin ? {} : { societe }, orderBy: { nom: "asc" } });
+  const items = await prisma.conducteur.findMany({ where: await getVisibleSocieteFilter(), orderBy: { nom: "asc" } });
   return (
     <div className="space-y-6">
       <AddConducteurPanel action={createConducteur} />

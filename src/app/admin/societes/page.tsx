@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { createSocieteAction, deleteSocieteAction, generateSetupLinkAction } from "./actions";
 import Link from "next/link";
 import { isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteNames } from "@/lib/org-scope";
 import { redirect } from "next/navigation";
 import { buildSetupUrl, isSetupTokenExpired } from "@/lib/societe-setup";
 import { PasswordField } from "@/components/ui/PasswordField";
@@ -14,7 +15,11 @@ export default async function AdminSocietesPage() {
   // sociétés. Now gated to admin sessions only, same convention as the rest of the app.
   if (!(await isAdminSession())) redirect("/login");
 
-  const societes = await prisma.societe.findMany({ orderBy: { nom: "asc" } });
+  const names = await getVisibleSocieteNames();
+  const societes = await prisma.societe.findMany({
+    where: names === "all-own-societe" ? {} : { nom: { in: names } },
+    orderBy: { nom: "asc" },
+  });
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   return (

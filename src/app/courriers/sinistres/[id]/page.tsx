@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { Eye, Download } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { updateSinistre, deleteSinistre, addSinistreDocument } from "../actions";
 import { SINISTRE_STATUTS, SINISTRE_TYPES, sinistreStatutTone, SINISTRE_HISTORIQUE_LABELS } from "@/lib/sinistres";
 import { fmtMoney, fmtDateTime } from "@/lib/utils";
@@ -24,7 +25,7 @@ export default async function SinistreDetailPage({ params }: { params: Promise<{
   const isAdmin = await isAdminSession();
 
   const sinistre = await prisma.sinistre.findFirst({
-    where: isAdmin ? { id } : { id, societe },
+    where: { id, ...(await getVisibleSocieteFilter()) },
     include: {
       vehicule: true,
       conducteur: true,
@@ -35,8 +36,8 @@ export default async function SinistreDetailPage({ params }: { params: Promise<{
   if (!sinistre) notFound();
 
   const [vehicules, conducteurs] = await Promise.all([
-    prisma.vehicule.findMany({ where: isAdmin ? {} : { societe }, orderBy: { immatriculation: "asc" } }),
-    prisma.conducteur.findMany({ where: isAdmin ? {} : { societe }, orderBy: { nom: "asc" } }),
+    prisma.vehicule.findMany({ where: await getVisibleSocieteFilter(), orderBy: { immatriculation: "asc" } }),
+    prisma.conducteur.findMany({ where: await getVisibleSocieteFilter(), orderBy: { nom: "asc" } }),
   ]);
 
   return (

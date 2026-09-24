@@ -9,33 +9,42 @@ datasource db {
 }
 
 model Societe {
-  id                String   @id @default(cuid())
-  nom               String   @unique
-  codeAcces         String
+  id        String @id @default(cuid())
+  nom       String @unique
+  codeAcces String
+
+  // Plateforme multi-entreprises (2026-09-24): chaque Societe (= "ClientCompany" du cahier des
+  // charges) appartient désormais à une Organization gérante. Nullable+backfill (jamais NOT NULL
+  // au niveau DB) pour rester strictement additif — voir scripts/backfill-neteco-organization.ts.
+  // `isOrganizationHome` distingue la société "maison" de l'organisation (celle où logent les
+  // documents propres du gestionnaire, ex. "Mon espace" pour NetEco) des vraies sociétés clientes.
+  organizationId          String?
+  organization            Organization? @relation(fields: [organizationId], references: [id])
+  isOrganizationHome      Boolean       @default(false)
   // Self-service access code creation (2026-09-02): when an admin creates a société without
   // typing a code directly, a one-time setup link is generated instead so the CLIENT can pick
   // their own code_acces at /client-setup/[token]. Cleared (both set back to null) as soon as
   // the client actually sets their code — single-use, same "unguessable capability link"
   // convention already used for /paiement/[id].
-  codeAccesSetupToken     String?   @unique
+  codeAccesSetupToken     String?       @unique
   codeAccesSetupExpiresAt DateTime?
-  emailTransmission String? // adresse à laquelle transmettre les courriers administratifs de cette société
+  emailTransmission       String? // adresse à laquelle transmettre les courriers administratifs de cette société
 
   // Clients module (2026-09-03): official company data fetched from recherche-entreprises.api.gouv.fr
   // (INSEE Sirene). Every field is nullable — a legacy Societe row created before this migration
   // still works exactly as before with all these NULL.
-  siret          String? @unique
-  siren          String?
-  tradeName      String? // nom commercial
-  legalForm      String? // forme juridique
-  vatNumber      String? // n° TVA intracommunautaire
-  nafCode        String? // code activité principale
-  activityLabel  String? // libellé de l'activité
-  addressLine1   String?
-  addressLine2   String?
-  postalCode     String?
-  city           String?
-  country        String? @default("France")
+  siret         String? @unique
+  siren         String?
+  tradeName     String? // nom commercial
+  legalForm     String? // forme juridique
+  vatNumber     String? // n° TVA intracommunautaire
+  nafCode       String? // code activité principale
+  activityLabel String? // libellé de l'activité
+  addressLine1  String?
+  addressLine2  String?
+  postalCode    String?
+  city          String?
+  country       String? @default("France")
 
   contactCivilite  String? // M., Mme, Autre
   contactFirstName String?
@@ -57,31 +66,106 @@ model Societe {
   disabledAt       DateTime?
   archivedAt       DateTime?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   users       User[]
-  vehicules   Vehicule[]   @relation("VehiculeSociete")
-  conducteurs Conducteur[] @relation("ConducteurSociete")
-  courriers   Courrier[]   @relation("CourrierSociete")
-  sinistres   Sinistre[]   @relation("SinistreSociete")
+  vehicules   Vehicule[]     @relation("VehiculeSociete")
+  conducteurs Conducteur[]   @relation("ConducteurSociete")
+  courriers   Courrier[]     @relation("CourrierSociete")
+  sinistres   Sinistre[]     @relation("SinistreSociete")
   audits      SocieteAudit[] @relation("SocieteAudit")
+
+  @@index([organizationId])
+}
+
+// Plateforme multi-entreprises (2026-09-24): la société GESTIONNAIRE (ex. NetEco). Chaque
+// Organization possède son propre espace admin, ses propres sociétés clientes (Societe.organizationId)
+// et ses propres membres gestionnaires (OrganizationMember). Aucune donnée n'est jamais partagée
+// entre deux Organization — l'isolation se fait au niveau de chaque requête via
+// src/lib/org-scope.ts (jamais une valeur libre envoyée par le navigateur).
+model Organization {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  slug         String   @unique
+  logoUrl      String?
+  contactEmail String?
+  contactPhone String?
+  addressLine1 String?
+  postalCode   String?
+  city         String?
+  siret        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  societes    Societe[]
+  members     OrganizationMember[]
+  invitations OrganizationInvitation[]
+  audits      OrganizationAudit[]
+}
+
+// Rattache un User gestionnaire existant (role="admin") à une Organization, avec un rôle plus fin
+// que le simple User.role ("admin"/"client") : owner | admin | collaborator (voir cahier des
+// charges §4). Un User ne gère jamais qu'une seule organisation à la fois.
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String       @unique
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orgRole        String       @default("collaborator") // "owner" | "admin" | "collaborator"
+  disabledAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+}
+
+// Invitation d'un nouvel administrateur/collaborateur pour une Organization — même convention de
+// lien à usage unique que /client-setup/[token] et /user-setup/[token].
+model OrganizationInvitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  orgRole        String       @default("admin")
+  token          String       @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+}
+
+// Journal d'activité au niveau organisation (invitations, création de client, changement de rôle...).
+// Distinct de SocieteAudit (qui reste l'historique par société cliente) — cahier des charges §6
+// "consulter l'activité" de l'organisation elle-même.
+model OrganizationAudit {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  action         String
+  details        String?
+  acteur         String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
 }
 
 // Small append-only audit log of admin/client actions on a Societe row. Used to render the
 // "Journal d'activité" section on the fiche client. Kept intentionally narrow — one row per
 // human-relevant event, no automated system noise.
 model SocieteAudit {
-  id         String   @id @default(cuid())
-  societeId  String
-  societe    Societe  @relation("SocieteAudit", fields: [societeId], references: [id], onDelete: Cascade)
-  action     String   // creation, invitation_envoyee, compte_active, connexion, code_regenere, informations_modifiees, desactivation, reactivation, archivage
-  details    String?
-  acteur     String?  // "Admin", nom société, ou "Client"
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  societeId String
+  societe   Societe  @relation("SocieteAudit", fields: [societeId], references: [id], onDelete: Cascade)
+  action    String // creation, invitation_envoyee, compte_active, connexion, code_regenere, informations_modifiees, desactivation, reactivation, archivage
+  details   String?
+  acteur    String? // "Admin", nom société, ou "Client"
+  createdAt DateTime @default(now())
 
   @@index([societeId, createdAt])
 }
+
 // Espace client (2026-09-23): favoris — un client peut marquer un Courrier ou une Contravention
 // comme favori depuis son portail. Polymorphe (itemType/itemId) plutôt que deux tables séparées
 // pour rester générique si d'autres types de documents deviennent favorisables plus tard.
@@ -96,26 +180,27 @@ model Favori {
   @@unique([societe, itemType, itemId])
   @@index([societe])
 }
+
 model User {
-  id        String   @id @default(cuid())
-  societeId String
-  societe   Societe  @relation(fields: [societeId], references: [id])
-  nom       String
-  prenom    String
-  email     String?  @unique
-  telephone String?
-  role      String   @default("member")
-  isActive  Boolean  @default(true)
+  id          String    @id @default(cuid())
+  societeId   String
+  societe     Societe   @relation(fields: [societeId], references: [id])
+  nom         String
+  prenom      String
+  email       String?   @unique
+  telephone   String?
+  role        String    @default("member")
+  isActive    Boolean   @default(true)
   lastLoginAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Multi-user client accounts (2026-09-23): additive/non-destructive — a société can now have
   // several individual named users, each with their own hashed password, instead of one shared
   // `Societe.codeAcces`. `codeAcces` login keeps working unchanged (see loginAction) for
   // backward compatibility; these fields are all nullable so every pre-existing User row is
   // unaffected until an admin explicitly invites that person.
-  passwordHash        String?   // scrypt "salt:hash" — NEVER the plaintext, NEVER displayed back
+  passwordHash        String? // scrypt "salt:hash" — NEVER the plaintext, NEVER displayed back
   isPrincipal         Boolean   @default(false) // contact principal for the société (at most one)
   invitationToken     String?   @unique
   invitationExpiresAt DateTime?
@@ -126,6 +211,8 @@ model User {
   // permet de reprendre exactement où l'utilisateur s'était arrêté s'il rouvre l'app plus tard.
   onboardingStatus String @default("pending")
   onboardingStep   Int    @default(0)
+
+  organizationMember OrganizationMember?
 
   @@index([societeId])
 }
@@ -246,7 +333,7 @@ model Contravention {
 
   // Espace client (2026-08-24): a contravention is only ever shown in the client-facing portal
   // when explicitly shared by an admin — never automatically, regardless of société match.
-  visibleClient Boolean @default(false)
+  visibleClient      Boolean @default(false)
   // "Transmettre au client" (2026-09-23): informational history only, see TransmissionClientInfo
   // in src/app/courriers/actions.ts — access control always relies on societe+visibleClient above,
   // never on this JSON blob.
@@ -290,7 +377,7 @@ model Courrier {
   // default/behavior), "EMAIL_SCAN" (Gmail/IMAP pipeline), "IMPORT" (admin's own "+ Nouveau
   // document"), or "CLIENT" (submitted by a société through its portal). Never inferred/guessed —
   // always set explicitly at creation time by the code path that creates the row.
-  source String @default("ADMIN")
+  source        String  @default("ADMIN")
 
   receivedAt DateTime @default(now())
   createdAt  DateTime @default(now())
@@ -448,37 +535,37 @@ model PaiementAuditLog {
 }
 
 model EmailScan {
-  id              String    @id @default(cuid())
-  societe         String    @default("Societe principale")
-  messageId       String    @unique
-  fromAddress     String?
-  subject         String?
-  fileName        String
-  fileHash        String    @unique
-  fileMime        String
-  fileSize        Int
-  fileData        Bytes
-  status          String    @default("received") // received | processing | analyzed | created | error
-  retryCount      Int       @default(0)
-  lastErrorMessage String?
-  lastErrorAt     DateTime?
-  ocrText         String?
-  parsedData      String? // JSON string of ParsedFine (or, for origine="manuel", a DocumentAnalysis — see src/lib/document-import.ts)
-  errorMessage    String?
-  contraventionId String?
-  courrierId      String? // set when classified as a Courrier (e.g. mise_en_demeure)
+  id                       String    @id @default(cuid())
+  societe                  String    @default("Societe principale")
+  messageId                String    @unique
+  fromAddress              String?
+  subject                  String?
+  fileName                 String
+  fileHash                 String    @unique
+  fileMime                 String
+  fileSize                 Int
+  fileData                 Bytes
+  status                   String    @default("received") // received | processing | analyzed | created | error
+  retryCount               Int       @default(0)
+  lastErrorMessage         String?
+  lastErrorAt              DateTime?
+  ocrText                  String?
+  parsedData               String? // JSON string of ParsedFine (or, for origine="manuel", a DocumentAnalysis — see src/lib/document-import.ts)
+  errorMessage             String?
+  contraventionId          String?
+  courrierId               String? // set when classified as a Courrier (e.g. mise_en_demeure)
   // Universal "+ Nouveau document" entry point (2026-08-24): a document keeps a single record
   // regardless of how it entered the system — only `origine` differs ("email" = scan imprimante
   // via IMAP, "manuel" = uploaded manually through the app). See src/lib/document-import.ts.
-  origine           String  @default("email") // "email" | "manuel"
-  importedByUserId  String?
-  manualClassifiedAt DateTime?
+  origine                  String    @default("email") // "email" | "manuel"
+  importedByUserId         String?
+  manualClassifiedAt       DateTime?
   manualClassifiedByUserId String?
   manualClassificationNote String?
-  receivedAt      DateTime  @default(now())
-  processedAt     DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  receivedAt               DateTime  @default(now())
+  processedAt              DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
   @@index([societe])
   @@index([status])

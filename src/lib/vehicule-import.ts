@@ -1,6 +1,7 @@
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
 import { prisma } from "@/lib/prisma";
+import { getVisibleSocieteNames } from "@/lib/org-scope";
 import {
   VehiculeImportField,
   FIELD_LABELS,
@@ -100,7 +101,11 @@ export async function buildPreview({
   };
 
   // --- Pass 1: build candidate data + resolve société per row (no DB yet) ---
-  const allSocietes = await prisma.societe.findMany({ select: { nom: true } });
+  const visibleNames = await getVisibleSocieteNames();
+  const allSocietes = await prisma.societe.findMany({
+    where: visibleNames === "all-own-societe" ? { nom: sessionSociete } : { nom: { in: visibleNames } },
+    select: { nom: true },
+  });
   const societeByNorm = new Map(allSocietes.map((s) => [norm(s.nom), s.nom]));
 
   type Interim = Omit<PreviewRow, "duplicate" | "conducteurResolvedId" | "conducteurCandidates" | "conducteurStatus" | "status" | "issues"> & { issues: string[] };

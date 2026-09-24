@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { verifyPassword } from "@/lib/password";
 
-const ADMIN_SOCIETE = process.env.ADMIN_SOCIETE ?? "Mon espace";
 const ADMIN_CODE = process.env.ADMIN_CODE ?? "admin123";
 
 function makeUserEmailFromSociete(nom: string) {
@@ -142,11 +141,28 @@ export async function loginAction(fd: FormData) {
     redirect(user!.role === "admin" ? "/" : "/client");
   }
 
-  const isAdminLogin = nom === ADMIN_SOCIETE && code === ADMIN_CODE;
+  // Plateforme multi-entreprises (2026-09-24): n'importe quelle société marquée comme "maison"
+  // d'une organisation (isOrganizationHome) peut se connecter en admin avec son propre codeAcces —
+  // remplace l'ancienne comparaison hardcodée à UNE seule société/code (ADMIN_SOCIETE/ADMIN_CODE),
+  // qui ne permettait qu'une seule organisation gestionnaire pour toute l'application.
+  const homeSociete = await prisma.societe.findFirst({ where: { nom, isOrganizationHome: true } });
+  const isAdminLogin = !!homeSociete && homeSociete.codeAcces === code;
   if (isAdminLogin) {
     clearFailedLogins(nom, ip);
-    const user = await ensureUserForSociete(ADMIN_SOCIETE, "admin");
-    jar.set("societe", ADMIN_SOCIETE, {
+    if (homeSociete!.archivedAt || homeSociete!.disabledAt) {
+      await registerFailedLogin(nom);
+      redirect("/login?error=1");
+    }
+    const user = await ensureUserForSociete(homeSociete!.nom, "admin");
+    if (homeSociete!.organizationId) {
+      await prisma.organizationMember.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: { organizationId: homeSociete!.organizationId, userId: user.id, orgRole: "owner" },
+      });
+    }
+    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    jar.set("societe", homeSociete!.nom, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",

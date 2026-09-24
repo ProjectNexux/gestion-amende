@@ -28,6 +28,7 @@ import {
   Building2,
   MailOpen,
   LifeBuoy,
+  Layers,
 } from "lucide-react";
 
 /**
@@ -226,6 +227,14 @@ const NAV_CONFIG: NavEntry[] = [
   },
   {
     type: "link",
+    id: "organisation",
+    href: "/organisation",
+    label: "Mon organisation",
+    icon: <Layers size={17} strokeWidth={1.75} />,
+    match: (pathname) => pathname.startsWith("/organisation"),
+  },
+  {
+    type: "link",
     id: "aide",
     href: "/aide",
     label: "Aide et assistance",
@@ -239,7 +248,7 @@ const NAV_CONFIG: NavEntry[] = [
 const SECTIONS: { label: string; ids: string[] }[] = [
   { label: "Tableau de bord", ids: ["dashboard"] },
   { label: "Gestion", ids: ["contraventions", "courriers", "comptabilite"] },
-  { label: "Administration", ids: ["clients"] },
+  { label: "Administration", ids: ["clients", "organisation"] },
   { label: "Aide", ids: ["aide"] },
 ];
 

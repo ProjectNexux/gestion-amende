@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { requireSociete, isAdminSession, getUserId } from "@/lib/auth";
 import { groupScansByBundle } from "@/lib/scan-bundles";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { Badge, documentTypeTone, type BadgeTone } from "@/components/ui/Badge";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { SectionCard } from "@/components/dashboard/SectionCard";
@@ -123,7 +124,7 @@ export default async function DashboardPage({
 }) {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
-  const where = isAdmin ? {} : { societe };
+  const where = await getVisibleSocieteFilter();
 
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const rawPeriod = Array.isArray(resolvedSearchParams.periode) ? resolvedSearchParams.periode[0] : resolvedSearchParams.periode;
@@ -158,7 +159,7 @@ export default async function DashboardPage({
   // regrouper les lots multi-parties exactement comme /admin/scans avant de compter.
   const scanRowsForClassify = isAdmin
     ? await prisma.emailScan.findMany({
-        where: {},
+        where: await getVisibleSocieteFilter(),
         orderBy: { receivedAt: "desc" },
         take: 50,
         select: { messageId: true, fileName: true, status: true, courrierId: true, contraventionId: true, receivedAt: true },

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Eye, Search, Building2 } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, getVisibleSocieteNames } from "@/lib/org-scope";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -40,11 +41,18 @@ export default async function UrssafPage({
 
   const [allItems, allSocietes] = await Promise.all([
     prisma.courrier.findMany({
-      where: isAdmin ? { type: "mise_en_demeure" } : { societe, type: "mise_en_demeure" },
+      where: { type: "mise_en_demeure", ...(await getVisibleSocieteFilter()) },
       orderBy: { receivedAt: "desc" },
       select: COURRIER_LIST_SELECT,
     }),
-    prisma.societe.findMany({ orderBy: { nom: "asc" }, select: { nom: true, emailTransmission: true } }),
+    (async () => {
+      const names = await getVisibleSocieteNames();
+      return prisma.societe.findMany({
+        where: names === "all-own-societe" ? { nom: societe } : { nom: { in: names } },
+        orderBy: { nom: "asc" },
+        select: { nom: true, emailTransmission: true },
+      });
+    })(),
   ]);
 
   const emailBySociete = new Map(allSocietes.map((s) => [s.nom, s.emailTransmission]));

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSociete, getUserId, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteNames } from "@/lib/org-scope";
 import { serverOcr } from "@/lib/server-ocr";
 import { analyzeDocumentText, findPotentialDuplicate, fileHash, RECLASS_OPTIONS } from "@/lib/document-import";
 import { detectDestinataireSociete } from "@/lib/societe-detector";
@@ -101,7 +102,8 @@ export async function POST(req: NextRequest) {
     // lets the review step offer a target-société picker so the record can be filed directly
     // under the concerned client's société instead of always staying under the admin's own.
     const isAdmin = await isAdminSession();
-    const societes = isAdmin ? (await prisma.societe.findMany({ select: { nom: true }, orderBy: { nom: "asc" } })).map((s) => s.nom) : [];
+    const visibleNames = await getVisibleSocieteNames();
+    const societes = isAdmin ? (visibleNames === "all-own-societe" ? [] : visibleNames) : [];
     // Destinataire auto-detection (2026-09-02): scans the OCR text for a real mention of one of
     // the known sociétés' names so the document is filed under the correct client right away
     // instead of always defaulting to the uploader's own société. Admin-only (same list as above).

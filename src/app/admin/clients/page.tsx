@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteNames } from "@/lib/org-scope";
 import { redirect } from "next/navigation";
 import { Plus, Building2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -9,8 +10,6 @@ import { ClientsList, type ClientListRow } from "./ClientsList";
 import { HelpHint } from "@/components/ui/HelpHint";
 
 export const dynamic = "force-dynamic";
-
-const ADMIN_SOCIETE = process.env.ADMIN_SOCIETE ?? "Mon espace";
 
 const STATUS_FILTERS: { key: "all" | ClientStatus; label: string }[] = [
   { key: "all", label: "Tous" },
@@ -32,8 +31,9 @@ export default async function AdminClientsPage({
   const statusParam = (Array.isArray(sp.status) ? sp.status[0] : sp.status) ?? "all";
   const activeStatus = STATUS_FILTERS.some((f) => f.key === statusParam) ? (statusParam as "all" | ClientStatus) : "all";
 
+  const names = await getVisibleSocieteNames();
   const societes = await prisma.societe.findMany({
-    where: { nom: { not: ADMIN_SOCIETE } },
+    where: { isOrganizationHome: false, ...(names === "all-own-societe" ? {} : { nom: { in: names } }) },
     orderBy: [{ createdAt: "desc" }],
     include: {
       users: { select: { lastLoginAt: true }, orderBy: { lastLoginAt: "desc" }, take: 1 },

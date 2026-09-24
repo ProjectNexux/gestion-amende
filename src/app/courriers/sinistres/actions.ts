@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, isSocieteVisible } from "@/lib/org-scope";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { SINISTRE_STATUTS } from "@/lib/sinistres";
@@ -65,7 +66,7 @@ export async function createSinistre(formData: FormData) {
   const isAdmin = await isAdminSession();
 
   const societeInput = str(formData, "societe");
-  const societe = isAdmin && societeInput ? societeInput : userSociete;
+  const societe = isAdmin && societeInput && (await isSocieteVisible(societeInput)) ? societeInput : userSociete;
 
   const statutInput = str(formData, "statut");
   const statut = SINISTRE_STATUTS.find((s) => s === statutInput) ?? "Nouveau";
@@ -105,7 +106,7 @@ export async function updateSinistre(id: string, formData: FormData) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.sinistre.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.sinistre.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   const statutInput = str(formData, "statut");
@@ -146,7 +147,7 @@ export async function deleteSinistre(id: string) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.sinistre.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.sinistre.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   // Delete the dossier's own documents first (historique cascades via onDelete: Cascade).
@@ -161,7 +162,7 @@ export async function addSinistreDocument(id: string, formData: FormData) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.sinistre.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.sinistre.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await attachFiles(id, existing.societe, formData, userSociete);

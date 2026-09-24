@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, isSocieteVisible } from "@/lib/org-scope";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
 import { sendTransmissionNotifications } from "@/app/courriers/actions";
 
@@ -95,7 +96,7 @@ export async function createContraventionAction(fd: FormData) {
 export async function updateContraventionAction(id: string, fd: FormData) {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
-  const existing = await prisma.contravention.findFirst({ where: isAdmin ? { id } : { id, societe } });
+  const existing = await prisma.contravention.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
   const targetSociete = existing.societe;
 
@@ -155,7 +156,7 @@ export async function updateContraventionAction(id: string, fd: FormData) {
 export async function deleteContraventionAction(id: string) {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
-  const existing = await prisma.contravention.findFirst({ where: isAdmin ? { id } : { id, societe } });
+  const existing = await prisma.contravention.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await prisma.contravention.delete({ where: { id } });
@@ -170,6 +171,8 @@ export async function deleteContraventionAction(id: string) {
 export async function toggleVisibleClientAction(id: string, next: boolean) {
   const isAdmin = await isAdminSession();
   if (!isAdmin) notFound();
+  const existing = await prisma.contravention.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
+  if (!existing) notFound();
 
   await prisma.contravention.update({ where: { id }, data: { visibleClient: next } });
   revalidatePath("/contraventions");
@@ -190,9 +193,9 @@ export async function transmitContraventionToClientAction(
   if (!isAdmin) notFound();
 
   const societeExists = await prisma.societe.findUnique({ where: { nom: targetSociete } });
-  if (!societeExists) throw new Error("Société introuvable.");
+  if (!societeExists || !(await isSocieteVisible(targetSociete))) throw new Error("Société introuvable.");
 
-  const existing = await prisma.contravention.findUnique({ where: { id: contraventionId }, select: { transmissionClient: true, visibleClient: true, numDossier: true } });
+  const existing = await prisma.contravention.findFirst({ where: { id: contraventionId, ...(await getVisibleSocieteFilter()) }, select: { transmissionClient: true, visibleClient: true, numDossier: true } });
   if (!existing) notFound();
 
   const existingTransmission = existing.transmissionClient as TransmissionClientInfo | null;
@@ -233,7 +236,7 @@ export async function resendFailedContraventionNotificationsAction(contravention
   const isAdmin = await isAdminSession();
   if (!isAdmin) notFound();
 
-  const existing = await prisma.contravention.findUnique({ where: { id: contraventionId }, select: { transmissionClient: true, societe: true } });
+  const existing = await prisma.contravention.findFirst({ where: { id: contraventionId, ...(await getVisibleSocieteFilter()) }, select: { transmissionClient: true, societe: true } });
   if (!existing) notFound();
   const existingTransmission = existing.transmissionClient as TransmissionClientInfo | null;
   if (!existingTransmission?.notifications) return;
@@ -257,7 +260,7 @@ export async function retirerContraventionDuPortailClientAction(contraventionId:
   const isAdmin = await isAdminSession();
   if (!isAdmin) notFound();
 
-  const existing = await prisma.contravention.findUnique({ where: { id: contraventionId }, select: { transmissionClient: true } });
+  const existing = await prisma.contravention.findFirst({ where: { id: contraventionId, ...(await getVisibleSocieteFilter()) }, select: { transmissionClient: true } });
   if (!existing) notFound();
   const existingTransmission = existing.transmissionClient as TransmissionClientInfo | null;
 
@@ -285,7 +288,7 @@ export async function markDenonciationAction(id: string, statut: string, date?: 
   const isAdmin = await isAdminSession();
   if (!isAdmin) notFound();
 
-  const existing = await prisma.contravention.findUnique({ where: { id } });
+  const existing = await prisma.contravention.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await prisma.contravention.update({
@@ -305,7 +308,7 @@ export async function markPaymentAction(id: string, statut: string, date?: strin
   const isAdmin = await isAdminSession();
   if (!isAdmin) notFound();
 
-  const existing = await prisma.contravention.findUnique({ where: { id } });
+  const existing = await prisma.contravention.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await prisma.contravention.update({
@@ -324,7 +327,7 @@ export async function addObservationAction(id: string, text: string) {
   const isAdmin = await isAdminSession();
   if (!isAdmin) notFound();
 
-  const existing = await prisma.contravention.findUnique({ where: { id } });
+  const existing = await prisma.contravention.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   const newObs = (existing.observations ? existing.observations + "\n" : "") + `[${new Date().toLocaleString("fr-FR")}] ${text}`;

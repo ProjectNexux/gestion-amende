@@ -5,9 +5,12 @@ import { revalidatePath } from "next/cache";
 import { isAdminSession } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { generateSetupToken, setupTokenExpiryDate, generatePlaceholderCodeAcces } from "@/lib/societe-setup";
+import { getCurrentOrganizationId, isSocieteVisible } from "@/lib/org-scope";
 
 export async function createSocieteAction(fd: FormData) {
   if (!(await isAdminSession())) notFound();
+  const organizationId = await getCurrentOrganizationId();
+  if (!organizationId) notFound();
   const nom = (fd.get("nom") as string)?.trim();
   const codeAcces = (fd.get("codeAcces") as string)?.trim();
   if (!nom) return;
@@ -21,16 +24,19 @@ export async function createSocieteAction(fd: FormData) {
         codeAcces: generatePlaceholderCodeAcces(),
         codeAccesSetupToken: generateSetupToken(),
         codeAccesSetupExpiresAt: setupTokenExpiryDate(),
+        organizationId,
       },
     });
   } else {
-    await prisma.societe.create({ data: { nom, codeAcces } });
+    await prisma.societe.create({ data: { nom, codeAcces, organizationId } });
   }
   revalidatePath("/admin/societes");
 }
 
 export async function deleteSocieteAction(id: string) {
   if (!(await isAdminSession())) notFound();
+  const existing = await prisma.societe.findUnique({ where: { id }, select: { nom: true } });
+  if (!existing || !(await isSocieteVisible(existing.nom))) notFound();
   await prisma.societe.delete({ where: { id } });
   revalidatePath("/admin/societes");
 }
@@ -40,6 +46,8 @@ export async function deleteSocieteAction(id: string) {
 // code themselves instead of one the admin typed in. Never reveals the current codeAcces.
 export async function generateSetupLinkAction(id: string) {
   if (!(await isAdminSession())) notFound();
+  const existing = await prisma.societe.findUnique({ where: { id }, select: { nom: true } });
+  if (!existing || !(await isSocieteVisible(existing.nom))) notFound();
   await prisma.societe.update({
     where: { id },
     data: { codeAccesSetupToken: generateSetupToken(), codeAccesSetupExpiresAt: setupTokenExpiryDate() },

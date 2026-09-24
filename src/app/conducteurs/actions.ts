@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import { redirect } from "next/navigation";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 
 function s(fd: FormData, k: string) {
   const v = fd.get(k);
@@ -135,7 +136,7 @@ export async function updateConducteur(id: string, fd: FormData) {
 export async function deleteConducteur(id: string) {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
-  const existing = await prisma.conducteur.findFirst({ where: isAdmin ? { id } : { id, societe } });
+  const existing = await prisma.conducteur.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
   await prisma.conducteur.delete({ where: { id } });
   revalidatePath("/conducteurs");

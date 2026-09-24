@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isAdminSession, requireSociete } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 
 type RouteParams = Promise<{ id: string; side: string }>;
 
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest, { params }: { params: RouteParams })
   const isAdmin = await isAdminSession();
 
   const conducteur = await prisma.conducteur.findFirst({
-    where: isAdmin ? { id } : { id, societe },
+    where: { id, ...(await getVisibleSocieteFilter()) },
     select: {
       cniRectoData: true,
       cniRectoNom: true,

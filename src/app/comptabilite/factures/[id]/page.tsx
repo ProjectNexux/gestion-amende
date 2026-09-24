@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Eye, Pencil } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { resendFacture, deleteFacture } from "../actions";
 import { buildFactureEmail, COMPTABILITE_FORWARD_RECIPIENTS } from "@/lib/comptabilite-forward";
 import { getFactureData, forwardStatutTone, origineLabel } from "@/lib/comptabilite";
@@ -26,7 +27,7 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const item = await prisma.courrier.findFirst({ where: isAdmin ? { id, type: "facture" } : { id, societe, type: "facture" } });
+  const item = await prisma.courrier.findFirst({ where: { id, type: "facture", ...(await getVisibleSocieteFilter()) } });
   if (!item) notFound();
 
   const d = getFactureData(item.data);

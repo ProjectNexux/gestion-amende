@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { courrierTypeLabel, courrierSourceLabel, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
@@ -17,7 +18,7 @@ export default async function GenericCourrierPage({ params }: { params: Promise<
   const { id } = await params;
 
   const item = await prisma.courrier.findFirst({
-    where: isAdmin ? { id } : { id, societe },
+    where: { id, ...(await getVisibleSocieteFilter()) },
     select: COURRIER_LIST_SELECT,
   });
   if (!item) notFound();

@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, isSocieteVisible } from "@/lib/org-scope";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { forwardComptabiliteDocument } from "@/lib/comptabilite-forward";
@@ -31,6 +32,7 @@ function frDate(fd: FormData, key: string): string | null {
 async function resolveSociete(fd: FormData, isAdmin: boolean, fallback: string): Promise<string | null> {
   const requested = str(fd, "societe");
   const societe = isAdmin && requested ? requested : fallback;
+  if (!(await isSocieteVisible(societe))) return null;
   const exists = await prisma.societe.findUnique({ where: { nom: societe } });
   return exists ? societe : null;
 }
@@ -82,7 +84,7 @@ export async function createImpotManuelle(formData: FormData) {
 export async function updateImpotManuelle(id: string, formData: FormData) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id, type: "impot" } : { id, societe: userSociete, type: "impot" } });
+  const existing = await prisma.courrier.findFirst({ where: { id, type: "impot", ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   const societe = await resolveSociete(formData, isAdmin, existing.societe);
@@ -128,7 +130,7 @@ export async function updateImpotManuelle(id: string, formData: FormData) {
 export async function resendImpot(id: string, force: boolean = false) {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id, type: "impot" } : { id, societe, type: "impot" } });
+  const existing = await prisma.courrier.findFirst({ where: { id, type: "impot", ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await forwardComptabiliteDocument(id, societe, { force });
@@ -141,7 +143,7 @@ export async function resendImpot(id: string, force: boolean = false) {
 export async function deleteImpot(id: string) {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id, type: "impot" } : { id, societe, type: "impot" } });
+  const existing = await prisma.courrier.findFirst({ where: { id, type: "impot", ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await prisma.courrier.delete({ where: { id } });

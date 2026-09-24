@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { isAdminSession, requireSociete } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { updateConducteur } from "../actions";
 import { BackButton } from "@/components/ui/BackButton";
 
@@ -19,7 +20,7 @@ export default async function ConducteurDetailPage({ params }: PageProps) {
   const isAdmin = await isAdminSession();
 
   const conducteur = await prisma.conducteur.findFirst({
-    where: isAdmin ? { id } : { id, societe },
+    where: { id, ...(await getVisibleSocieteFilter()) },
   });
 
   if (!conducteur) notFound();

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Eye, MoreHorizontal, Search, Scale } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, getVisibleSocieteNames } from "@/lib/org-scope";
 import { createMiseEnDemeureManuelle, deleteMiseEnDemeure } from "./actions";
 import AddMiseEnDemeurePanel from "./AddMiseEnDemeurePanel";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
@@ -54,11 +55,18 @@ export default async function MiseEnDemeurePage({
 
   const [allItems, allSocietes] = await Promise.all([
     prisma.courrier.findMany({
-      where: isAdmin ? { type: "mise_en_demeure" } : { societe, type: "mise_en_demeure" },
+      where: { type: "mise_en_demeure", ...(await getVisibleSocieteFilter()) },
       orderBy: { receivedAt: "desc" },
       select: COURRIER_LIST_SELECT,
     }),
-    prisma.societe.findMany({ orderBy: { nom: "asc" }, select: { nom: true } }),
+    (async () => {
+      const names = await getVisibleSocieteNames();
+      return prisma.societe.findMany({
+        where: names === "all-own-societe" ? { nom: societe } : { nom: { in: names } },
+        orderBy: { nom: "asc" },
+        select: { nom: true },
+      });
+    })(),
   ]);
 
   const items = allItems

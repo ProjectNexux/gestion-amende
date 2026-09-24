@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, getVisibleSocieteNames } from "@/lib/org-scope";
 import { updateFactureManuelle } from "../../actions";
 import { FactureForm } from "../../FactureForm";
 import { getFactureData } from "@/lib/comptabilite";
@@ -20,8 +21,15 @@ export default async function EditFacturePage({ params }: { params: Promise<{ id
   const isAdmin = await isAdminSession();
 
   const [item, allSocietes] = await Promise.all([
-    prisma.courrier.findFirst({ where: isAdmin ? { id, type: "facture" } : { id, societe, type: "facture" } }),
-    prisma.societe.findMany({ orderBy: { nom: "asc" }, select: { nom: true } }),
+    prisma.courrier.findFirst({ where: { id, type: "facture", ...(await getVisibleSocieteFilter()) } }),
+    (async () => {
+      const names = await getVisibleSocieteNames();
+      return prisma.societe.findMany({
+        where: names === "all-own-societe" ? { nom: societe } : { nom: { in: names } },
+        orderBy: { nom: "asc" },
+        select: { nom: true },
+      });
+    })(),
   ]);
   if (!item) notFound();
 

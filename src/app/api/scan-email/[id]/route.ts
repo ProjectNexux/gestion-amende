@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSociete, isAdminSession } from "@/lib/auth";
+import { isSocieteVisible } from "@/lib/org-scope";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const societe = await getSociete();
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     where: { id },
     select: { societe: true, fileName: true, fileMime: true, fileData: true },
   });
-  if (!scan || (!isAdmin && scan.societe !== societe)) {
+  if (!scan || !(await isSocieteVisible(scan.societe))) {
     return NextResponse.json({ error: "Scan introuvable" }, { status: 404 });
   }
 
@@ -37,7 +38,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const isAdmin = await isAdminSession();
 
   const scan = await prisma.emailScan.findUnique({ where: { id }, select: { id: true, societe: true } });
-  if (!scan || (!isAdmin && scan.societe !== societe)) {
+  if (!scan || !(await isSocieteVisible(scan.societe))) {
     return NextResponse.json({ error: "Scan introuvable" }, { status: 404 });
   }
 

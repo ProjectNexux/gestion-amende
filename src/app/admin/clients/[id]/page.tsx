@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Building2, Send, Power, LayoutGrid, Mail, FileWarning, Users, Clock, LogIn } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { isAdminSession, impersonateClientAction } from "@/lib/auth";
+import { isSocieteVisible } from "@/lib/org-scope";
 import { Badge } from "@/components/ui/Badge";
 import { ActionForm } from "@/components/ActionForm";
 import { BackButton } from "@/components/ui/BackButton";
@@ -51,6 +52,7 @@ export default async function ClientDetailPage({
     },
   });
   if (!s) notFound();
+  if (!(await isSocieteVisible(s.nom))) notFound();
 
   const [courriers, contraventions, nVehicules, nConducteurs] = await Promise.all([
     prisma.courrier.findMany({ where: { societe: s.nom }, orderBy: { receivedAt: "desc" }, select: COURRIER_LIST_SELECT }),

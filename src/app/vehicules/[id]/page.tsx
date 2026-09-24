@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { isAdminSession, requireSociete } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { updateVehicule } from "../actions";
 import { BackButton } from "@/components/ui/BackButton";
 
@@ -19,12 +20,12 @@ export default async function VehiculeDetailPage({ params }: PageProps) {
   const isAdmin = await isAdminSession();
 
   const vehicule = await prisma.vehicule.findFirst({
-    where: isAdmin ? { id } : { id, societe },
+    where: { id, ...(await getVisibleSocieteFilter()) },
   });
   if (!vehicule) notFound();
 
   const conducteurs = await prisma.conducteur.findMany({
-    where: isAdmin ? {} : { societe },
+    where: await getVisibleSocieteFilter(),
     orderBy: [{ nom: "asc" }, { prenom: "asc" }],
     select: {
       id: true,

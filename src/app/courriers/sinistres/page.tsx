@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Search, Flame } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, getVisibleSocieteNames } from "@/lib/org-scope";
 import { createSinistre } from "./actions";
 import AddSinistrePanel from "./AddSinistrePanel";
 import { OpenAddSinistreButton } from "./OpenAddSinistreButton";
@@ -28,11 +29,18 @@ export default async function SinistresPage({
 
   const [items, allSocietes] = await Promise.all([
     prisma.sinistre.findMany({
-      where: isAdmin ? {} : { societe },
+      where: await getVisibleSocieteFilter(),
       include: { vehicule: true },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.societe.findMany({ orderBy: { nom: "asc" }, select: { nom: true } }),
+    (async () => {
+      const names = await getVisibleSocieteNames();
+      return prisma.societe.findMany({
+        where: names === "all-own-societe" ? { nom: societe } : { nom: { in: names } },
+        orderBy: { nom: "asc" },
+        select: { nom: true },
+      });
+    })(),
   ]);
 
   const societeOptions = isAdmin ? allSocietes.map((s) => s.nom) : [societe];
@@ -61,8 +69,8 @@ export default async function SinistresPage({
   };
 
   const [vehicules, conducteurs] = await Promise.all([
-    prisma.vehicule.findMany({ where: isAdmin ? {} : { societe }, orderBy: { immatriculation: "asc" } }),
-    prisma.conducteur.findMany({ where: isAdmin ? {} : { societe }, orderBy: { nom: "asc" } }),
+    prisma.vehicule.findMany({ where: await getVisibleSocieteFilter(), orderBy: { immatriculation: "asc" } }),
+    prisma.conducteur.findMany({ where: await getVisibleSocieteFilter(), orderBy: { nom: "asc" } }),
   ]);
   const vehiculeOptions = vehicules.map((v) => ({ id: v.id, label: `${v.immatriculation}${v.marque ? " — " + v.marque : ""}${v.modele ? " " + v.modele : ""}` }));
   const conducteurOptions = conducteurs.map((c) => ({ id: c.id, label: `${c.nom} ${c.prenom}` }));

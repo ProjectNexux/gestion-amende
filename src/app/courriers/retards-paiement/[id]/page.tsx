@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { updateRetardPaiement, deleteRetardPaiement, demarrerPaiementCarte, marquerRembourseManuel } from "../actions";
 import { getRetardPaiementData, resteAPayer, RETARD_PAIEMENT_STATUTS } from "@/lib/courriers";
 import { BENEFICIAIRES } from "@/lib/payments/beneficiaries";
@@ -48,7 +49,7 @@ export default async function RetardPaiementDetailPage({ params }: { params: Pro
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const item = await prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe } });
+  const item = await prisma.courrier.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!item || item.type !== "retard_paiement") notFound();
 
   const d = getRetardPaiementData(item.data);

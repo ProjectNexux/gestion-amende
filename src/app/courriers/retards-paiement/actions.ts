@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import {
@@ -79,7 +80,7 @@ export async function updateRetardPaiement(id: string, formData: FormData) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.courrier.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
   const current = getRetardPaiementData(existing.data);
 
@@ -113,7 +114,7 @@ export async function deleteRetardPaiement(id: string) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.courrier.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await prisma.courrier.delete({ where: { id } });
@@ -128,7 +129,7 @@ export async function demarrerPaiementCarte(id: string, formData: FormData) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.courrier.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing || existing.type !== "retard_paiement") notFound();
 
   const data = getRetardPaiementData(existing.data);
@@ -156,7 +157,7 @@ export async function genererLienPaiement(id: string, formData: FormData) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.courrier.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing || existing.type !== "retard_paiement") notFound();
 
   const data = getRetardPaiementData(existing.data);

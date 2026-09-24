@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { createVehicule, deleteVehicule } from "./actions";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, getVisibleSocieteNames, isSocieteVisible } from "@/lib/org-scope";
 import AddVehiculePanel from "./AddVehiculePanel";
 import ImportVehiculesPanel from "./ImportVehiculesPanel";
 import SocieteFilterForm from "./SocieteFilterForm";
@@ -19,13 +20,17 @@ export default async function VehiculesPage({ searchParams }: PageProps) {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
   const { societe: societeFilter } = await searchParams;
-  const effectiveFilter = isAdmin ? societeFilter?.trim() || null : null;
+  const requestedFilter = isAdmin ? societeFilter?.trim() || null : null;
+  const effectiveFilter = requestedFilter && (await isSocieteVisible(requestedFilter)) ? requestedFilter : null;
 
   const items = await prisma.vehicule.findMany({
-    where: isAdmin ? (effectiveFilter ? { societe: effectiveFilter } : {}) : { societe },
+    where: effectiveFilter ? { societe: effectiveFilter } : await getVisibleSocieteFilter(),
     orderBy: { code: "asc" },
   });
-  const allSocietes = isAdmin ? await prisma.societe.findMany({ select: { nom: true }, orderBy: { nom: "asc" } }) : [];
+  const names = await getVisibleSocieteNames();
+  const allSocietes = isAdmin
+    ? await prisma.societe.findMany({ where: names === "all-own-societe" ? {} : { nom: { in: names } }, select: { nom: true }, orderBy: { nom: "asc" } })
+    : [];
 
   const exportHref = effectiveFilter ? `/api/vehicules/export?societe=${encodeURIComponent(effectiveFilter)}` : "/api/vehicules/export";
 

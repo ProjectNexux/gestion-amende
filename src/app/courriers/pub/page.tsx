@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Eye, Megaphone } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { conserverPub, supprimerPubMaintenant } from "./actions";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
@@ -15,7 +16,7 @@ export default async function PubPage() {
   const isAdmin = await isAdminSession();
 
   const items = await prisma.courrier.findMany({
-    where: isAdmin ? { type: "pub" } : { societe, type: "pub" },
+    where: { type: "pub", ...(await getVisibleSocieteFilter()) },
     orderBy: { receivedAt: "desc" },
     select: COURRIER_LIST_SELECT,
   });

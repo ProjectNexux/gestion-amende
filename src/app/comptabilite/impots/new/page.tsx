@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteNames } from "@/lib/org-scope";
 import { createImpotManuelle } from "../actions";
 import { ImpotForm } from "../ImpotForm";
 
@@ -10,7 +11,12 @@ export default async function NewImpotPage() {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const allSocietes = await prisma.societe.findMany({ orderBy: { nom: "asc" }, select: { nom: true } });
+  const names = await getVisibleSocieteNames();
+  const allSocietes = await prisma.societe.findMany({
+    where: names === "all-own-societe" ? { nom: societe } : { nom: { in: names } },
+    orderBy: { nom: "asc" },
+    select: { nom: true },
+  });
   const societeOptions = isAdmin ? allSocietes.map((s) => s.nom) : [societe];
 
   return (

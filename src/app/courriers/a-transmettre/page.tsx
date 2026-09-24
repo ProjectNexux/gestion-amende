@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, getVisibleSocieteNames } from "@/lib/org-scope";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Send } from "lucide-react";
@@ -27,11 +28,17 @@ export default async function ATransmettrePage() {
 
   const [items, societes] = await Promise.all([
     prisma.courrier.findMany({
-      where: isAdmin ? {} : { societe },
+      where: await getVisibleSocieteFilter(),
       orderBy: { receivedAt: "desc" },
       select: COURRIER_LIST_SELECT,
     }),
-    prisma.societe.findMany({ select: { nom: true, emailTransmission: true } }),
+    (async () => {
+      const names = await getVisibleSocieteNames();
+      return prisma.societe.findMany({
+        where: names === "all-own-societe" ? { nom: societe } : { nom: { in: names } },
+        select: { nom: true, emailTransmission: true },
+      });
+    })(),
   ]);
 
   const emailBySociete = new Map(societes.map((s) => [s.nom, s.emailTransmission]));

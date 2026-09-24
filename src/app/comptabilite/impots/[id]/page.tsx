@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Eye, Pencil } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { resendImpot, deleteImpot } from "../actions";
 import { buildImpotEmail, COMPTABILITE_FORWARD_RECIPIENTS } from "@/lib/comptabilite-forward";
 import { getImpotData, forwardStatutTone, origineLabel } from "@/lib/comptabilite";
@@ -26,7 +27,7 @@ export default async function ImpotDetailPage({ params }: { params: Promise<{ id
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const item = await prisma.courrier.findFirst({ where: isAdmin ? { id, type: "impot" } : { id, societe, type: "impot" } });
+  const item = await prisma.courrier.findFirst({ where: { id, type: "impot", ...(await getVisibleSocieteFilter()) } });
   if (!item) notFound();
 
   const d = getImpotData(item.data);

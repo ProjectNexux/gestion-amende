@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { createRetardPaiementManuelle } from "./actions";
 import AddRetardPaiementPanel from "./AddRetardPaiementPanel";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
@@ -24,7 +25,7 @@ export default async function RetardsPaiementPage() {
   const isAdmin = await isAdminSession();
 
   const items = await prisma.courrier.findMany({
-    where: isAdmin ? { type: "retard_paiement" } : { societe, type: "retard_paiement" },
+    where: { type: "retard_paiement", ...(await getVisibleSocieteFilter()) },
     orderBy: { receivedAt: "desc" },
     select: COURRIER_LIST_SELECT,
   });

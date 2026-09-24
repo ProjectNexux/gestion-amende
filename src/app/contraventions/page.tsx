@@ -3,6 +3,7 @@ import { fmtMoney } from "@/lib/utils";
 import Link from "next/link";
 import { Plus, ScanLine, ExternalLink, FileWarning } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { toggleVisibleClientAction } from "./actions";
 import { Badge } from "@/components/ui/Badge";
@@ -33,7 +34,7 @@ export default async function ContraventionsListPage({
   const transmisFilter = rawTransmis === "non" ? "non" : null;
 
   const items = await prisma.contravention.findMany({
-    where: isAdmin ? {} : { societe },
+    where: await getVisibleSocieteFilter(),
     include: { vehicule: true, conducteur: true },
     orderBy: { createdAt: "desc" },
   });

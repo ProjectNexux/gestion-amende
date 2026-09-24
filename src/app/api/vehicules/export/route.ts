@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import ExcelJS from "exceljs";
 import { prisma } from "@/lib/prisma";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, isSocieteVisible } from "@/lib/org-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +11,12 @@ export async function GET(req: NextRequest) {
   const isAdmin = await isAdminSession();
 
   const requestedSociete = req.nextUrl.searchParams.get("societe")?.trim() || null;
-  // Non-admins can only ever export their own société, no matter what's requested.
-  const where = isAdmin ? (requestedSociete ? { societe: requestedSociete } : {}) : { societe };
+  // Non-admins can only ever export their own société, no matter what's requested. Admins can
+  // narrow to one société of THEIR organization, never another organization's by guessing a name.
+  const where =
+    isAdmin && requestedSociete && (await isSocieteVisible(requestedSociete))
+      ? { societe: requestedSociete }
+      : await getVisibleSocieteFilter();
 
   const vehicules = await prisma.vehicule.findMany({
     where,

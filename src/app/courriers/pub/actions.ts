@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import { getPubData } from "@/lib/courriers";
@@ -14,7 +15,7 @@ export async function conserverPub(id: string) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id, type: "pub" } : { id, societe: userSociete, type: "pub" } });
+  const existing = await prisma.courrier.findFirst({ where: { id, type: "pub", ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   const current = getPubData(existing.data);
@@ -37,7 +38,7 @@ export async function supprimerPubMaintenant(id: string) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id, type: "pub" } : { id, societe: userSociete, type: "pub" } });
+  const existing = await prisma.courrier.findFirst({ where: { id, type: "pub", ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await prisma.courrierSuppressionLog.create({

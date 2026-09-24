@@ -4,6 +4,7 @@ import Link from "next/link";
 import ContraventionForm from "@/components/ContraventionForm";
 import { updateContraventionAction } from "../actions";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { fmtMoney } from "@/lib/utils";
 import { DetailActions } from "./DetailActions";
@@ -47,11 +48,11 @@ export default async function EditContraventionPage({ params, searchParams }: { 
   const from = Array.isArray(sp.from) ? sp.from[0] : sp.from;
   const listHref = from && VIEW_LABELS[from] ? `/contraventions?view=${from}` : "/contraventions";
   const [item, vehicules, conducteurs] = await Promise.all([
-    prisma.contravention.findUnique({ where: { id } }),
-    prisma.vehicule.findMany({ where: isAdmin ? {} : { societe }, orderBy: { immatriculation: "asc" } }),
-    prisma.conducteur.findMany({ where: isAdmin ? {} : { societe }, orderBy: { nom: "asc" } }),
+    prisma.contravention.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } }),
+    prisma.vehicule.findMany({ where: await getVisibleSocieteFilter(), orderBy: { immatriculation: "asc" } }),
+    prisma.conducteur.findMany({ where: await getVisibleSocieteFilter(), orderBy: { nom: "asc" } }),
   ]);
-  if (!item || (!isAdmin && item.societe !== societe)) notFound();
+  if (!item) notFound();
 
   const updateWith = updateContraventionAction.bind(null, id);
 

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Eye, Pencil, Trash2, Paperclip, IdCard } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, getVisibleSocieteNames } from "@/lib/org-scope";
 import { createCertificat, deleteCertificat } from "./actions";
 import AddCertificatPanel from "./AddCertificatPanel";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
@@ -18,11 +19,18 @@ export default async function CertificatsImmatriculationPage() {
 
   const [items, allSocietes] = await Promise.all([
     prisma.courrier.findMany({
-      where: isAdmin ? { type: "certificat_immatriculation" } : { societe, type: "certificat_immatriculation" },
+      where: { type: "certificat_immatriculation", ...(await getVisibleSocieteFilter()) },
       orderBy: { receivedAt: "desc" },
       select: COURRIER_LIST_SELECT,
     }),
-    prisma.societe.findMany({ orderBy: { nom: "asc" }, select: { nom: true } }),
+    (async () => {
+      const names = await getVisibleSocieteNames();
+      return prisma.societe.findMany({
+        where: names === "all-own-societe" ? { nom: societe } : { nom: { in: names } },
+        orderBy: { nom: "asc" },
+        select: { nom: true },
+      });
+    })(),
   ]);
 
   const societeOptions = isAdmin ? allSocietes.map((s) => s.nom) : [societe];

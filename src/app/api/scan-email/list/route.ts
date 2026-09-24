@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { getScanPartInfo, groupScansByBundle } from "@/lib/scan-bundles";
 
 export async function GET() {
@@ -10,7 +11,7 @@ export async function GET() {
   const isAdmin = await isAdminSession();
 
   const scans = await prisma.emailScan.findMany({
-    where: isAdmin ? {} : { societe },
+    where: await getVisibleSocieteFilter(),
     select: {
       id: true,
       messageId: true,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSociete, isAdminSession } from "@/lib/auth";
+import { isSocieteVisible } from "@/lib/org-scope";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const societe = await getSociete();
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     where: { id },
     select: { societe: true, fileName: true, fileMime: true, fileData: true },
   });
-  if (!courrier || (!isAdmin && courrier.societe !== societe)) {
+  if (!courrier || !(await isSocieteVisible(courrier.societe))) {
     return NextResponse.json({ error: "Courrier introuvable" }, { status: 404 });
   }
 

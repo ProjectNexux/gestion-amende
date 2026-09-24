@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { prisma } from "@/lib/prisma";
 import { commitDocumentAnalysis, type DocumentFields, type DuplicateAction, type DuplicateMatch } from "@/lib/document-import";
 
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   let scan;
   try {
-    scan = await prisma.emailScan.findFirst({ where: isAdmin ? { id } : { id, societe } });
+    scan = await prisma.emailScan.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   } catch {
     // Most likely a transient DB connectivity issue — surfaced as a clean JSON error instead of
     // letting Next's default error page (non-JSON) reach the client and break res.json().

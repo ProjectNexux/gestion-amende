@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import {
   courrierTypeLabel,
   getMiseEnDemeureData,
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest) {
 
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
-  const tenant = isAdmin ? {} : { societe };
+  const tenant = await getVisibleSocieteFilter();
   const insensitive = { contains: q, mode: "insensitive" as const };
   const likeQ = `%${q}%`;
 

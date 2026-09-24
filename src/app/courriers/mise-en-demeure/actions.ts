@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, isSocieteVisible } from "@/lib/org-scope";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { ACCEPTED_COURRIER_MIME_TYPES, MISE_EN_DEMEURE_STATUTS, getMiseEnDemeureData } from "@/lib/courriers";
@@ -19,6 +20,7 @@ function str(fd: FormData, key: string) {
 async function resolveSociete(fd: FormData, isAdmin: boolean, fallback: string): Promise<string | null> {
   const requested = str(fd, "societeConcernee");
   const societe = isAdmin && requested ? requested : fallback;
+  if (!(await isSocieteVisible(societe))) return null;
   const exists = await prisma.societe.findUnique({ where: { nom: societe } });
   return exists ? societe : null;
 }
@@ -97,7 +99,7 @@ export async function updateMiseEnDemeure(id: string, formData: FormData) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.courrier.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   const current = getMiseEnDemeureData(existing.data);
@@ -113,7 +115,7 @@ export async function updateMiseEnDemeure(id: string, formData: FormData) {
 
   const expediteur = str(formData, "expediteur");
   const societeConcernee = str(formData, "societeConcernee");
-  const societeConnue = societeConcernee ? !!(await prisma.societe.findUnique({ where: { nom: societeConcernee } })) : false;
+  const societeConnue = societeConcernee ? await isSocieteVisible(societeConcernee) && !!(await prisma.societe.findUnique({ where: { nom: societeConcernee } })) : false;
   const organisme = detectOrganisme(expediteur, str(formData, "motif")) ?? current.transmission?.organisme ?? null;
   const transmission = buildTransmission({
     organisme,
@@ -155,7 +157,7 @@ export async function deleteMiseEnDemeure(id: string) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.courrier.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await prisma.courrier.delete({ where: { id } });
@@ -169,6 +171,7 @@ export async function updateSocieteEmailTransmission(societeNom: string, formDat
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
   if (!isAdmin && societeNom !== userSociete) notFound();
+  if (isAdmin && !(await isSocieteVisible(societeNom))) notFound();
 
   const email = str(formData, "emailTransmission");
   if (!email) return;
@@ -183,7 +186,7 @@ export async function preparerEnvoi(id: string) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.courrier.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   const current = getMiseEnDemeureData(existing.data);

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Eye, MailOpen } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -16,7 +17,7 @@ export default async function CourriersClientsPage() {
   const isAdmin = await isAdminSession();
 
   const items = await prisma.courrier.findMany({
-    where: isAdmin ? { source: "CLIENT" } : { societe, source: "CLIENT" },
+    where: { source: "CLIENT", ...(await getVisibleSocieteFilter()) },
     orderBy: { receivedAt: "desc" },
     select: COURRIER_LIST_SELECT,
   });

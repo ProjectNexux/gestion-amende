@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, isSocieteVisible } from "@/lib/org-scope";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { forwardComptabiliteDocument } from "@/lib/comptabilite-forward";
@@ -31,10 +32,13 @@ function frDate(fd: FormData, key: string): string | null {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : v;
 }
 
-// Only allows assigning a document to a société that already exists — never auto-creates one.
+// Only allows assigning a document to a société that already exists AND is visible to the caller
+// (own org for an admin, own société for a client) — never auto-creates one, never lets an admin
+// reassign a document to another organization's société by guessing its name.
 async function resolveSociete(fd: FormData, isAdmin: boolean, fallback: string): Promise<string | null> {
   const requested = str(fd, "societe");
   const societe = isAdmin && requested ? requested : fallback;
+  if (!(await isSocieteVisible(societe))) return null;
   const exists = await prisma.societe.findUnique({ where: { nom: societe } });
   return exists ? societe : null;
 }
@@ -89,7 +93,7 @@ export async function createFactureManuelle(formData: FormData) {
 export async function updateFactureManuelle(id: string, formData: FormData) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id, type: "facture" } : { id, societe: userSociete, type: "facture" } });
+  const existing = await prisma.courrier.findFirst({ where: { id, type: "facture", ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   const societe = await resolveSociete(formData, isAdmin, existing.societe);
@@ -141,7 +145,7 @@ export async function updateFactureManuelle(id: string, formData: FormData) {
 export async function resendFacture(id: string, force: boolean = false) {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id, type: "facture" } : { id, societe, type: "facture" } });
+  const existing = await prisma.courrier.findFirst({ where: { id, type: "facture", ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await forwardComptabiliteDocument(id, societe, { force });
@@ -154,7 +158,7 @@ export async function resendFacture(id: string, force: boolean = false) {
 export async function deleteFacture(id: string) {
   const societe = await requireSociete();
   const isAdmin = await isAdminSession();
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id, type: "facture" } : { id, societe, type: "facture" } });
+  const existing = await prisma.courrier.findFirst({ where: { id, type: "facture", ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await prisma.courrier.delete({ where: { id } });

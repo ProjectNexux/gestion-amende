@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId, isAdminSession, requireSociete } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { prisma } from "@/lib/prisma";
 import { commitDocumentAnalysis, type DocumentFields } from "@/lib/document-import";
 import { groupScansByBundle, mergePdfBuffers, sortScansByPart } from "@/lib/scan-bundles";
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
   const manualClassificationNote = typeof body.manualClassificationNote === "string" ? body.manualClassificationNote : null;
 
   const scans = await prisma.emailScan.findMany({
-    where: isAdmin ? { id: { in: scanIds } } : { id: { in: scanIds }, societe: ownerSociete },
+    where: { id: { in: scanIds }, ...(await getVisibleSocieteFilter()) },
     orderBy: { createdAt: "asc" },
   });
   if (scans.length === 0) {

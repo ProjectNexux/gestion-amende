@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
 import { getSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export async function GET() {
   const societe = await getSociete();
   if (!societe) return NextResponse.json({ error: "Non connecté" }, { status: 401 });
   const isAdmin = await isAdminSession();
-  const where = isAdmin ? {} : { societe };
+  const where = await getVisibleSocieteFilter();
 
   const [contraventions, vehicules, conducteurs] = await Promise.all([
     prisma.contravention.findMany({ where, include: { vehicule: true, conducteur: true }, orderBy: [{ societe: "asc" }, { numDossier: "asc" }] }),

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { isSocieteVisible } from "@/lib/org-scope";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { buildPreview, VehiculeImportField } from "@/lib/vehicule-import";
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     }
 
     let targetSociete = row.societeResolved;
-    if (isAdmin && override.societe) targetSociete = override.societe;
+    if (isAdmin && override.societe && (await isSocieteVisible(override.societe))) targetSociete = override.societe;
     if (!targetSociete) {
       rejected.push({ index: row.index, reason: row.societeStatus === "unverified" ? `Société non résolue ("${row.societeInput}")` : "Société manquante" });
       continue;

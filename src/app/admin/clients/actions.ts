@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { isAdminSession } from "@/lib/auth";
+import { getCurrentOrganizationId, isSocieteVisible } from "@/lib/org-scope";
 import { generateSetupToken, setupTokenExpiryDate, generatePlaceholderCodeAcces, buildSetupUrl, isSetupTokenExpired } from "@/lib/societe-setup";
 import { normalizeSiret, isValidSiret } from "@/lib/siret";
 import { sendClientInvitationEmail } from "@/lib/client-invitation-email";
@@ -20,6 +21,26 @@ async function requireAdmin() {
   if (!(await isAdminSession())) notFound();
 }
 
+// Every action below that operates on an existing société by id MUST go through this — it
+// guarantees the société belongs to the caller's own organization, never another one guessed by
+// id. Replaces the old bare `requireAdmin()` + blind `prisma.societe.update({ where: { id } })`
+// pattern, which had no organization boundary at all.
+async function requireSocieteAccess(id: string) {
+  await requireAdmin();
+  const s = await prisma.societe.findUnique({ where: { id }, select: { id: true, nom: true, email: true, contactFirstName: true, codeAccesSetupToken: true, codeAccesSetupExpiresAt: true, activatedAt: true } });
+  if (!s || !(await isSocieteVisible(s.nom))) notFound();
+  return s;
+}
+
+// Same guarantee as requireSocieteAccess, but starting from a User row (Utilisateurs tab actions
+// operate on a userId, never directly on a société id).
+async function requireUserAccess(userId: string) {
+  await requireAdmin();
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { societe: true } });
+  if (!user || !(await isSocieteVisible(user.societe.nom))) notFound();
+  return user;
+}
+
 async function audit(societeId: string, action: string, details?: string) {
   await prisma.societeAudit.create({ data: { societeId, action, details: details ?? null, acteur: "Admin" } });
 }
@@ -29,6 +50,8 @@ export type CreateClientState = { error?: string; ok?: boolean; id?: string; set
 /** Full create flow: fiche client + compte + accès + espace client, all in one atomic-ish call. */
 export async function createClientAction(_prev: CreateClientState, fd: FormData): Promise<CreateClientState> {
   if (!(await isAdminSession())) return { error: "Accès refusé." };
+  const organizationId = await getCurrentOrganizationId();
+  if (!organizationId) return { error: "Accès refusé." };
 
   const nom = str(fd, "nom");
   if (!nom) return { error: "Le nom de la société est obligatoire." };
@@ -53,6 +76,7 @@ export async function createClientAction(_prev: CreateClientState, fd: FormData)
   const societe = await prisma.societe.create({
     data: {
       nom,
+      organizationId,
       codeAcces: generatePlaceholderCodeAcces(),
       codeAccesSetupToken: generateSetupToken(),
       codeAccesSetupExpiresAt: setupTokenExpiryDate(),
@@ -104,9 +128,7 @@ export async function createClientAction(_prev: CreateClientState, fd: FormData)
 }
 
 export async function updateClientAction(id: string, fd: FormData) {
-  await requireAdmin();
-  const existing = await prisma.societe.findUnique({ where: { id } });
-  if (!existing) notFound();
+  const existing = await requireSocieteAccess(id);
 
   const nom = str(fd, "nom") ?? existing.nom;
   const siretRaw = str(fd, "siret");
@@ -145,7 +167,7 @@ export async function updateClientAction(id: string, fd: FormData) {
 }
 
 export async function regenerateSetupLinkAction(id: string) {
-  await requireAdmin();
+  await requireSocieteAccess(id);
   await prisma.societe.update({
     where: { id },
     data: { codeAccesSetupToken: generateSetupToken(), codeAccesSetupExpiresAt: setupTokenExpiryDate() },
@@ -156,7 +178,7 @@ export async function regenerateSetupLinkAction(id: string) {
 }
 
 export async function markInvitationSentAction(id: string) {
-  await requireAdmin();
+  await requireSocieteAccess(id);
   await prisma.societe.update({ where: { id }, data: { invitationSentAt: new Date() } });
   await audit(id, "invitation_envoyee", "Invitation marquée comme envoyée manuellement");
   revalidatePath(`${LIST_PATH}/${id}`);
@@ -170,9 +192,7 @@ export async function markInvitationSentAction(id: string) {
  * error message) and via a re-thrown error the calling page handles.
  */
 export async function sendInvitationAction(id: string) {
-  await requireAdmin();
-  const societe = await prisma.societe.findUnique({ where: { id } });
-  if (!societe) notFound();
+  const societe = await requireSocieteAccess(id);
   if (!societe.email) {
     await audit(id, "invitation_envoyee", "Échec envoi : aucune adresse e-mail renseignée");
     throw new Error("Aucune adresse e-mail renseignée pour ce client.");
@@ -214,7 +234,7 @@ export async function sendInvitationAction(id: string) {
 // Désactiver = temporary access block (`disabledAt`). Distinct from archiving: the société stays
 // in the main list, all data untouched, reversible with a single click.
 export async function deactivateClientAction(id: string) {
-  await requireAdmin();
+  await requireSocieteAccess(id);
   await prisma.societe.update({ where: { id }, data: { disabledAt: new Date() } });
   await prisma.user.updateMany({ where: { societeId: id }, data: { isActive: false } });
   await audit(id, "desactivation", "Compte désactivé");
@@ -223,7 +243,7 @@ export async function deactivateClientAction(id: string) {
 }
 
 export async function reactivateClientAction(id: string) {
-  await requireAdmin();
+  await requireSocieteAccess(id);
   await prisma.societe.update({ where: { id }, data: { disabledAt: null } });
   await prisma.user.updateMany({ where: { societeId: id }, data: { isActive: true } });
   await audit(id, "reactivation", "Compte réactivé");
@@ -237,7 +257,7 @@ export async function reactivateClientAction(id: string) {
  * never a destructive delete. Reversible via `unarchiveClientAction`.
  */
 export async function archiveClientAction(id: string) {
-  await requireAdmin();
+  await requireSocieteAccess(id);
   await prisma.societe.update({ where: { id }, data: { archivedAt: new Date() } });
   await prisma.user.updateMany({ where: { societeId: id }, data: { isActive: false } });
   await audit(id, "archivage", "Société archivée par l'administrateur");
@@ -246,7 +266,7 @@ export async function archiveClientAction(id: string) {
 }
 
 export async function unarchiveClientAction(id: string) {
-  await requireAdmin();
+  await requireSocieteAccess(id);
   await prisma.societe.update({ where: { id }, data: { archivedAt: null } });
   await audit(id, "desarchivage", "Société désarchivée par l'administrateur");
   revalidatePath(`${LIST_PATH}/${id}`);
@@ -259,9 +279,7 @@ export async function unarchiveClientAction(id: string) {
  * and just wants the badge to switch to "Actif" immediately.
  */
 export async function activateClientAction(id: string) {
-  await requireAdmin();
-  const s = await prisma.societe.findUnique({ where: { id } });
-  if (!s) notFound();
+  const s = await requireSocieteAccess(id);
   await prisma.societe.update({
     where: { id },
     data: { activatedAt: s.activatedAt ?? new Date(), archivedAt: null, disabledAt: null },
@@ -276,7 +294,7 @@ export async function activateClientAction(id: string) {
  * "Utilisateurs" tab — a société can have more than one user account in the schema, even
  * though the créer-un-client wizard only ever provisions one today). */
 export async function toggleUserActiveAction(userId: string, next: boolean) {
-  await requireAdmin();
+  await requireUserAccess(userId);
   const user = await prisma.user.update({ where: { id: userId }, data: { isActive: next } });
   await audit(user.societeId, next ? "utilisateur_active" : "utilisateur_desactive", `Compte utilisateur ${user.email ?? user.id} ${next ? "activé" : "désactivé"}`);
   revalidatePath(`${LIST_PATH}/${user.societeId}`);
@@ -285,9 +303,7 @@ export async function toggleUserActiveAction(userId: string, next: boolean) {
 /** Removes a user row. Safe/reversible in practice: the next successful login re-provisions a
  * user for that société automatically (see `ensureUserForSociete`). */
 export async function deleteUserAction(userId: string) {
-  await requireAdmin();
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) notFound();
+  const user = await requireUserAccess(userId);
   await prisma.user.delete({ where: { id: userId } });
   await audit(user.societeId, "utilisateur_supprime", `Compte utilisateur ${user.email ?? user.id} supprimé`);
   revalidatePath(`${LIST_PATH}/${user.societeId}`);
@@ -297,7 +313,7 @@ export async function deleteUserAction(userId: string) {
  * `toggleVisibleClientAction` sur les contraventions, mais pour les courriers, exposé depuis
  * l'onglet "Documents" de la fiche société. */
 export async function toggleCourrierVisibleAction(courrierId: string, next: boolean, societeId: string) {
-  await requireAdmin();
+  await requireSocieteAccess(societeId);
   await prisma.courrier.update({ where: { id: courrierId }, data: { visibleClient: next } });
   await audit(societeId, next ? "document_transmis" : "document_retire", `Document ${next ? "transmis au" : "retiré du"} portail client`);
   revalidatePath(`${LIST_PATH}/${societeId}`);
@@ -312,9 +328,7 @@ export async function toggleCourrierVisibleAction(courrierId: string, next: bool
  * calling UI is responsible for the double confirmation.
  */
 export async function deleteClientAction(id: string) {
-  await requireAdmin();
-  const s = await prisma.societe.findUnique({ where: { id } });
-  if (!s) notFound();
+  const s = await requireSocieteAccess(id);
 
   const [courriers, contraventions, vehicules, conducteurs, sinistres] = await Promise.all([
     prisma.courrier.count({ where: { societe: s.nom } }),
@@ -354,6 +368,9 @@ export type AddUserState = { error?: string; ok?: boolean };
 /** Adds a new named user to a société and immediately sends their invitation e-mail. */
 export async function addClientUserAction(societeId: string, _prev: AddUserState, fd: FormData): Promise<AddUserState> {
   await requireAdmin();
+  const societe = await prisma.societe.findUnique({ where: { id: societeId } });
+  if (!societe || !(await isSocieteVisible(societe.nom))) return { error: "Société introuvable." };
+
   const prenom = str(fd, "prenom");
   const nom = str(fd, "nom");
   const email = str(fd, "email")?.toLowerCase() ?? null;
@@ -364,9 +381,6 @@ export async function addClientUserAction(societeId: string, _prev: AddUserState
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return { error: "Cette adresse e-mail est déjà utilisée par un autre compte." };
-
-  const societe = await prisma.societe.findUnique({ where: { id: societeId } });
-  if (!societe) return { error: "Société introuvable." };
 
   if (isPrincipal) {
     await prisma.user.updateMany({ where: { societeId, isPrincipal: true }, data: { isPrincipal: false } });
@@ -407,9 +421,7 @@ export async function addClientUserAction(societeId: string, _prev: AddUserState
 }
 
 export async function updateClientUserAction(userId: string, fd: FormData) {
-  await requireAdmin();
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) notFound();
+  const user = await requireUserAccess(userId);
 
   const prenom = str(fd, "prenom") ?? user.prenom;
   const nom = str(fd, "nom") ?? user.nom;
@@ -428,9 +440,7 @@ export async function updateClientUserAction(userId: string, fd: FormData) {
 
 /** Exactly one contact principal per société. */
 export async function setPrincipalUserAction(userId: string) {
-  await requireAdmin();
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) notFound();
+  const user = await requireUserAccess(userId);
   await prisma.user.updateMany({ where: { societeId: user.societeId, isPrincipal: true }, data: { isPrincipal: false } });
   await prisma.user.update({ where: { id: userId }, data: { isPrincipal: true } });
   await audit(user.societeId, "contact_principal_defini", `${user.prenom} ${user.nom} défini comme contact principal`);
@@ -438,9 +448,7 @@ export async function setPrincipalUserAction(userId: string) {
 }
 
 async function sendUserInvitationOrReset(userId: string, isReset: boolean) {
-  await requireAdmin();
-  const user = await prisma.user.findUnique({ where: { id: userId }, include: { societe: true } });
-  if (!user) notFound();
+  const user = await requireUserAccess(userId);
   if (!user.email) throw new Error("Aucune adresse e-mail pour ce compte.");
 
   const token = generateSetupToken();

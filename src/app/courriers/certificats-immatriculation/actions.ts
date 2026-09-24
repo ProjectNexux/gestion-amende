@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, isSocieteVisible } from "@/lib/org-scope";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { ACCEPTED_COURRIER_MIME_TYPES, normalizeImmatriculation, getImmatriculation } from "@/lib/courriers";
@@ -17,6 +18,7 @@ function str(fd: FormData, key: string) {
 async function resolveSociete(fd: FormData, isAdmin: boolean, fallback: string): Promise<string | null> {
   const requested = str(fd, "societe");
   const societe = isAdmin && requested ? requested : fallback;
+  if (!(await isSocieteVisible(societe))) return null;
   const exists = await prisma.societe.findUnique({ where: { nom: societe } });
   return exists ? societe : null;
 }
@@ -58,7 +60,7 @@ export async function updateCertificat(id: string, formData: FormData) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.courrier.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   const societe = await resolveSociete(formData, isAdmin, existing.societe);
@@ -97,7 +99,7 @@ export async function deleteCertificat(id: string) {
   const userSociete = await requireSociete();
   const isAdmin = await isAdminSession();
 
-  const existing = await prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe: userSociete } });
+  const existing = await prisma.courrier.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } });
   if (!existing) notFound();
 
   await prisma.courrier.delete({ where: { id } });

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { Eye } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter, getVisibleSocieteNames } from "@/lib/org-scope";
 import { updateCertificat, deleteCertificat } from "../actions";
 import { getImmatriculation } from "@/lib/courriers";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
@@ -20,8 +21,15 @@ export default async function CertificatImmatriculationDetailPage({ params }: { 
   const isAdmin = await isAdminSession();
 
   const [item, allSocietes] = await Promise.all([
-    prisma.courrier.findFirst({ where: isAdmin ? { id } : { id, societe } }),
-    prisma.societe.findMany({ orderBy: { nom: "asc" }, select: { nom: true } }),
+    prisma.courrier.findFirst({ where: { id, ...(await getVisibleSocieteFilter()) } }),
+    (async () => {
+      const names = await getVisibleSocieteNames();
+      return prisma.societe.findMany({
+        where: names === "all-own-societe" ? { nom: societe } : { nom: { in: names } },
+        orderBy: { nom: "asc" },
+        select: { nom: true },
+      });
+    })(),
   ]);
   if (!item) notFound();
 

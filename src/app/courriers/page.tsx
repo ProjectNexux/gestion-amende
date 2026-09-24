@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Eye, Paperclip, Inbox } from "lucide-react";
 import { requireSociete, isAdminSession } from "@/lib/auth";
+import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { Badge, documentTypeTone } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -30,7 +31,7 @@ export default async function CourriersPage() {
   const isAdmin = await isAdminSession();
 
   const items = await prisma.courrier.findMany({
-    where: isAdmin ? {} : { societe },
+    where: await getVisibleSocieteFilter(),
     orderBy: { receivedAt: "desc" },
     select: COURRIER_LIST_SELECT,
   });
