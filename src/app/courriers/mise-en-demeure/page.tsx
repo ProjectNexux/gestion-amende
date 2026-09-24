@@ -8,6 +8,7 @@ import AddMiseEnDemeurePanel from "./AddMiseEnDemeurePanel";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getMiseEnDemeureData, origineLabel, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtMoney } from "@/lib/utils";
@@ -182,7 +183,7 @@ export default async function MiseEnDemeurePage({
                 <td className="p-3 max-w-[200px] truncate" title={d.motif ?? ""}>{d.motif ?? "—"}</td>
                 <td className="p-3 text-right">{d.montant != null ? fmtMoney(d.montant) : d.montantIncertain ? "À vérifier" : "—"}</td>
                 <td className="p-3">{d.echeance ?? "—"}</td>
-                <td className="p-3"><Badge tone={statutTone(d.statut)}>{d.statut ?? "Nouveau"}</Badge></td>
+                <td className="p-3"><StatusBadge status={d.statut ?? "Nouveau"} /></td>
                 <td className="p-3"><Badge tone={d.origine === "manuel" ? "neutral" : "info"}>{origineLabel(d.origine)}</Badge></td>
                 <td className="p-3">
                   <div className="flex items-center justify-end gap-1">

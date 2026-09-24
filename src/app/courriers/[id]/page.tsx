@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
 import { BackButton } from "@/components/ui/BackButton";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function GenericCourrierPage({ params }: { params: Promise<
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "Courriers", href: "/courriers" }, { label: courrierTypeLabel(item.type) }]} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{courrierTypeLabel(item.type)}</h1>

@@ -5,6 +5,7 @@ import { requireSociete, isAdminSession } from "@/lib/auth";
 import { getVisibleSocieteFilter, getVisibleSocieteNames } from "@/lib/org-scope";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { getMiseEnDemeureData, MISE_EN_DEMEURE_STATUTS, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { deriveTransmissionStatut, type TransmissionStatut } from "@/lib/transmission";
@@ -170,7 +171,7 @@ export default async function UrssafPage({
                 <td className="p-3 max-w-[220px] truncate" title={d.motif ?? ""}>{d.motif ?? "—"}</td>
                 <td className="p-3 text-right">{d.montant != null ? fmtMoney(d.montant) : d.montantIncertain ? "À vérifier" : "—"}</td>
                 <td className="p-3">{d.echeance ?? "—"}</td>
-                <td className="p-3"><Badge tone={statutTone(d.statut)}>{d.statut ?? "Nouveau"}</Badge></td>
+                <td className="p-3"><StatusBadge status={d.statut ?? "Nouveau"} /></td>
                 <td className="p-3"><Badge tone={transmissionTone(transmissionStatut)}>{transmissionStatut}</Badge></td>
                 <td className="p-3 text-right">
                   <div className="flex items-center justify-end gap-1">

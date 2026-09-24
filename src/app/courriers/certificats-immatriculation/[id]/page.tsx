@@ -10,6 +10,7 @@ import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
 import { BackButton } from "@/components/ui/BackButton";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export default async function CertificatImmatriculationDetailPage({ params }: { 
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "Courriers", href: "/courriers" }, { label: "Certificats d'immatriculation", href: "/courriers/certificats-immatriculation" }, { label: immatriculation || "Détail" }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Modifier le certificat</h1>

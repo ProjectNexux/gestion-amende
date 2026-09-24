@@ -13,7 +13,9 @@ import { fmtMoney, fmtDateTime } from "@/lib/utils";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { BackButton } from "@/components/ui/BackButton";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -79,13 +81,14 @@ export default async function MiseEnDemeureDetailPage({
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "Courriers", href: "/courriers" }, { label: "Mise en demeure", href: "/courriers/mise-en-demeure" }, { label: d.reference ?? d.motif ?? "Détail" }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Mise en demeure</h1>
           <p className="text-sm text-slate-500">{item.fileName}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge tone={statutTone(d.statut)}>{d.statut ?? "Nouveau"}</Badge>
+          <StatusBadge status={d.statut ?? "Nouveau"} />
           <Badge tone={d.origine === "manuel" ? "neutral" : "info"}>{origineLabel(d.origine)}</Badge>
           {isAdmin && (
             <TransmettreClientButton

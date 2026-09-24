@@ -8,11 +8,13 @@ import { SINISTRE_STATUTS, SINISTRE_TYPES, sinistreStatutTone, SINISTRE_HISTORIQ
 import { fmtMoney, fmtDateTime } from "@/lib/utils";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { Badge } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import { COURRIER_LIST_SELECT } from "@/lib/courriers";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
 import { BackButton } from "@/components/ui/BackButton";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -42,13 +44,14 @@ export default async function SinistreDetailPage({ params }: { params: Promise<{
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "Courriers", href: "/courriers" }, { label: "Sinistres", href: "/courriers/sinistres" }, { label: sinistre.reference }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{sinistre.reference}</h1>
           <p className="text-sm text-slate-500">{sinistre.societe} — {sinistre.typeSinistre ?? "Type non défini"}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge tone={sinistreStatutTone(sinistre.statut)}>{sinistre.statut}</Badge>
+          <StatusBadge status={sinistre.statut} />
           <BackButton fallbackHref="/courriers/sinistres" label="Retour à la liste" className="btn-secondary" />
         </div>
       </div>

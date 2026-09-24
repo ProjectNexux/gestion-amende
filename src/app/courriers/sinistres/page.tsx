@@ -7,6 +7,7 @@ import { createSinistre } from "./actions";
 import AddSinistrePanel from "./AddSinistrePanel";
 import { OpenAddSinistreButton } from "./OpenAddSinistreButton";
 import { Badge } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SINISTRE_STATUTS, SINISTRE_TYPES, sinistreStatutTone } from "@/lib/sinistres";
 import { fmtMoney } from "@/lib/utils";
@@ -159,7 +160,7 @@ export default async function SinistresPage({
                 <td className="p-3 font-mono text-xs">{s.vehicule?.immatriculation ?? "—"}</td>
                 <td className="p-3">{s.assureur ?? "—"}</td>
                 <td className="p-3">{s.dateLimiteReponse ?? "—"}</td>
-                <td className="p-3"><Badge tone={sinistreStatutTone(s.statut)}>{s.statut}</Badge></td>
+                <td className="p-3"><StatusBadge status={s.statut} /></td>
                 <td className="p-3 text-right">
                   <Link href={`/courriers/sinistres/${s.id}`} className="text-xs font-medium text-blue-600 hover:underline">Ouvrir</Link>
                 </td>

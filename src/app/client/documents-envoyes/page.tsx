@@ -3,6 +3,7 @@ import { requireSociete } from "@/lib/auth";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { getClientEnvoiData, COURRIER_LIST_SELECT } from "@/lib/courriers";
 import { fmtDateTime } from "@/lib/utils";
@@ -62,7 +63,7 @@ export default async function DocumentsEnvoyesPage() {
                     <td className="p-3">{d.typeDocument ?? "—"}</td>
                     <td className="p-3 font-mono text-xs">{d.reference ?? "—"}</td>
                     <td className="p-3">{fmtDateTime(item.receivedAt)}</td>
-                    <td className="p-3"><Badge tone={statutTone(d.statut)}>{d.statut ?? "Nouveau"}</Badge></td>
+                    <td className="p-3"><StatusBadge status={d.statut ?? "Nouveau"} /></td>
                     <td className="p-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <DocumentViewerTrigger

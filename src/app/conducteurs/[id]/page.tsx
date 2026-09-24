@@ -5,6 +5,7 @@ import { isAdminSession, requireSociete } from "@/lib/auth";
 import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { updateConducteur } from "../actions";
 import { BackButton } from "@/components/ui/BackButton";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function ConducteurDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6 p-6 lg:p-8">
+      <Breadcrumbs items={[{ label: "Conducteurs", href: "/conducteurs" }, { label: `${conducteur.prenom} ${conducteur.nom}` }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">Personnel</p>

@@ -8,10 +8,12 @@ import { BENEFICIAIRES } from "@/lib/payments/beneficiaries";
 import { fmtMoneyCents, fmtDateTime } from "@/lib/utils";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import GenerateLinkForm from "../GenerateLinkForm";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
 import { BackButton } from "@/components/ui/BackButton";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -63,13 +65,14 @@ export default async function RetardPaiementDetailPage({ params }: { params: Pro
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "Courriers", href: "/courriers" }, { label: "Retards de paiement", href: "/courriers/retards-paiement" }, { label: d.reference ?? d.debiteur ?? "Détail" }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Retard de paiement</h1>
           <p className="text-sm text-slate-500">{d.debiteur} — {d.reference ?? "sans référence"}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge tone={statutTone(d.statutPaiement)}>{d.statutPaiement ?? "Non payé"}</Badge>
+          <StatusBadge status={d.statutPaiement ?? "Non payé"} />
           {isAdmin && (
             <TransmettreClientButton
               id={item.id}

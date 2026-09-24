@@ -15,6 +15,7 @@ import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
 import { BackButton } from "@/components/ui/BackButton";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ export default async function FactureDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="space-y-6 p-6 lg:p-8">
+      <Breadcrumbs items={[{ label: "Comptabilité" }, { label: "Factures", href: "/comptabilite/factures" }, { label: d.reference ?? item.fileName }]} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">Comptabilité</p>

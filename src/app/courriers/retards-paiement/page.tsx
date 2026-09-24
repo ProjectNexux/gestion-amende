@@ -5,6 +5,7 @@ import { getVisibleSocieteFilter } from "@/lib/org-scope";
 import { createRetardPaiementManuelle } from "./actions";
 import AddRetardPaiementPanel from "./AddRetardPaiementPanel";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ClockAlert } from "lucide-react";
 import { getRetardPaiementData, resteAPayer, COURRIER_LIST_SELECT } from "@/lib/courriers";
@@ -67,7 +68,7 @@ export default async function RetardsPaiementPage() {
                   <td className="p-3">{d.dateEcheance ?? "—"}</td>
                   <td className="p-3 text-right">{fmtMoneyCents(d.montantDu)}</td>
                   <td className="p-3 text-right font-medium">{fmtMoneyCents(resteAPayer(d))}</td>
-                  <td className="p-3"><Badge tone={statutTone(d.statutPaiement)}>{d.statutPaiement ?? "Non payé"}</Badge></td>
+                  <td className="p-3"><StatusBadge status={d.statutPaiement ?? "Non payé"} /></td>
                 </tr>
               );
             })}

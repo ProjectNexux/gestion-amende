@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireSociete, isAdminSession } from "@/lib/auth";
 import { getVisibleSocieteFilter, getVisibleSocieteNames } from "@/lib/org-scope";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Send } from "lucide-react";
 import { courrierTypeLabel, getMiseEnDemeureData, COURRIER_LIST_SELECT } from "@/lib/courriers";
@@ -83,7 +84,7 @@ export default async function ATransmettrePage() {
                   <td className="p-3">{courrierTypeLabel(item.type)}</td>
                   <td className="p-3 font-mono text-xs">{d.reference ?? "—"}</td>
                   <td className="p-3">{email ?? "—"}</td>
-                  <td className="p-3"><Badge tone={statutTone(statut)}>{statut}</Badge></td>
+                  <td className="p-3"><StatusBadge status={statut} /></td>
                   <td className="p-3 text-right">
                     <Link href={href} className="text-xs font-medium text-brand-600 hover:underline">Vérifier</Link>
                   </td>
