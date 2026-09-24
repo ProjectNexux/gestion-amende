@@ -140,7 +140,7 @@ export function Sidebar({
           "fixed inset-y-0 left-0 transition-[width,transform] duration-200 ease-in-out",
           collapsed ? "lg:w-[76px]" : "lg:w-[264px]",
           "w-[264px]",
-          mobileOpen ? "" : "max-lg:-translate-x-full",
+          mobileOpen ? "translate-x-0" : "translate-x-0 max-lg:-translate-x-full",
         ].join(" ")}
       >
         {/* Brand + collapse control */}
