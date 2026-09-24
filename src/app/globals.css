@@ -3,27 +3,29 @@
 @tailwind utilities;
 
 :root {
-  /* Design system (2026-09-24 refonte): cleaner neutral warm-grey base, deep+electric blue brand,
-     sober teal client accent. Kept intentionally low-saturation and low-shadow for a calm,
-     professional feel (Linear/Stripe/Vercel-inspired, not copied). */
-  --bg-page: #F4F4F6;
-  --bg-subtle: #EEEEF1;
+  /* Design system — Refonte "Nouvelle interface documentaire" (2026-09-24).
+     Ivory paper base, cool anthracite ink, deep professional blue action, discreet champagne
+     accent, deep blue-black sidebar. Low-saturation, low-shadow, calm and high-end. */
+  --bg-page: #F5F5F2;        /* gris ivoire */
+  --bg-subtle: #EFEFEA;
   --surface: #FFFFFF;
-  --surface-panel: #FAFAFB;
-  --surface-strong: #F4F4F6;
-  --text: #18181D;
-  --text-muted: #6B6B76;
-  --border: #E7E7EB;
-  --brand: #2D5BDE;
-  --brand-hover: #1F4CC7;
-  --brand-soft: #EDF1FF;
-  --accent-teal: #0D9488;
-  --success: #197A5E;
-  --warning: #B7762F;
+  --surface-panel: #FAFAF7;
+  --surface-strong: #F1F1EC;
+  --text: #172033;           /* anthracite bleuté */
+  --text-muted: #667085;
+  --border: #E6E6DE;
+  --brand: #3157D5;          /* bleu d'action profond */
+  --brand-hover: #274AB8;
+  --brand-soft: #EEF2FD;
+  --accent-teal: #0D9488;    /* accent espace client */
+  --accent-sand: #B0894B;    /* champagne / sable premium discret */
+  --accent-sand-soft: #F5EFE0;
+  --success: #1E7A5E;
+  --warning: #C2761F;
   --danger: #C84E4B;
-  --navy: #16171C;
-  --navy-strong: #1E2027;
-  --shadow-soft: 0 1px 2px rgba(17, 24, 39, 0.04), 0 12px 30px -20px rgba(17, 24, 39, 0.18);
+  --navy: #0C111B;           /* sidebar noir bleuté profond */
+  --navy-strong: #131A29;
+  --shadow-soft: 0 1px 2px rgba(23, 32, 51, 0.04), 0 12px 30px -20px rgba(23, 32, 51, 0.16);
 }
 
 html, body {

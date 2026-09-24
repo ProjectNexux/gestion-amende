@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, Bell, ChevronDown, LogOut, Loader2, ScanLine, ArrowLeft, Building2 } from "lucide-react";
+import { Search, Bell, ChevronDown, LogOut, Loader2, ScanLine, ArrowLeft, Building2, Menu } from "lucide-react";
 import { NewDocumentMenu } from "@/components/NewDocumentMenu";
 import type { SearchResultGroup } from "@/app/api/search/route";
 
@@ -36,7 +36,7 @@ function resolveBreadcrumb(pathname: string): { section: string; page: string } 
   return match ?? { section: "Gestion", page: "" };
 }
 
-export function Topbar({ societe, admin, organizationName }: { societe: string; admin: boolean; organizationName?: string | null }) {
+export function Topbar({ societe, admin, organizationName, onOpenMobile }: { societe: string; admin: boolean; organizationName?: string | null; onOpenMobile?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { section, page } = resolveBreadcrumb(pathname);
@@ -108,6 +108,14 @@ export function Topbar({ societe, admin, organizationName }: { societe: string; 
 
   return (
     <header className="sticky top-0 z-20 flex h-[68px] shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white/80 px-4 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur-md sm:px-6">
+      <button
+        type="button"
+        onClick={onOpenMobile}
+        aria-label="Ouvrir le menu"
+        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 shadow-sm transition-all duration-150 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 lg:hidden"
+      >
+        <Menu size={18} />
+      </button>
       {showBackButton && (
         <button
           type="button"

@@ -24,7 +24,7 @@ export default async function ClientLayout({ children }: { children: React.React
   const impersonating = (await cookies()).get("impersonatingFrom")?.value ?? null;
 
   return (
-    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top,_rgba(20,184,166,0.07),_transparent_38%),_#F6FAF9]">
+    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top,_rgba(13,148,136,0.05),_transparent_42%),_#F5F5F2]">
       <ClientSidebar societe={societe} sections={CLIENT_NAV_SECTIONS} />
 
       <div className="min-w-0 flex-1">
