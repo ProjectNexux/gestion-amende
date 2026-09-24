@@ -206,7 +206,7 @@ export default function ClientDocumentsPage() {
       ) : (
         <div className="table-shell">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600">
+            <thead className="table-head">
               <tr>
                 <th className="w-8 p-3 text-left"></th>
                 <th className="w-8 p-3 text-left"></th>

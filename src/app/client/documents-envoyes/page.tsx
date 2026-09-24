@@ -44,7 +44,7 @@ export default async function DocumentsEnvoyesPage() {
       ) : (
         <div className="table-shell">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-600">
+            <thead className="table-head">
               <tr>
                 <th className="p-3 text-left">Titre / objet</th>
                 <th className="p-3 text-left">Type</th>

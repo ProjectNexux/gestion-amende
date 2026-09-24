@@ -208,7 +208,7 @@ export default async function RetardPaiementDetailPage({ params }: { params: Pro
         <h2 className="text-sm font-semibold text-slate-700">Historique des paiements</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-surface-panel text-slate-600">
+            <thead className="table-head">
               <tr>
                 <th className="p-2.5 text-left">Date</th>
                 <th className="p-2.5 text-right">Montant</th>

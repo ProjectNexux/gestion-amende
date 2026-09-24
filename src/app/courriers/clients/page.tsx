@@ -31,7 +31,7 @@ export default async function CourriersClientsPage() {
 
       <div className="table-shell">
         <table className="w-full text-sm">
-          <thead className="bg-surface-panel text-slate-600">
+          <thead className="table-head">
             <tr>
               <th className="p-3 text-left">Société</th>
               <th className="p-3 text-left">Titre / objet</th>

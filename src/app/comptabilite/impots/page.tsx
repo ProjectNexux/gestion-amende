@@ -39,7 +39,7 @@ export default async function ImpotsPage() {
 
       <div className="table-shell">
         <table className="w-full text-sm">
-          <thead className="bg-surface-panel text-slate-600">
+          <thead className="table-head">
             <tr>
               <th className="p-3 text-left">Date</th>
               <th className="p-3 text-left">Société</th>

@@ -112,7 +112,7 @@ export function ClientsList({
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
-              <thead className="bg-surface-panel text-slate-600">
+              <thead className="table-head">
                 <tr>
                   <th className="p-3 text-left">Raison sociale</th>
                   <th className="p-3 text-left">SIRET</th>

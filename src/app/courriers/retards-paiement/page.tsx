@@ -42,7 +42,7 @@ export default async function RetardsPaiementPage() {
 
       <div className="table-shell">
         <table className="w-full text-sm">
-          <thead className="bg-surface-panel text-slate-600">
+          <thead className="table-head">
             <tr>
               <th className="p-3 text-left">Bénéficiaire</th>
               <th className="p-3 text-left">Débiteur</th>
