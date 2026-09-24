@@ -16,7 +16,7 @@ export function LoginShowcaseBackdrop() {
       {/* Discreet light halos */}
       <div className="animate-login-glow absolute -left-24 top-0 h-[420px] w-[420px] rounded-full bg-brand-400/30 blur-[120px]" />
       <div className="animate-login-glow absolute right-0 top-1/3 h-[380px] w-[380px] rounded-full bg-sky-300/20 blur-[110px]" style={{ animationDelay: "2s" }} />
-      <div className="animate-login-glow absolute bottom-0 left-1/3 h-[320px] w-[320px] rounded-full bg-indigo-200/10 blur-[100px]" style={{ animationDelay: "4s" }} />
+      <div className="animate-login-glow absolute bottom-0 left-1/3 h-[320px] w-[320px] rounded-full bg-brand-200/10 blur-[100px]" style={{ animationDelay: "4s" }} />
 
       {/* Admin dashboard preview — left, tilted */}
       <div

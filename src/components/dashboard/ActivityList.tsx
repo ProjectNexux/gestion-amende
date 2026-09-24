@@ -8,7 +8,7 @@ const dotClasses: Record<ActivityTone, string> = {
   brand: "bg-brand-500",
   success: "bg-success-500",
   warning: "bg-warning-500",
-  violet: "bg-violet-500",
+  violet: "bg-sand-500",
   neutral: "bg-slate-400",
 };
 
@@ -16,7 +16,7 @@ const toneClasses: Record<ActivityTone, string> = {
   brand: "bg-brand-50 text-brand-700",
   success: "bg-success-50 text-success-600",
   warning: "bg-warning-50 text-warning-600",
-  violet: "bg-violet-50 text-violet-700",
+  violet: "bg-sand-100 text-sand-600",
   neutral: "bg-slate-100 text-slate-500",
 };
 

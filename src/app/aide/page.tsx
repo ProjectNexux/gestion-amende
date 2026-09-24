@@ -88,7 +88,7 @@ export default async function AideIndexPage() {
                 href="/aide/glossaire"
                 className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-card-hover"
               >
-                <div className="grid h-9 w-9 place-items-center rounded-xl bg-violet-50 text-violet-700">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-sand-100 text-sand-600">
                   <BookOpenCheck size={17} />
                 </div>
                 <h2 className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-slate-900">

@@ -15,14 +15,14 @@ const toneChip: Record<OverviewTone, string> = {
   brand: "bg-brand-50 text-brand-700",
   warning: "bg-warning-50 text-warning-600",
   danger: "bg-danger-50 text-danger-500",
-  violet: "bg-violet-50 text-violet-700",
+  violet: "bg-sand-100 text-sand-600",
 };
 
 const toneHint: Record<OverviewTone, string> = {
   brand: "text-brand-700",
   warning: "text-warning-600",
   danger: "text-danger-500",
-  violet: "text-violet-700",
+  violet: "text-sand-600",
 };
 
 export type OverviewStat = {

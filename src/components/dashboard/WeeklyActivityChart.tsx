@@ -102,7 +102,7 @@ export function WeeklyActivityChart({ data, transmisTotal }: { data: DayActivity
           </div>
           {typeof transmisTotal === "number" && (
             <div title="Dossiers actuellement transmis au client, tous historiques confondus (chiffre global, pas seulement sur la période)">
-              <div className="text-[15px] font-extrabold leading-none text-violet-600">{transmisTotal}</div>
+              <div className="text-[15px] font-extrabold leading-none text-sand-600">{transmisTotal}</div>
               <div className="mt-0.5 text-[10px] text-slate-400">Transmis (total)</div>
             </div>
           )}

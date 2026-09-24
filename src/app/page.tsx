@@ -718,11 +718,11 @@ export default async function DashboardPage({
           <SectionCard title="Répartition des documents">
             <CategoryDonut segments={categories} total={totalDocuments} />
             <div
-              className="mt-3 flex items-center justify-between rounded-lg bg-violet-50 px-3 py-2 text-[12.5px]"
+              className="mt-3 flex items-center justify-between rounded-lg bg-sand-100 px-3 py-2 text-[12.5px]"
               title={`Contraventions + retards de paiement non soldés${dossiersNonSoldes > 0 ? ` (${dossiersNonSoldes} dossier${dossiersNonSoldes > 1 ? "s" : ""})` : ""}`}
             >
-              <span className="font-medium text-violet-700">Montant total à régulariser</span>
-              <span className="font-bold text-violet-800">{fmtMoney(montantEnAttente)}</span>
+              <span className="font-medium text-sand-600">Montant total à régulariser</span>
+              <span className="font-bold text-sand-600">{fmtMoney(montantEnAttente)}</span>
             </div>
           </SectionCard>
 

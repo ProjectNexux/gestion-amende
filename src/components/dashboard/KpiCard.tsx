@@ -9,7 +9,7 @@ const iconToneClasses: Record<KpiTone, string> = {
   success: "bg-emerald-50 text-emerald-600",
   warning: "bg-amber-50 text-amber-600",
   danger: "bg-rose-50 text-rose-600",
-  violet: "bg-violet-50 text-violet-600",
+  violet: "bg-sand-100 text-sand-600",
 };
 
 const hintToneClasses: Record<KpiTone, string> = {
@@ -17,7 +17,7 @@ const hintToneClasses: Record<KpiTone, string> = {
   success: "text-emerald-600",
   warning: "text-amber-600",
   danger: "text-rose-600",
-  violet: "text-violet-600",
+  violet: "text-sand-600",
 };
 
 /** Large "hero" KPI card for the top of the dashboard — bigger and sparser than the compact StatCard/StatItem. */

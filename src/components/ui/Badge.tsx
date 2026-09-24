@@ -12,7 +12,7 @@ const toneClasses: Record<BadgeTone, string> = {
   turquoise: "bg-sky-50 text-sky-700 ring-sky-500/15",
   coral: "bg-orange-50 text-orange-700 ring-orange-500/15",
   orange: "bg-warning-50 text-warning-600 ring-warning-500/15",
-  violet: "bg-violet-50 text-violet-700 ring-violet-500/15",
+  violet: "bg-sand-100 text-sand-600 ring-sand-500/20",
   emerald: "bg-success-50 text-success-600 ring-success-500/15",
   slate: "bg-slate-100 text-slate-600 ring-slate-500/10",
 };
@@ -27,7 +27,7 @@ const dotClasses: Record<BadgeTone, string> = {
   turquoise: "bg-sky-500",
   coral: "bg-orange-500",
   orange: "bg-warning-500",
-  violet: "bg-violet-500",
+  violet: "bg-sand-500",
   emerald: "bg-success-500",
   slate: "bg-slate-400",
 };

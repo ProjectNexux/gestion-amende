@@ -42,7 +42,7 @@ export default async function RetardsPaiementPage() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-indigo-50/50 text-slate-600">
+          <thead className="bg-surface-panel text-slate-600">
             <tr>
               <th className="p-3 text-left">Bénéficiaire</th>
               <th className="p-3 text-left">Débiteur</th>
