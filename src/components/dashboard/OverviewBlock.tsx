@@ -32,6 +32,8 @@ export type OverviewStat = {
   label: string;
   hint?: string;
   href?: string;
+  /** Explication complète au survol (tooltip natif) — ce que représente exactement ce chiffre. */
+  title?: string;
 };
 
 /**
@@ -47,7 +49,7 @@ export function OverviewBlock({ stats, className }: { stats: OverviewStat[]; cla
         <h2 className="text-[15px] font-bold tracking-[-0.02em] text-slate-900">Vue d&apos;ensemble</h2>
         <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">Aujourd&apos;hui</span>
       </div>
-      <div className="grid grid-cols-2 gap-3 px-3 pb-3 sm:grid-cols-4">
+      <div className={cn("grid grid-cols-2 gap-3 px-3 pb-3", stats.length >= 5 ? "sm:grid-cols-3 xl:grid-cols-5" : "sm:grid-cols-2 xl:grid-cols-4")}>
         {stats.map((s, i) => {
           const cellClass = cn(
             "rounded-[14px] border border-slate-200 px-4 py-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-card-hover",
@@ -65,11 +67,11 @@ export function OverviewBlock({ stats, className }: { stats: OverviewStat[]; cla
             </>
           );
           return s.href ? (
-            <Link key={i} href={s.href} className={cn(cellClass, "block")}>
+            <Link key={i} title={s.title} href={s.href} className={cn(cellClass, "block")}>
               {content}
             </Link>
           ) : (
-            <div key={i} className={cellClass}>
+            <div key={i} title={s.title} className={cellClass}>
               {content}
             </div>
           );

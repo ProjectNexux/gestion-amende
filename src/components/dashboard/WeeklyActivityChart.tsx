@@ -46,7 +46,7 @@ function smoothPath(points: { x: number; y: number }[]) {
  * color AND a distinct stroke/marker style so two series never look identical even when their
  * values happen to coincide on a given point.
  */
-export function WeeklyActivityChart({ data }: { data: DayActivity[] }) {
+export function WeeklyActivityChart({ data, transmisTotal }: { data: DayActivity[]; transmisTotal?: number }) {
   const [hover, setHover] = useState<number | null>(null);
 
   if (data.length === 0 || data.every((d) => d.recus === 0 && d.traites === 0)) {
@@ -81,25 +81,31 @@ export function WeeklyActivityChart({ data }: { data: DayActivity[] }) {
             <span className="h-1.5 w-1.5 rounded-full bg-[#4C63D2]" /> Reçus
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-mint-500" /> Traités
+            <span className="h-1.5 w-1.5 rounded-full bg-mint-500" /> Classés
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Restants
           </span>
         </div>
         <div className="flex items-center gap-3 text-right">
-          <div>
+          <div title="Documents reçus sur la période sélectionnée">
             <div className="text-[15px] font-extrabold leading-none text-slate-900">{totalRecus}</div>
             <div className="mt-0.5 text-[10px] text-slate-400">Reçus</div>
           </div>
-          <div>
+          <div title="Documents classés (traités) sur la période sélectionnée">
             <div className="text-[15px] font-extrabold leading-none text-mint-600">{totalTraites}</div>
-            <div className="mt-0.5 text-[10px] text-slate-400">Traités</div>
+            <div className="mt-0.5 text-[10px] text-slate-400">Classés</div>
           </div>
-          <div>
+          <div title="Documents restant à traiter sur la période sélectionnée">
             <div className="text-[15px] font-extrabold leading-none text-amber-600">{totalRestants}</div>
             <div className="mt-0.5 text-[10px] text-slate-400">Restants</div>
           </div>
+          {typeof transmisTotal === "number" && (
+            <div title="Dossiers actuellement transmis au client, tous historiques confondus (chiffre global, pas seulement sur la période)">
+              <div className="text-[15px] font-extrabold leading-none text-violet-600">{transmisTotal}</div>
+              <div className="mt-0.5 text-[10px] text-slate-400">Transmis (total)</div>
+            </div>
+          )}
         </div>
       </div>
       <div className="relative">
@@ -159,7 +165,7 @@ export function WeeklyActivityChart({ data }: { data: DayActivity[] }) {
               <span className="h-1.5 w-1.5 rounded-full bg-[#4C63D2]" /> Reçus <span className="font-semibold text-slate-800">{data[hover].recus}</span>
             </div>
             <div className="flex items-center gap-1.5 text-slate-500">
-              <span className="h-1.5 w-1.5 rounded-full bg-mint-500" /> Traités <span className="font-semibold text-slate-800">{data[hover].traites}</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-mint-500" /> Classés <span className="font-semibold text-slate-800">{data[hover].traites}</span>
             </div>
             <div className="flex items-center gap-1.5 text-slate-500">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Restants <span className="font-semibold text-slate-800">{restants[hover]}</span>

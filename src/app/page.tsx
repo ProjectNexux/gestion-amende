@@ -3,7 +3,7 @@ import { fmtMoney, fmtMoneyCents, fmtDateTime, humanizeFileName } from "@/lib/ut
 import Link from "next/link";
 import {
   AlertTriangle,
-  CheckCircle2,
+  CalendarClock,
   Clock,
   ClockAlert,
   Download,
@@ -13,15 +13,18 @@ import {
   FileText,
   FileWarning,
   IdCard,
+  Inbox,
   Mail,
   MoreHorizontal,
   Scale,
   ScanLine,
+  Send,
   UserCheck,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { requireSociete, isAdminSession, getUserId } from "@/lib/auth";
+import { groupScansByBundle } from "@/lib/scan-bundles";
 import { Badge, documentTypeTone, type BadgeTone } from "@/components/ui/Badge";
 import { DocumentViewerTrigger } from "@/components/DocumentViewerTrigger";
 import { SectionCard } from "@/components/dashboard/SectionCard";
@@ -149,6 +152,45 @@ export default async function DashboardPage({
     take: 8,
     select: { fileName: true, societe: true, receivedAt: true, processedAt: true, status: true },
   });
+
+  // Même fenêtre que /api/scan-email/list (les 50 scans les plus récents) — nécessaire pour
+  // regrouper les lots multi-parties exactement comme /admin/scans avant de compter.
+  const scanRowsForClassify = isAdmin
+    ? await prisma.emailScan.findMany({
+        where: {},
+        orderBy: { receivedAt: "desc" },
+        take: 50,
+        select: { messageId: true, fileName: true, status: true, courrierId: true, contraventionId: true, receivedAt: true },
+      })
+    : [];
+
+  // "Documents à classer" (carte #2, admin uniquement) — même source et même logique de
+  // regroupement en lots (bundles multi-parties) que /admin/scans, sur les 50 scans les plus
+  // récents (identique à /api/scan-email/list) : le chiffre affiché correspond toujours
+  // exactement à ce que l'on voit en ouvrant le lien, jamais un total brut décorrélé.
+  const scansToClassify = isAdmin
+    ? (() => {
+        const groups = groupScansByBundle(scanRowsForClassify);
+        return groups.filter((group) => {
+          const statuses = new Set(group.scans.map((s) => s.status));
+          const bundleStatus =
+            group.partTotal > 1 && group.scans.length < group.partTotal
+              ? "waiting_parts"
+              : statuses.has("processing")
+                ? "processing"
+                : statuses.has("error") && !statuses.has("created")
+                  ? "error"
+                  : statuses.has("created")
+                    ? "created"
+                    : statuses.has("waiting_parts")
+                      ? "waiting_parts"
+                      : group.scans[0].status;
+          const hasCourrier = group.scans.some((s) => s.courrierId);
+          const hasContravention = group.scans.some((s) => s.contraventionId);
+          return bundleStatus === "error" || (bundleStatus === "analyzed" && !hasCourrier && !hasContravention);
+        }).length;
+      })()
+    : 0;
 
   const retardCourrierIds = courriers.filter((c) => c.type === "retard_paiement").map((c) => c.id);
   const paiementsReussis = retardCourrierIds.length
@@ -307,8 +349,6 @@ export default async function DashboardPage({
   // ---- KPIs ----
   const now = new Date();
   const totalDocuments = docs.length;
-  const traitesCount = docs.filter((d) => d.traite).length;
-  const aTraiterCount = totalDocuments - traitesCount;
   const urgentsCount = docs.filter((d) => d.urgent).length;
   const docsThisMonth = docs.filter((d) => d.date.getFullYear() === now.getFullYear() && d.date.getMonth() === now.getMonth()).length;
 
@@ -321,6 +361,25 @@ export default async function DashboardPage({
       .reduce((acc, c) => acc + resteAPayer(getRetardPaiementData(c.data)), 0) / 100;
   const montantEnAttente = montantContraventionsEnAttente + montantRetardsEnAttente;
   const dossiersNonSoldes = docs.filter((d) => !d.traite).length;
+
+  // "Dossiers prêts à envoyer" (carte #3) — contraventions jamais encore transmises au client
+  // (voir toggle Visible/Masquée sur /contraventions). Le lien de la carte pointe vers
+  // /contraventions?transmis=non, qui applique exactement ce même filtre : le chiffre affiché
+  // correspond toujours à ce que l'on voit en ouvrant la liste.
+  const readyToSendCount = contraventions.filter((c) => !c.visibleClient).length;
+
+  // "Échéances proches" (carte #5) — échéances réelles à venir dans les 30 prochains jours,
+  // tous types de dossiers confondus (jamais les échéances déjà dépassées, qui relèvent des
+  // "Dossiers urgents"/"Dossiers en retard").
+  const ECHEANCE_PROCHE_JOURS = 30;
+  const echeanceProcheCount = docs.filter(
+    (d) => d.echeance && !d.traite && d.echeance.getTime() >= now.getTime() && (d.echeance.getTime() - now.getTime()) / 86400000 <= ECHEANCE_PROCHE_JOURS
+  ).length;
+
+  // Total de dossiers actuellement partagés avec le client — chiffre global (pas de date de
+  // transmission stockée en base), affiché comme tel dans "Activité documentaire".
+  const transmisTotal =
+    contraventions.filter((c) => c.visibleClient).length + courriers.filter((c) => c.visibleClient && c.type !== "pub").length;
 
   // ---- Activité documentaire (période sélectionnable 7j / 30j / 12 mois) ----
   const weeklyActivity: DayActivity[] =
@@ -421,9 +480,11 @@ export default async function DashboardPage({
   // "À traiter aujourd'hui" — reuses the exact same `urgent` flag already computed per-document
   // above (contraventions en retard/échéance proche, mises en demeure/retards de paiement en
   // retard...), just reshaped into the row format this panel expects. No new data, no fabrication.
+  // Cap volontairement plus large que "6" pour que le badge de ce panneau corresponde au chiffre
+  // de la carte "Dossiers urgents" tant que le nombre réel reste raisonnable (§ cohérence carte↔liste).
   const priorityItems: PriorityItem[] = docs
     .filter((d) => d.urgent)
-    .slice(0, 6)
+    .slice(0, 8)
     .map((d) => {
       const overdue = !!d.echeance && d.echeance.getTime() < Date.now();
       return {
@@ -443,27 +504,83 @@ export default async function DashboardPage({
     });
 
   const overviewStats: OverviewStat[] = [
-    { icon: FileText, tone: "brand", value: totalDocuments, label: "Documents reçus", hint: docsThisMonth > 0 ? `+${docsThisMonth} ce mois` : undefined, href: "/courriers" },
-    { icon: Clock, tone: "warning", value: aTraiterCount, label: "Documents à traiter", hint: `${traitesCount} traité${traitesCount > 1 ? "s" : ""}`, href: "/contraventions?view=denonciations" },
-    { icon: AlertTriangle, tone: "danger", value: urgentsCount, label: "Dossiers urgents", hint: urgentsCount > 0 ? "Action requise" : "Aucune action requise", href: "/contraventions?view=retards" },
     {
-      icon: Wallet,
+      icon: FileText,
+      tone: "brand",
+      value: totalDocuments,
+      label: "Documents reçus",
+      hint: docsThisMonth > 0 ? `+${docsThisMonth} ce mois` : undefined,
+      href: "/courriers",
+      title: "Tous les documents reçus, tous types confondus (contraventions et courriers).",
+    },
+    ...(isAdmin
+      ? [
+          {
+            icon: Inbox,
+            tone: "warning" as const,
+            value: scansToClassify,
+            label: "Documents à classer",
+            hint: scansToClassify > 0 ? "En attente de classification" : "Aucun scan en attente",
+            href: "/admin/scans?filter=to_review",
+            title: "Scans reçus par e-mail qui n'ont pas encore été transformés en dossier (erreur ou type incertain).",
+          },
+        ]
+      : []),
+    {
+      icon: Send,
       tone: "violet",
-      value: fmtMoney(montantEnAttente),
-      label: "Montant total à régulariser",
-      hint: `Contraventions + retards de paiement non soldés${dossiersNonSoldes > 0 ? ` (${dossiersNonSoldes} dossier${dossiersNonSoldes > 1 ? "s" : ""})` : ""}`,
-      href: "/contraventions?view=paiements",
+      value: readyToSendCount,
+      label: "Dossiers prêts à envoyer",
+      hint: readyToSendCount > 0 ? "Non transmis au client" : "Tout est transmis",
+      href: "/contraventions?transmis=non",
+      title: "Contraventions complètes mais jamais encore transmises au client.",
+    },
+    {
+      icon: AlertTriangle,
+      tone: "danger",
+      value: urgentsCount,
+      label: "Dossiers urgents",
+      hint: urgentsCount > 0 ? "Action requise aujourd'hui" : "Aucune action requise",
+      href: "#a-traiter-aujourdhui",
+      title: "Dossiers en retard ou dont l'échéance approche, tous types confondus — détail ci-dessous dans « À traiter aujourd'hui ».",
+    },
+    {
+      icon: CalendarClock,
+      tone: "warning",
+      value: echeanceProcheCount,
+      label: "Échéances proches",
+      hint: `Dans les ${ECHEANCE_PROCHE_JOURS} prochains jours`,
+      href: "#prochaines-echeances",
+      title: "Échéances à venir dans les 30 prochains jours, non encore dépassées — détail ci-dessous dans « Prochaines échéances ».",
     },
   ];
+
+  const priorityPhrase =
+    urgentsCount > 0 || scansToClassify > 0
+      ? `Vous avez ${urgentsCount} dossier${urgentsCount > 1 ? "s" : ""} urgent${urgentsCount > 1 ? "s" : ""}${
+          scansToClassify > 0 ? ` et ${scansToClassify} document${scansToClassify > 1 ? "s" : ""} à classer` : ""
+        } aujourd'hui.`
+      : "Tout est à jour : aucune action urgente aujourd'hui.";
+
+  const STATUT_HINTS: Record<string, string> = {
+    "Payé": "Le paiement de ce dossier a été confirmé.",
+    "En retard": "La date limite de paiement est dépassée.",
+    "Nouveau": "Document reçu il y a moins de 3 jours, pas encore traité.",
+    "À traiter": "Une action de votre part est encore attendue sur ce dossier.",
+    "En attente": "En attente de paiement ou de traitement.",
+    "Traité": "Ce document a été entièrement traité.",
+    "Archivé": "Document classé, aucune action supplémentaire attendue.",
+    "À vérifier": "Les informations extraites doivent être vérifiées manuellement.",
+    "Conservé": "Document conservé volontairement malgré son classement en Pub.",
+    "Suppression auto": "Ce document sera supprimé automatiquement (classé Pub).",
+  };
 
   return (
     <div className="space-y-5">
       {/* Header */}
       <div>
         <p className="text-[13px] font-medium text-slate-400">{`Bonjour ${prenom ?? "Wassila"},`}</p>
-        <h1 className="mt-1 text-[22px] font-bold leading-tight tracking-tight text-slate-900">
-          Voici les éléments qui nécessitent votre attention aujourd&apos;hui.
-        </h1>
+        <h1 className="mt-1 text-[22px] font-bold leading-tight tracking-tight text-slate-900">{priorityPhrase}</h1>
       </div>
 
       {/* Asymmetric two-column body: colonne principale (synthèse, activité, documents) à
@@ -495,7 +612,7 @@ export default async function DashboardPage({
                 </Link>
               ))}
             </div>
-            <WeeklyActivityChart data={weeklyActivity} />
+            <WeeklyActivityChart data={weeklyActivity} transmisTotal={transmisTotal} />
           </SectionCard>
 
           <SectionCard title="Documents récents" action={{ label: "Voir tous les documents", href: "/courriers" }} bodyClassName="p-0 pt-0">
@@ -527,7 +644,7 @@ export default async function DashboardPage({
                       <td className="p-3 text-slate-600">{d.societe}</td>
                       <td className="p-3 whitespace-nowrap text-slate-600">{fmtDateTime(d.date)}</td>
                       <td className="p-3">
-                        <Badge tone={d.statutTone}>{d.statutLabel}</Badge>
+                        <Badge tone={d.statutTone} title={STATUT_HINTS[d.statutLabel]}>{d.statutLabel}</Badge>
                       </td>
                       <td className="p-3 pr-5 text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -584,18 +701,27 @@ export default async function DashboardPage({
         </div>
 
         <div className="space-y-5 xl:col-span-1">
-          <PriorityPanel items={priorityItems} title="À traiter aujourd'hui" />
+          <div id="a-traiter-aujourdhui" className="scroll-mt-24">
+            <PriorityPanel items={priorityItems} title="À traiter aujourd'hui" totalCount={urgentsCount} />
+          </div>
 
           <SectionCard title="Répartition des documents">
             <CategoryDonut segments={categories} total={totalDocuments} />
+            <div
+              className="mt-3 flex items-center justify-between rounded-lg bg-violet-50 px-3 py-2 text-[12.5px]"
+              title={`Contraventions + retards de paiement non soldés${dossiersNonSoldes > 0 ? ` (${dossiersNonSoldes} dossier${dossiersNonSoldes > 1 ? "s" : ""})` : ""}`}
+            >
+              <span className="font-medium text-violet-700">Montant total à régulariser</span>
+              <span className="font-bold text-violet-800">{fmtMoney(montantEnAttente)}</span>
+            </div>
+          </SectionCard>
+
+          <SectionCard id="prochaines-echeances" title="Prochaines échéances" action={{ label: "Tout voir", href: "/courriers" }}>
+            <DeadlineList items={futureDeadlines} />
           </SectionCard>
 
           <SectionCard title="Dossiers en retard" action={{ label: "Tout voir", href: "/courriers" }}>
             <DeadlineList items={overdueDeadlines} />
-          </SectionCard>
-
-          <SectionCard title="Prochaines échéances" action={{ label: "Tout voir", href: "/courriers" }}>
-            <DeadlineList items={futureDeadlines} />
           </SectionCard>
 
           <SectionCard title="Activité récente">

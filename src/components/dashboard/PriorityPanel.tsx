@@ -33,8 +33,22 @@ const toneMeta: Record<PriorityItem["tone"], string> = {
 
 /** Top-of-dashboard "needs attention" block, fed with items from any module regardless of origin.
  * A colored dot (rouge=urgent / orange=à traiter / bleu=information) marks each row's severity. */
-export function PriorityPanel({ items, title = "À traiter", className }: { items: PriorityItem[]; title?: string; className?: string }) {
+export function PriorityPanel({
+  items,
+  title = "À traiter",
+  className,
+  totalCount,
+}: {
+  items: PriorityItem[];
+  title?: string;
+  className?: string;
+  /** Nombre réel total (peut dépasser items.length si la liste est volontairement tronquée) —
+   * affiché dans le badge pour toujours correspondre à la carte KPI qui pointe vers ce panneau. */
+  totalCount?: number;
+}) {
   const hasUrgent = items.length > 0;
+  const total = totalCount ?? items.length;
+  const truncated = total > items.length;
   return (
     <div className={cn("flex h-full flex-col overflow-hidden rounded-[16px] border bg-white shadow-card", hasUrgent ? "border-danger-100" : "border-slate-200", className)}>
       <div className={cn("flex items-center justify-between gap-2 border-b px-5 py-3.5", hasUrgent ? "border-danger-100 bg-danger-50/40" : "border-slate-200 bg-slate-50/70")}>
@@ -42,8 +56,8 @@ export function PriorityPanel({ items, title = "À traiter", className }: { item
           <ListChecks size={15} className="text-brand-600" />
           <h2 className="text-[14px] font-bold text-slate-900">{title}</h2>
         </div>
-        {items.length > 0 && (
-          <span className="grid h-5 min-w-5 place-items-center rounded-full bg-danger-500 px-1.5 text-[11px] font-bold text-white">{items.length}</span>
+        {total > 0 && (
+          <span className="grid h-5 min-w-5 place-items-center rounded-full bg-danger-500 px-1.5 text-[11px] font-bold text-white">{total}</span>
         )}
       </div>
       <div className="flex-1 px-2 py-1.5">
@@ -87,6 +101,11 @@ export function PriorityPanel({ items, title = "À traiter", className }: { item
                 </span>
               </Link>
             ))}
+            {truncated && (
+              <div className="px-3.5 py-2 text-center text-[11.5px] font-medium text-slate-400">
+                + {total - items.length} autre{total - items.length > 1 ? "s" : ""} dossier{total - items.length > 1 ? "s" : ""} urgent{total - items.length > 1 ? "s" : ""}
+              </div>
+            )}
           </div>
         )}
       </div>

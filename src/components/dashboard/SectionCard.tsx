@@ -18,6 +18,7 @@ export function SectionCard({
   className,
   bodyClassName,
   tint = "raised",
+  id,
 }: {
   title: string;
   description?: string;
@@ -29,9 +30,11 @@ export function SectionCard({
   /** Surface level — "raised" (white, default) keeps a section neutral, "muted"/"accent" give it a
    * very light tint so not every card on the page reads as the exact same white rectangle. */
   tint?: keyof typeof tintClasses;
+  /** Optional anchor id, e.g. so a dashboard KPI card can link straight to this section. */
+  id?: string;
 }) {
   return (
-    <div className={cn("rounded-2xl border border-slate-200/70 shadow-card", tintClasses[tint], className)}>
+    <div id={id} className={cn("rounded-2xl border border-slate-200/70 shadow-card scroll-mt-24", tintClasses[tint], className)}>
       <div className="flex items-center justify-between gap-3 px-5 pb-2 pt-[18px]">
         <div>
           <h2 className="flex items-center gap-2 text-[15px] font-bold text-slate-900">

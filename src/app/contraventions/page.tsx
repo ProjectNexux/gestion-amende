@@ -25,6 +25,11 @@ export default async function ContraventionsListPage({
     ? rawView
     : "toutes";
 
+  // Filtre additionnel, composable avec `view` — utilisé par la carte "Dossiers prêts à envoyer"
+  // du tableau de bord (dossiers complets, jamais encore transmis au client).
+  const rawTransmis = Array.isArray(resolvedSearchParams.transmis) ? resolvedSearchParams.transmis[0] : resolvedSearchParams.transmis;
+  const transmisFilter = rawTransmis === "non" ? "non" : null;
+
   const items = await prisma.contravention.findMany({
     where: isAdmin ? {} : { societe },
     include: { vehicule: true, conducteur: true },
@@ -32,6 +37,7 @@ export default async function ContraventionsListPage({
   });
 
   const filteredItems = items.filter((item) => {
+    if (transmisFilter === "non" && item.visibleClient) return false;
     if (view === "a_denoncer") {
       return item.statutDenonciation !== "Effectuée" && item.statutDenonciation !== "Non applicable";
     }
@@ -64,6 +70,12 @@ export default async function ContraventionsListPage({
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">Suivi</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Contraventions</h1>
           <p className="mt-1 text-sm text-slate-500">{filteredItems.length} dossier(s) affiché(s)</p>
+          {transmisFilter === "non" && (
+            <p className="mt-1.5 flex items-center gap-2 text-xs font-medium text-brand-700">
+              <span className="rounded-full bg-brand-50 px-2 py-0.5 ring-1 ring-inset ring-brand-500/15">Filtre actif : non transmis au client</span>
+              <Link href={`/contraventions?view=${view}`} className="text-slate-400 hover:text-slate-600 hover:underline">Retirer ✕</Link>
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href="/contraventions/scan" className="btn-primary">
