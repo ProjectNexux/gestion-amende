@@ -71,7 +71,7 @@ export default async function ContraventionsListPage({
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">Suivi</p>
-          <h1 className="mt-2 flex items-center gap-2 text-3xl font-semibold tracking-tight text-slate-900">
+          <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-[-0.03em] text-slate-900">
             Contraventions
             <HelpHint
               text="Chaque dossier suit deux statuts indépendants : la Dénonciation (à l'ANTAI) et le Paiement. Utilisez le bouton Visible/Masquée pour décider si la société cliente voit ce dossier."

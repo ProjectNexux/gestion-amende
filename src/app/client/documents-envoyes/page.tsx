@@ -42,7 +42,7 @@ export default async function DocumentsEnvoyesPage() {
           description="Utilisez « Envoyer un document » pour transmettre un fichier à notre équipe."
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="table-shell">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>

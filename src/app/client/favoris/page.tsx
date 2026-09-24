@@ -54,7 +54,7 @@ export default async function ClientFavorisPage() {
       {items.length === 0 ? (
         <EmptyState icon={Star} title="Aucun favori pour le moment" description="Ajoutez un document ou une contravention à vos favoris depuis « Mes documents » ou « Mes contraventions »." />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="table-shell">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>

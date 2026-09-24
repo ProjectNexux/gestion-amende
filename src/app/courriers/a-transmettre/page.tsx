@@ -59,7 +59,7 @@ export default async function ATransmettrePage() {
         <p className="text-sm text-slate-500">{rows.length} courrier(s) en attente de validation humaine avant transmission au client</p>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="table-shell">
         <table className="w-full text-sm">
           <thead className="bg-surface-panel text-slate-600">
             <tr>

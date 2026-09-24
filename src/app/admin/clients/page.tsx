@@ -92,7 +92,7 @@ export default async function AdminClientsPage({
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-[-0.03em] text-slate-900">
             Clients
             <HelpHint
               text="Créez une société avec « Créer un client », puis ouvrez sa fiche et l'onglet Utilisateurs pour ajouter des comptes individuels (e-mail + mot de passe) avec « Ajouter un utilisateur »."

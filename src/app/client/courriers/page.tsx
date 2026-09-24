@@ -204,7 +204,7 @@ export default function ClientDocumentsPage() {
           description={items.length > 0 ? "Aucun document ne correspond à vos critères de filtre." : "Les documents que notre équipe partage avec vous apparaîtront ici."}
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="table-shell">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>

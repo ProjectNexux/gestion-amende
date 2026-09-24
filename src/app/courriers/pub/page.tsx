@@ -30,7 +30,7 @@ export default async function PubPage() {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="table-shell">
         <table className="w-full text-sm">
           <thead className="bg-surface-panel text-slate-600">
             <tr>

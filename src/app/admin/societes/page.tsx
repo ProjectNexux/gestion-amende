@@ -31,7 +31,7 @@ export default async function AdminSocietesPage() {
           </Link>
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">Administration</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Sociétés</h1>
+            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-900">Sociétés</h1>
           </div>
           <p className="text-sm text-slate-500">Créez et gérez les comptes société</p>
         </div>

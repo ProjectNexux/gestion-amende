@@ -150,8 +150,8 @@ export default function ScansPage() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-8 flex items-start gap-2">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Scans reçus</h1>
-            <p className="text-slate-600">Gérer les documents importés par scan ou téléchargement</p>
+            <h1 className="text-2xl font-semibold tracking-[-0.03em] text-slate-900 mb-2">Scans reçus</h1>
+            <p className="text-sm text-slate-500">Gérer les documents importés par scan ou téléchargement</p>
           </div>
           <div className="mt-1">
             <HelpHint
