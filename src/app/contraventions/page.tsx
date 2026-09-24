@@ -6,6 +6,8 @@ import { requireSociete, isAdminSession } from "@/lib/auth";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { toggleVisibleClientAction } from "./actions";
 import { Badge } from "@/components/ui/Badge";
+import { HelpHint } from "@/components/ui/HelpHint";
+import { getStatusHint } from "@/lib/help-content";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +70,13 @@ export default async function ContraventionsListPage({
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-600">Suivi</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Contraventions</h1>
+          <h1 className="mt-2 flex items-center gap-2 text-3xl font-semibold tracking-tight text-slate-900">
+            Contraventions
+            <HelpHint
+              text="Chaque dossier suit deux statuts indépendants : la Dénonciation (à l'ANTAI) et le Paiement. Utilisez le bouton Visible/Masquée pour décider si la société cliente voit ce dossier."
+              guideHref="/aide/gerer-les-contraventions"
+            />
+          </h1>
           <p className="mt-1 text-sm text-slate-500">{filteredItems.length} dossier(s) affiché(s)</p>
           {transmisFilter === "non" && (
             <p className="mt-1.5 flex items-center gap-2 text-xs font-medium text-brand-700">
@@ -131,10 +139,10 @@ export default async function ContraventionsListPage({
                 <td className="p-3 text-right font-medium text-slate-900">{fmtMoney(c.montantAmende)}</td>
                 <td className="p-3 text-slate-600 text-xs">{c.dateLimitePaiement ?? "—"}</td>
                 <td className="p-3">
-                  <Badge tone={statutTone(c.statutDenonciation, "denonciation")}>{c.statutDenonciation}</Badge>
+                  <Badge tone={statutTone(c.statutDenonciation, "denonciation")} title={getStatusHint(c.statutDenonciation ?? "")}>{c.statutDenonciation}</Badge>
                 </td>
                 <td className="p-3">
-                  <Badge tone={statutTone(c.statutPaiement, "paiement")}>{c.statutPaiement}</Badge>
+                  <Badge tone={statutTone(c.statutPaiement, "paiement")} title={getStatusHint(c.statutPaiement ?? "")}>{c.statutPaiement}</Badge>
                 </td>
                 {isAdmin && (
                   <td className="p-3">

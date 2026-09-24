@@ -9,6 +9,7 @@ import { courrierTypeLabel, courrierSourceLabel, getMiseEnDemeureData, getPubDat
 import { fmtDateTime } from "@/lib/utils";
 import { toggleCourrierVisibleClientAction } from "./actions";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
+import { HelpHint } from "@/components/ui/HelpHint";
 import type { TransmissionClientInfo } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -36,9 +37,17 @@ export default async function CourriersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Tous les documents</h1>
-        <p className="text-sm text-slate-500">{items.length} document(s) reçu(s), tous types confondus</p>
+      <div className="flex items-start gap-2">
+        <div>
+          <h1 className="text-2xl font-semibold">Tous les documents</h1>
+          <p className="text-sm text-slate-500">{items.length} document(s) reçu(s), tous types confondus</p>
+        </div>
+        <div className="mt-1">
+          <HelpHint
+            text="Utilisez le bouton « Transmettre au client » sur une ligne pour la rendre visible dans le portail de la société concernée. Le badge « Visible client » indique si c'est déjà fait."
+            guideHref="/aide/transmettre-un-document-au-client"
+          />
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

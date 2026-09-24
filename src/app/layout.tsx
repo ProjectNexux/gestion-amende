@@ -3,7 +3,9 @@ import { Manrope } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";
-import { getSociete, isAdminSession, isClientSession } from "@/lib/auth";
+import { OnboardingTour } from "@/components/OnboardingTour";
+import { getSociete, isAdminSession, isClientSession, getUserId } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
@@ -19,10 +21,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // /client/layout.tsx renders a completely separate, minimal chrome instead.
   const isClient = await isClientSession();
 
+  // Assistance intégrée (2026-09-24): visite guidée facultative, uniquement pour un compte admin
+  // qui ne l'a ni terminée ni passée — jamais proposée à un compte client ou société standard.
+  let onboarding: { status: string; step: number } | null = null;
+  if (isAdmin) {
+    const userId = await getUserId();
+    const user = userId ? await prisma.user.findUnique({ where: { id: userId }, select: { onboardingStatus: true, onboardingStep: true } }) : null;
+    if (user) onboarding = { status: user.onboardingStatus, step: user.onboardingStep };
+  }
+
   return (
     <html lang="fr" className={manrope.variable}>
       <body>
         <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(45,91,222,0.06),_transparent_35%),_#f4f5f7]" >
+          {onboarding?.status === "pending" && <OnboardingTour initialStep={onboarding.step} />}
           <div className="flex min-h-screen">
             {societe && !isClient && <Sidebar societe={societe} admin={isAdmin} />}
             <div className="flex min-w-0 flex-1 flex-col">

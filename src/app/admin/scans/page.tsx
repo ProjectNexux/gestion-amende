@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ChevronDown, Clock, Eye, Mail, Loader2, X, Check, FileText, MoreHorizontal, RefreshCw } from "lucide-react";
 import { DocumentViewerModal } from "@/components/DocumentViewerModal";
 import { TransmettreClientButton } from "@/components/TransmettreClientModal";
+import { HelpHint } from "@/components/ui/HelpHint";
+import { getStatusHint } from "@/lib/help-content";
 import type { TransmissionClientInfo } from "@/app/courriers/actions";
 
 type Scan = {
@@ -36,6 +38,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   error: { label: "À vérifier", color: "bg-red-50 text-red-700 border-red-200" },
   waiting_parts: { label: "En attente", color: "bg-gray-50 text-gray-700 border-gray-200" },
 };
+
+// Le glossaire d'aide utilise « Classé » pour ce même statut, affiché ici « Dossier créé ».
+const STATUS_HINT_ALIASES: Record<string, string> = { "Dossier créé": "Classé" };
 
 export default function ScansPage() {
   const router = useRouter();
@@ -143,9 +148,17 @@ export default function ScansPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Scans reçus</h1>
-          <p className="text-slate-600">Gérer les documents importés par scan ou téléchargement</p>
+        <div className="mb-8 flex items-start gap-2">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">Scans reçus</h1>
+            <p className="text-slate-600">Gérer les documents importés par scan ou téléchargement</p>
+          </div>
+          <div className="mt-1">
+            <HelpHint
+              text="Chaque document arrivé par e-mail ou scanner apparaît ici. L'onglet « À classer » regroupe ceux que l'analyse automatique n'a pas pu transformer en dossier — utilisez le bouton « Classer » pour terminer manuellement."
+              guideHref="/aide/classer-un-document"
+            />
+          </div>
         </div>
 
         {/* Filters */}
@@ -227,6 +240,7 @@ export default function ScansPage() {
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <span
+                            title={getStatusHint(STATUS_HINT_ALIASES[cfg.label] ?? cfg.label)}
                             className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border ${cfg.color}`}
                           >
                             {scan.status === "processing" ? (

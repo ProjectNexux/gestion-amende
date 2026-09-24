@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,16 @@ export function Modal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  if (!open) return null;
+  // `createPortal` needs a real `document` — some callers (e.g. the onboarding tour) can start
+  // with `open=true` on mount, which would otherwise reach `document.body` during the server-side
+  // render pass and crash ("document is not defined"). Delay portal rendering until after the
+  // first client-side effect flush instead.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!open || !mounted) return null;
 
   return createPortal(
     <div

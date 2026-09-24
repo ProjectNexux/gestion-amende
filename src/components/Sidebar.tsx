@@ -27,6 +27,7 @@ import {
   Megaphone,
   Building2,
   MailOpen,
+  LifeBuoy,
 } from "lucide-react";
 
 /**
@@ -223,6 +224,14 @@ const NAV_CONFIG: NavEntry[] = [
     icon: <Building2 size={17} strokeWidth={1.75} />,
     match: (pathname) => pathname.startsWith("/admin/clients"),
   },
+  {
+    type: "link",
+    id: "aide",
+    href: "/aide",
+    label: "Aide et assistance",
+    icon: <LifeBuoy size={17} strokeWidth={1.75} />,
+    match: (pathname) => pathname.startsWith("/aide"),
+  },
 ];
 
 // Purely visual grouping — non-clickable uppercase section labels above chunks of NAV_CONFIG,
@@ -231,6 +240,7 @@ const SECTIONS: { label: string; ids: string[] }[] = [
   { label: "Tableau de bord", ids: ["dashboard"] },
   { label: "Gestion", ids: ["contraventions", "courriers", "comptabilite"] },
   { label: "Administration", ids: ["clients"] },
+  { label: "Aide", ids: ["aide"] },
 ];
 
 export function Sidebar({ societe, admin = false }: { societe: string | null; admin?: boolean }) {
@@ -279,7 +289,7 @@ export function Sidebar({ societe, admin = false }: { societe: string | null; ad
         </div>
 
         <nav className="mt-3 flex-1 space-y-3 overflow-y-auto px-2 text-sm scrollbar-thin">
-          {SECTIONS.filter((section) => admin || section.label !== "Administration").map((section) => (
+          {SECTIONS.filter((section) => admin || (section.label !== "Administration" && section.label !== "Aide")).map((section) => (
             <div key={section.label}>
               {!collapsed && (
                 <div className="sidebar-label px-2.5 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-300/70">

@@ -6,6 +6,7 @@ import { Plus, Building2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CLIENT_STATUS_LABELS, clientStatusTone, deriveClientStatus, fullContactName, type ClientStatus } from "@/lib/clients";
 import { ClientsList, type ClientListRow } from "./ClientsList";
+import { HelpHint } from "@/components/ui/HelpHint";
 
 export const dynamic = "force-dynamic";
 
@@ -91,7 +92,13 @@ export default async function AdminClientsPage({
     <div className="mx-auto max-w-7xl space-y-6 p-6 lg:p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Clients</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">
+            Clients
+            <HelpHint
+              text="Créez une société avec « Créer un client », puis ouvrez sa fiche et l'onglet Utilisateurs pour ajouter des comptes individuels (e-mail + mot de passe) avec « Ajouter un utilisateur »."
+              guideHref="/aide/creer-un-client"
+            />
+          </h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
             Gérez les sociétés clientes et leurs accès au portail : création de comptes, invitations, activation,
             désactivation et suivi de leurs documents et contraventions.

@@ -121,6 +121,12 @@ model User {
   invitationExpiresAt DateTime?
   invitedAt           DateTime?
 
+  // Assistance intégrée (2026-09-24): visite guidée facultative à la première connexion admin.
+  // "pending" (jamais vue) | "completed" (terminée) | "skipped" (passée) — `onboardingStep`
+  // permet de reprendre exactement où l'utilisateur s'était arrêté s'il rouvre l'app plus tard.
+  onboardingStatus String @default("pending")
+  onboardingStep   Int    @default(0)
+
   @@index([societeId])
 }
 

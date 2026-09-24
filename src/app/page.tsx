@@ -35,6 +35,7 @@ import { CategoryDonut, type CategorySlice } from "@/components/dashboard/Catego
 import { DeadlineList, type DeadlineItem } from "@/components/dashboard/DeadlineList";
 import { ActivityList, type ActivityEntry } from "@/components/dashboard/ActivityList";
 import { EmptyState as DashboardEmptyState } from "@/components/dashboard/EmptyState";
+import { HelpHint } from "@/components/ui/HelpHint";
 import {
   getMiseEnDemeureData,
   getPubData,
@@ -578,9 +579,17 @@ export default async function DashboardPage({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div>
-        <p className="text-[13px] font-medium text-slate-400">{`Bonjour ${prenom ?? "Wassila"},`}</p>
-        <h1 className="mt-1 text-[22px] font-bold leading-tight tracking-tight text-slate-900">{priorityPhrase}</h1>
+      <div className="flex items-start gap-2">
+        <div>
+          <p className="text-[13px] font-medium text-slate-400">{`Bonjour ${prenom ?? "Wassila"},`}</p>
+          <h1 className="mt-1 text-[22px] font-bold leading-tight tracking-tight text-slate-900">{priorityPhrase}</h1>
+        </div>
+        <div className="mt-1">
+          <HelpHint
+            text="Cette page résume ce qui nécessite votre attention aujourd'hui : les 5 cartes en haut ouvrent chacune la liste déjà filtrée correspondante, et « À traiter aujourd'hui » liste les dossiers les plus urgents."
+            guideHref="/aide/comprendre-le-tableau-de-bord"
+          />
+        </div>
       </div>
 
       {/* Asymmetric two-column body: colonne principale (synthèse, activité, documents) à
